@@ -1,60 +1,30 @@
-# Lichess Mobile
+# Drills
 
-Second iteration of the [Lichess mobile app](https://lichess.org/mobile).
+A personal tactics trainer built on top of [Lichess Mobile](https://github.com/lichess-org/mobile).
 
-## How to contribute
+This is an unofficial fork for my own use. It is not affiliated with or endorsed by
+Lichess, and no builds are distributed. For the official app, see https://lichess.org/mobile.
 
-Contributions to this project are welcome!
+Huge thanks to Lichess and all its contributors for making such a wonderful,
+free and open-source project. Please consider supporting it at https://lichess.org/patron.
 
-If you want to contribute, please read the [contributing guide](./CONTRIBUTING.md).
+The Drill feature in this fork was developed with the help of AI tools.
 
-If you are new to this project, you can [read the documentation](./docs) to get
-started. The [AGENTS.md](./AGENTS.md) is also a good resource to understand the
-codebase.
+## What it does
 
-## Setup
+The app opens straight into a **Drill**: a bounded series of rated Lichess puzzles that ends with a
+summary of the results.
 
-tl;dr: Install Flutter, clone the repo, run in order:
-- `flutter pub get`
-- `dart run build_runner watch`
-- `flutter analyze --watch`
+- You choose the number of puzzles, a theme or opening, and a difficulty, and press start.
+- Puzzles are fetched and solved through the Lichess puzzle API, so they count on your Lichess
+  account exactly as in the official app.
+- While a Drill runs, only the progress is shown; results, rating changes and performance are
+  revealed in the summary at the end.
 
-and you're ready to code!
+See [GLOSSARY.md](./GLOSSARY.md) for the terms used in this fork and [docs/adr](./docs/adr) for
+the decisions behind it.
 
-See [the dev environment docs](./docs/setting_dev_env.md) for detailed instructions.
+## License
 
-## Running the app
-
-To run the app, you can use the following command:
-
-```bash
-# if not already done, run the code generation
-dart run build_runner build
-
-# run the app on all available devices
-flutter run -d all
-```
-
-## Running tests
-
-To run the tests, you can use the following command:
-
-```bash
-# if not already done, run the code generation
-dart run build_runner build
-
-flutter test
-```
-
-## Internationalisation
-
-Do not edit the files in `translation/` folder (except `translation/source/mobile.xml`), nor the `app_en.arb` file: these files are generated.
-For more information, see [Internationalisation](./docs/internationalisation.md).
-
-## Releasing
-
-Only for members of lichess team.
-
-1. Bump the pubspec.yaml version number. This can be in a PR making a change or a separate PR. Use semantic versioning to determine which part to increment. The version number after the + should also be incremented. For example 0.3.3+000303 with a patch should become 0.3.4+000304.
-2. Run workflow [Deploy to Play Store](https://github.com/lichess-org/mobile/actions/workflows/deploy_play_store.yml)
-3. [Publish on F-Droid](./docs/publish_fdroid.md)
+Same as Lichess Mobile: GNU GPL v3 or later. See [COPYING.md](./COPYING.md) and
+[LICENSE](./LICENSE).

@@ -1,0 +1,28 @@
+# Puzzle Drills
+
+A personal fork of Lichess Mobile whose home screen is a bounded tactics training mode. Puzzles solved here count on Lichess exactly as in the official app.
+
+## Language
+
+**Drill**:
+A bounded series of a chosen number of rated puzzles, configured when it starts, that ends with a Drill Summary.
+_Avoid_: Session, training, puzzle set
+
+**Partial Drill**:
+A Drill that ended before its last puzzle, because the player ended it or it expired unfinished.
+_Avoid_: Abandoned drill, cancelled drill
+
+**Drill Summary**:
+The report of a Drill's results shown when it ends.
+_Avoid_: Recap, results screen
+
+**Drill History**:
+The list of past Drills and their Drill Summaries, kept only on the device.
+
+**Drill Performance**:
+The rating level a Drill was played at, from the average puzzle rating and the share of puzzles solved, as Lichess computes puzzle performance. Unreliable below 6 puzzles.
+_Avoid_: Rating, score
+
+**Puzzle Session**:
+The official app's rolling window of recent puzzle attempts, with no defined start or end; distinct from a Drill.
+_Avoid_: Drill
