@@ -170,3 +170,19 @@ subscriptions.
 Run `dart run build_runner build` (or `watch`) after modifying Freezed classes, JSON
 serialization, or other annotated models. Generated files are NOT committed to git. Never edit
 generated files: anything ending in `.g.dart`, `.freezed.dart`, or in `lib/l10n/`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as GitHub issues in `cruzccl/drills`, managed with the `gh` CLI: a spec is
+a parent issue and its tickets are sub-issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`,
+`wontfix`), applied as GitHub labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
