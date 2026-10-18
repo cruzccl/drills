@@ -662,3 +662,19 @@ dart devtools
 # Then run app and follow printed link
 flutter run
 ```
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as GitHub issues in `cruzccl/drills`, managed with the `gh` CLI: a spec is
+a parent issue and its tickets are sub-issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`,
+`wontfix`), applied as GitHub labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
