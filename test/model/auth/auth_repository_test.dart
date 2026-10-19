@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
 import 'package:lichess_mobile/src/model/auth/auth_repository.dart';
-import 'package:lichess_mobile/src/model/auth/bearer.dart';
 import 'package:lichess_mobile/src/network/http.dart';
 
 import '../../network/fake_http_client_factory.dart';
@@ -78,19 +77,20 @@ void main() {
       expect(authUser.user.name, 'test');
     });
 
-    test('requests the custom-scheme redirect URI', () async {
-      String? redirectUrl;
+    test('requests the Drills client with puzzle scopes and its own redirect URI', () async {
+      AuthorizationTokenRequest? authRequest;
       final container = await appAuthContainer(
         accountClient(),
         FakeFlutterAppAuth((request) async {
-          redirectUrl = request.redirectUrl;
+          authRequest = request;
           return tokenResponse();
         }),
       );
       await container.read(authRepositoryProvider).signIn();
 
-      expect(redirectUrl, kOAuthRedirectUri);
-      expect(redirectUrl, startsWith('org.lichess.mobile://'));
+      expect(authRequest?.clientId, 'cruzccl-drills');
+      expect(authRequest?.scopes, unorderedEquals(['puzzle:read', 'puzzle:write']));
+      expect(authRequest?.redirectUrl, 'io.github.cruzccl.drills://login-callback');
     });
 
     test('throws SignInCancelledException when the user cancels the auth session', () async {
@@ -206,7 +206,7 @@ void main() {
       expect(authUser.user.name, 'test');
     });
 
-    test('sends the signed token when fetching the account', () async {
+    test('sends the unsigned token when fetching the account', () async {
       String? authorization;
       final container = await emailLoginContainer((request) {
         switch (request.url.path) {
@@ -224,7 +224,7 @@ void main() {
           .read(authRepositoryProvider)
           .signInWithEmailCode(username: 'johndoe', email: 'johndoe@lichess.org', code: 'xxxxxx');
 
-      expect(authorization, 'Bearer ${signBearerToken('lio_token')}');
+      expect(authorization, 'Bearer lio_token');
     });
 
     test('throws InvalidEmailLoginCodeException on 404', () async {

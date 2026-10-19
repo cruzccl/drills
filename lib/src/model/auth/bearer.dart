@@ -1,13 +1,7 @@
-import 'dart:convert';
-
-import 'package:crypto/crypto.dart';
-
-import 'package:lichess_mobile/src/constants.dart';
-
-final hmacSha1 = Hmac(sha1, utf8.encode(kLichessWSSecret));
-
-/// Sign a bearer token with the lichess secret.
-String signBearerToken(String token) {
-  final digest = hmacSha1.convert(utf8.encode(token));
-  return '$token:$digest';
-}
+/// Returns the bearer token as is.
+///
+/// Upstream signs it with the official app's secret, which Lichess requires for `web:mobile`
+/// tokens only. Drills' tokens have the puzzle scopes, and must not carry that signature (see
+/// docs/adr/0001-own-oauth-client-with-puzzle-scopes.md). The function is kept so that its callers
+/// stay as upstream wrote them.
+String signBearerToken(String token) => token;

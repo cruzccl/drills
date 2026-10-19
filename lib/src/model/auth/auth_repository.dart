@@ -9,6 +9,11 @@ import 'package:lichess_mobile/src/model/user/user.dart';
 import 'package:lichess_mobile/src/network/http.dart';
 import 'package:logging/logging.dart';
 
+/// Custom URI scheme of the OAuth callback, Drills' own so that the redirect never reaches the
+/// official app when both are installed. Like the host below, it must stay in sync with the
+/// intent-filter in `AndroidManifest.xml` and the `CFBundleURLSchemes` entry in `Info.plist`.
+const _kOAuthCustomScheme = 'io.github.cruzccl.drills';
+
 /// Host of the custom URI scheme callback. Must stay in sync with the
 /// intent-filter for `net.openid.appauth.RedirectUriReceiverActivity` in
 /// `android/app/src/main/AndroidManifest.xml` and the `CFBundleURLSchemes` entry in `ios/Runner/Info.plist`.
@@ -18,8 +23,11 @@ const _kOAuthCustomSchemeCallbackHost = 'login-callback';
 ///
 /// Custom schemes are more universally supported across Android browsers/OEMs than
 /// HTTPS App Link redirects, so they are used on every platform and host.
-const kOAuthRedirectUri = '$kLichessCustomUriSchemeName://$_kOAuthCustomSchemeCallbackHost';
-const oauthScopes = ['web:mobile'];
+const kOAuthRedirectUri = '$_kOAuthCustomScheme://$_kOAuthCustomSchemeCallbackHost';
+
+/// Only the puzzle scopes: the official app's `web:mobile` scope needs a request signature that a
+/// fork cannot produce (see docs/adr/0001-own-oauth-client-with-puzzle-scopes.md).
+const oauthScopes = ['puzzle:read', 'puzzle:write'];
 
 /// Thrown when the user dismisses the OAuth session before completing it.
 ///

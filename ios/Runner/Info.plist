@@ -110,6 +110,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>org.lichess.mobile</string>
+				<string>io.github.cruzccl.drills</string>
 			</array>
 		</dict>
 	</array>
