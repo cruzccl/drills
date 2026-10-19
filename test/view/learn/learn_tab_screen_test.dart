@@ -14,7 +14,7 @@ void main() {
     testWidgets('shows the studies when the server is up', (tester) async {
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         overrides: {
           httpClientFactoryProvider: httpClientFactoryProvider.overrideWith((ref) {
             return FakeHttpClientFactory(
@@ -44,7 +44,7 @@ void main() {
     testWidgets('outage replaces the studies but keeps coordinate training', (tester) async {
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         overrides: {
           httpClientFactoryProvider: httpClientFactoryProvider.overrideWith((ref) {
             return FakeHttpClientFactory(() => serverDownClient());
@@ -67,7 +67,7 @@ void main() {
     });
 
     testWidgets('offline, the studies show they are not available', (tester) async {
-      final app = await makeOfflineTestProviderScope(tester, child: const Application());
+      final app = await makeOfflineTestProviderScope(tester, child: const Application(upstream: true));
 
       await tester.pumpWidget(app);
       await tester.pumpAndSettle();
@@ -87,7 +87,7 @@ void main() {
 
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         overrides: {
           httpClientFactoryProvider: httpClientFactoryProvider.overrideWith((ref) {
             return FakeHttpClientFactory(() => client);

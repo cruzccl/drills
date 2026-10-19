@@ -32,7 +32,7 @@ import '../../test_provider_scope.dart';
 void main() {
   group('Home online', () {
     testWidgets('shows Play button', (tester) async {
-      final app = await makeTestProviderScope(tester, child: const Application());
+      final app = await makeTestProviderScope(tester, child: const Application(upstream: true));
       await tester.pumpWidget(app);
 
       // wait for connectivity
@@ -45,7 +45,7 @@ void main() {
     testWidgets('shows challenge button if has challenges', (tester) async {
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         authUser: fakeAuthUser,
         overrides: {
           httpClientFactoryProvider: httpClientFactoryProvider.overrideWith(
@@ -86,7 +86,7 @@ void main() {
     });
 
     testWidgets('no authUser, no stored game: shows welcome screen ', (tester) async {
-      final app = await makeTestProviderScope(tester, child: const Application());
+      final app = await makeTestProviderScope(tester, child: const Application(upstream: true));
       await tester.pumpWidget(app);
       // wait for connectivity
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
@@ -114,7 +114,7 @@ void main() {
       });
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         authUser: fakeAuthUser,
         overrides: {
           httpClientFactoryProvider: httpClientFactoryProvider.overrideWith(
@@ -141,7 +141,7 @@ void main() {
       });
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         overrides: {
           httpClientFactoryProvider: httpClientFactoryProvider.overrideWith(
             (ref) => FakeHttpClientFactory(() => mockClient),
@@ -180,7 +180,7 @@ void main() {
       });
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         authUser: fakeAuthUser,
         overrides: {
           httpClientFactoryProvider: httpClientFactoryProvider.overrideWith(
@@ -214,7 +214,7 @@ void main() {
       });
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         authUser: fakeAuthUser,
         overrides: {
           httpClientFactoryProvider: httpClientFactoryProvider.overrideWith(
@@ -246,7 +246,7 @@ void main() {
         });
         final app = await makeTestProviderScope(
           tester,
-          child: const Application(),
+          child: const Application(upstream: true),
           overrides: {
             httpClientFactoryProvider: httpClientFactoryProvider.overrideWith(
               (ref) => FakeHttpClientFactory(() => mockClient),
@@ -282,7 +282,7 @@ void main() {
         });
         final app = await makeTestProviderScope(
           tester,
-          child: const Application(),
+          child: const Application(upstream: true),
           overrides: {
             httpClientFactoryProvider: httpClientFactoryProvider.overrideWith(
               (ref) => FakeHttpClientFactory(() => mockClient),
@@ -307,7 +307,7 @@ void main() {
 
   group('Home offline', () {
     testWidgets('shows offline subtitle', (tester) async {
-      final app = await makeOfflineTestProviderScope(tester, child: const Application());
+      final app = await makeOfflineTestProviderScope(tester, child: const Application(upstream: true));
 
       await tester.pumpWidget(app);
       // wait for connectivity
@@ -318,7 +318,10 @@ void main() {
     });
 
     testWidgets('no authUser, with stored games: shows list of recent games', (tester) async {
-      final app = await makeOfflineTestProviderScope(tester, child: const Application());
+      final app = await makeOfflineTestProviderScope(
+        tester,
+        child: const Application(upstream: true),
+      );
       await tester.pumpWidget(app);
 
       final container = ProviderScope.containerOf(tester.element(find.byType(Application)));
@@ -340,7 +343,7 @@ void main() {
     testWidgets('authUser, with stored games: shows list of recent games', (tester) async {
       final app = await makeOfflineTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         authUser: fakeAuthUser,
       );
       await tester.pumpWidget(app);
@@ -364,7 +367,7 @@ void main() {
       const customizeTip =
           "Tip: You can add more widgets to the Home Screen or remove those you don't need!";
       testWidgets('shown when logged out', (tester) async {
-        final app = await makeTestProviderScope(tester, child: const Application());
+        final app = await makeTestProviderScope(tester, child: const Application(upstream: true));
 
         await tester.pumpWidget(app);
 
@@ -378,7 +381,7 @@ void main() {
       testWidgets('shown when logged in', (tester) async {
         final app = await makeTestProviderScope(
           tester,
-          child: const Application(),
+          child: const Application(upstream: true),
           authUser: fakeAuthUser,
         );
 
@@ -392,7 +395,7 @@ void main() {
       });
 
       testWidgets('Can be dismissed via button', (tester) async {
-        final app = await makeTestProviderScope(tester, child: const Application());
+        final app = await makeTestProviderScope(tester, child: const Application(upstream: true));
 
         await tester.pumpWidget(app);
 
@@ -407,7 +410,7 @@ void main() {
       });
 
       testWidgets('Not shown if already dismissed', (tester) async {
-        final app = await makeTestProviderScope(tester, child: const Application());
+        final app = await makeTestProviderScope(tester, child: const Application(upstream: true));
 
         testBinding.sharedPreferences.setBool('app_hide_home_widget_customization_tip', true);
 
@@ -421,7 +424,7 @@ void main() {
       });
 
       testWidgets('Can be dismissed via going to settings', (tester) async {
-        final app = await makeTestProviderScope(tester, child: const Application());
+        final app = await makeTestProviderScope(tester, child: const Application(upstream: true));
 
         await tester.pumpWidget(app);
 
@@ -448,7 +451,7 @@ void main() {
       testWidgets('Not shown when > $kColdAppStartsHideCustomizationTipThreshold app starts', (
         tester,
       ) async {
-        final app = await makeTestProviderScope(tester, child: const Application());
+        final app = await makeTestProviderScope(tester, child: const Application(upstream: true));
 
         testBinding.numAppStarts = kColdAppStartsHideCustomizationTipThreshold + 1;
 
@@ -469,7 +472,7 @@ void main() {
     ) async {
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         authUser: fakeAuthUser,
         // Tall surface so the whole list is laid out and nothing is missed
         // simply for being below the fold.
@@ -503,7 +506,7 @@ void main() {
     testWidgets('a 502 shows the outage message', (tester) async {
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         overrides: {
           httpClientFactoryProvider: httpClientFactoryProvider.overrideWith((ref) {
             return FakeHttpClientFactory(() => serverDownClient(statusCode: 502));
@@ -523,7 +526,7 @@ void main() {
     testWidgets('a 503 shows the maintenance message', (tester) async {
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         overrides: {
           httpClientFactoryProvider: httpClientFactoryProvider.overrideWith((ref) {
             return FakeHttpClientFactory(() => serverDownClient(statusCode: 503));
@@ -546,7 +549,7 @@ void main() {
       var nbAuthorizations = 0;
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         overrides: {
           appAuthProvider: appAuthProvider.overrideWith(
             (ref) => FakeFlutterAppAuth((request) {
@@ -571,7 +574,7 @@ void main() {
     testWidgets('shows an error snackbar when sign-in fails', (tester) async {
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         overrides: {
           appAuthProvider: appAuthProvider.overrideWith(
             (ref) => FakeFlutterAppAuth((request) async => throw Exception('authorization failed')),
@@ -592,7 +595,7 @@ void main() {
     testWidgets('does not show a snackbar when the user cancels sign-in', (tester) async {
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         overrides: {
           appAuthProvider: appAuthProvider.overrideWith(
             (ref) => FakeFlutterAppAuth((request) async => throw userCancelled()),
@@ -615,7 +618,7 @@ void main() {
     Future<void> pumpLoggedIn(WidgetTester tester) async {
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         authUser: fakeAuthUser,
         overrides: {
           httpClientFactoryProvider: httpClientFactoryProvider.overrideWith(
@@ -670,7 +673,7 @@ void main() {
     }, variant: const TargetPlatformVariant({TargetPlatform.android}));
 
     testWidgets('logged out: is shown without a name in the app bar', (tester) async {
-      final app = await makeTestProviderScope(tester, child: const Application());
+      final app = await makeTestProviderScope(tester, child: const Application(upstream: true));
       await tester.pumpWidget(app);
       await tester.pumpAndSettle();
 
