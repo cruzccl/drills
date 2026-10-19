@@ -3,7 +3,20 @@
 abstract class DrillStrings() {
   static const appName = 'Drills';
 
-  static const homeEmpty = 'Aquí podrás configurar y empezar tus Drills.';
+  static const homeSignInPrompt =
+      'Inicia sesión con tu cuenta de Lichess para que tus Drills cuenten en ella.';
+  static const homeDrillDescription = '5 problemas · Mezcla variada · Dificultad normal';
+  static const startDrill = 'Empezar';
+  static const couldNotStartDrill = 'No se han podido cargar los problemas.';
+
+  static const previousMove = 'Anterior';
+
+  static const summaryTitle = 'Resumen del Drill';
+  static const nbPuzzles = 'Problemas';
+  static const successes = 'Aciertos';
+  static const failures = 'Fallos';
+  static const successRate = 'Porcentaje de aciertos';
+  static const backToHome = 'Volver';
 
   static const settingsAccount = 'Cuenta';
   static const settingsPuzzles = 'Problemas';
