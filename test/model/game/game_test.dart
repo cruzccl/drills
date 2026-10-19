@@ -4,6 +4,7 @@ import 'package:dartchess/dartchess.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
+import 'package:lichess_mobile/src/constants.dart';
 import 'package:lichess_mobile/src/model/common/chess.dart';
 import 'package:lichess_mobile/src/model/common/id.dart';
 import 'package:lichess_mobile/src/model/common/perf.dart';
@@ -27,7 +28,7 @@ void main() {
 
       expect(game.makePgn(), '''
 [Event "Rated Bullet game"]
-[Site "https://lichess.dev/Fn9UvVKF"]
+[Site "https://$kLichessHost/Fn9UvVKF"]
 [Date "${formatDate(1706204482969)}"]
 [White "chabrot"]
 [Black "veloce"]
@@ -48,7 +49,7 @@ void main() {
 
       expect(game.makePgn(), '''
 [Event "Rated Bullet game"]
-[Site "https://lichess.dev/CCW6EEru"]
+[Site "https://$kLichessHost/CCW6EEru"]
 [Date "${formatDate(1706185945680)}"]
 [White "veloce"]
 [Black "chabrot"]
@@ -115,7 +116,7 @@ void main() {
       );
       expect(game.makePgn(), '''
 [Event "Rated Bullet game"]
-[Site "https://lichess.dev/CCW6EEru"]
+[Site "https://$kLichessHost/CCW6EEru"]
 [Date "${formatDate(1706185945680)}"]
 [White "veloce"]
 [Black "chabrot"]
@@ -139,7 +140,7 @@ void main() {
       );
       expect(game.makePgn(), '''
 [Event "Rated Bullet game"]
-[Site "https://lichess.dev/CCW6EEru"]
+[Site "https://$kLichessHost/CCW6EEru"]
 [Date "${formatDate(1706185945680)}"]
 [White "veloce"]
 [Black "chabrot"]

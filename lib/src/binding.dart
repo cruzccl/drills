@@ -1,9 +1,6 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:lichess_mobile/firebase_options.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// A singleton class that provides access to plugins and external APIs.
@@ -138,38 +135,48 @@ class AppLichessBinding() extends LichessBinding {
     sharedPreferences.setInt(_kNumAppStartsKey, appStarts + 1);
   }
 
+  /// Firebase is disabled in Drills: its configuration belongs to the official app's Firebase
+  /// project, and push notifications would need the `web:mobile` scope. Nothing is initialized.
   @override
-  Future<void> initializeFirebase() async {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  Future<void> initializeFirebase() async {}
 
-    if (kReleaseMode) {
-      FlutterError.onError = firebaseCrashlytics.recordFlutterFatalError;
-      PlatformDispatcher.instance.onError = (error, stack) {
-        if (kDebugMode) {
-          return false;
-        } else {
-          firebaseCrashlytics.recordError(error, stack);
-          return true;
-        }
-      };
-    }
-  }
+  /// A Crashlytics that drops every report, since Firebase is disabled.
+  @override
+  FirebaseCrashlytics get firebaseCrashlytics => const _DisabledFirebaseCrashlytics();
 
   @override
-  FirebaseMessaging get firebaseMessaging => FirebaseMessaging.instance;
+  FirebaseMessaging get firebaseMessaging => throw _firebaseDisabledError;
 
   @override
-  FirebaseCrashlytics get firebaseCrashlytics => FirebaseCrashlytics.instance;
+  void firebaseMessagingOnBackgroundMessage(BackgroundMessageHandler handler) =>
+      throw _firebaseDisabledError;
 
   @override
-  void firebaseMessagingOnBackgroundMessage(BackgroundMessageHandler handler) {
-    FirebaseMessaging.onBackgroundMessage(handler);
-  }
+  Stream<RemoteMessage> get firebaseMessagingOnMessage => throw _firebaseDisabledError;
 
   @override
-  Stream<RemoteMessage> get firebaseMessagingOnMessage => FirebaseMessaging.onMessage;
+  Stream<RemoteMessage> get firebaseMessagingOnMessageOpenedApp => throw _firebaseDisabledError;
+}
+
+final _firebaseDisabledError = UnsupportedError('Firebase is disabled in Drills');
+
+/// A [FirebaseCrashlytics] that drops every report, for an app where Firebase is disabled.
+///
+/// Only the members the app uses are implemented; any other one throws.
+class const _DisabledFirebaseCrashlytics() implements FirebaseCrashlytics {
+  @override
+  Future<void> recordError(
+    dynamic exception,
+    StackTrace? stack, {
+    dynamic reason,
+    Iterable<Object> information = const [],
+    bool? printDetails,
+    bool fatal = false,
+  }) async {}
 
   @override
-  Stream<RemoteMessage> get firebaseMessagingOnMessageOpenedApp =>
-      FirebaseMessaging.onMessageOpenedApp;
+  Future<void> setCustomKey(String key, Object value) async {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw _firebaseDisabledError;
 }

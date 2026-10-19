@@ -6,6 +6,7 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:lichess_mobile/src/constants.dart';
 import 'package:lichess_mobile/src/model/auth/auth_controller.dart';
 import 'package:lichess_mobile/src/model/auth/bearer.dart';
 import 'package:lichess_mobile/src/model/common/id.dart';
@@ -78,7 +79,7 @@ void main() {
         requests.first,
         isA<http.BaseRequest>()
             .having((r) => r.url.path, 'path', '/test')
-            .having((r) => r.url.host, 'host', 'lichess.dev')
+            .having((r) => r.url.host, 'host', kLichessHost)
             .having((r) => r.url.scheme, 'scheme', 'https'),
       );
     });

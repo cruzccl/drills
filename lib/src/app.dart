@@ -28,7 +28,6 @@ import 'package:lichess_mobile/src/service/broadcast_service.dart';
 import 'package:lichess_mobile/src/service/challenge_service.dart';
 import 'package:lichess_mobile/src/service/correspondence_service.dart';
 import 'package:lichess_mobile/src/service/message_service.dart';
-import 'package:lichess_mobile/src/service/notification_service.dart';
 import 'package:lichess_mobile/src/service/quick_actions.dart';
 import 'package:lichess_mobile/src/service/recap_service.dart';
 import 'package:lichess_mobile/src/service/shared_pgn_service.dart';
@@ -140,7 +139,8 @@ class _AppState() extends ConsumerState<Application> {
     // before any service has a chance to emit.
     ref.read(uiEventCoordinatorProvider).start();
     ref.read(appLogServiceProvider).start();
-    ref.read(notificationServiceProvider).start();
+    // The notification service is not started in Drills: push notifications need Firebase, which
+    // is disabled.
     ref.read(messageServiceProvider).start();
     ref.read(challengeServiceProvider).start();
     ref.read(accountServiceProvider).start();
