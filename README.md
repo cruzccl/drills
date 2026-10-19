@@ -52,3 +52,7 @@ History.
 
 Same as Lichess Mobile: GNU GPL v3 or later. See [COPYING.md](./COPYING.md) and
 [LICENSE](./LICENSE).
+
+The app icon is ["Archery target"](https://game-icons.net/1x1/lorc/archery-target.html) by
+[Lorc](https://lorcblog.blogspot.com), from [game-icons.net](https://game-icons.net), licensed
+under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
