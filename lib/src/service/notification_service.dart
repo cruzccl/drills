@@ -7,7 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lichess_mobile/l10n/l10n.dart';
 import 'package:lichess_mobile/src/binding/binding.dart';
-import 'package:lichess_mobile/src/binding/binding_play.dart';
+import 'package:lichess_mobile/src/binding/binding_fdroid.dart';
 import 'package:lichess_mobile/src/localizations.dart';
 import 'package:lichess_mobile/src/model/auth/auth_controller.dart';
 import 'package:lichess_mobile/src/model/common/preloaded_data.dart';
@@ -409,7 +409,7 @@ class NotificationService(final Ref _ref) {
     // create a new provider scope for the background isolate
     final ref = ProviderContainer();
 
-    final lichessBinding = PlayLichessBinding.ensureInitialized();
+    final lichessBinding = FdroidLichessBinding.ensureInitialized();
     await lichessBinding.preloadSharedPreferences();
     await ref.read(preloadedDataProvider.future);
 

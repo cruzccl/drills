@@ -1,7 +1,6 @@
 /// @docImport 'package:firebase_core/firebase_core.dart';
 /// @docImport 'package:firebase_crashlytics/firebase_crashlytics.dart';
 /// @docImport 'package:lichess_mobile/src/binding/binding_fdroid.dart';
-/// @docImport 'package:lichess_mobile/src/binding/binding_play.dart';
 library;
 
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -12,7 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// A singleton class that provides access to plugins and external APIs.
 ///
 /// Only one instance of this class will be created during the app's lifetime.
-/// See concrete implementations [PlayLichessBinding] and [FdroidLichessBinding] for the app.
+/// Drills uses [FdroidLichessBinding], which leaves Firebase uninitialized: its configuration
+/// belongs to the official app's Firebase project.
 ///
 /// Modeled after the Flutter framework's [WidgetsBinding] class.
 ///

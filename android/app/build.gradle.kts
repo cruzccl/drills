@@ -7,8 +7,6 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services")
-    id("com.google.firebase.crashlytics")
 }
 
 val keystoreProperties = Properties()
@@ -36,7 +34,9 @@ android {
     defaultConfig {
         // Flag required by flutter_local_notifications package
         multiDexEnabled = true
-        applicationId = "org.lichess.mobileV2"
+        // Own package id so that Drills installs alongside the official app. The namespace (and so
+        // the Kotlin package) is kept to stay close to upstream.
+        applicationId = "io.github.cruzccl.drills"
         minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

@@ -8,7 +8,7 @@ import 'package:device_preview/device_preview.dart';
 import 'package:device_preview/presets.dart';
 import 'package:flutter/foundation.dart';
 import 'package:lichess_mobile/src/app.dart';
-import 'package:lichess_mobile/src/binding/binding_play.dart';
+import 'package:lichess_mobile/src/binding/binding_fdroid.dart';
 import 'package:lichess_mobile/src/bootstrap.dart';
 import 'package:lichess_mobile/src/widgets/platform.dart'
     show DebugLiquidGlassOverride, useLiquidGlass;
@@ -27,7 +27,7 @@ Future<void> main() async {
   // The preview can show iOS glass on any host.
   if (!Platform.isIOS) await LiquidGlassWidgets.initialize();
   await bootstrapApp(
-    PlayLichessBinding.ensureInitialized,
+    FdroidLichessBinding.ensureInitialized,
     app: const DevicePreviewApp(child: AppInitializationScreen()),
   );
 }

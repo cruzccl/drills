@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
+import 'package:lichess_mobile/src/constants.dart';
 import 'package:lichess_mobile/src/network/http.dart';
 import 'package:lichess_mobile/src/view/study/create_study_bottom_sheet.dart';
 import 'package:lichess_mobile/src/view/study/study_list.dart';
@@ -181,8 +182,8 @@ void main() {
       expect(find.textContaining('tom-anders'), findsOneWidget);
 
       expect(requestedUrls, [
-        'https://lichess.dev/study/all/hot?page=1',
-        'https://lichess.dev/study/search?page=1&q=Magnus&order=hot',
+        'https://$kLichessHost/study/all/hot?page=1',
+        'https://$kLichessHost/study/search?page=1&q=Magnus&order=hot',
       ]);
     });
   });

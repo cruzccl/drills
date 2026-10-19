@@ -24,6 +24,30 @@ summary of the results.
 See [GLOSSARY.md](./GLOSSARY.md) for the terms used in this fork and [docs/adr](./docs/adr) for
 the decisions behind it.
 
+## Building
+
+Only Android is targeted. The app is `io.github.cruzccl.drills`, so it installs alongside the
+official app, talks to lichess.org and has Firebase disabled.
+
+- Flutter through [fvm](https://fvm.app) (`fvm install`, the version required is pinned in
+  `pubspec.yaml`), the Android command-line tools and a JDK 21.
+- `fvm flutter pub get && fvm dart run build_runner build`
+- Release builds are signed with a personal keystore kept outside the repository, configured in
+  the git-ignored `android/key.properties`:
+
+  ```properties
+  storeFile=/absolute/path/to/drills-release.jks
+  storePassword=...
+  keyAlias=drills
+  keyPassword=...
+  ```
+
+- `fvm flutter build apk --release`, then
+  `adb install build/app/outputs/flutter-apk/app-release.apk`
+
+Losing the keystore, or changing the package id, means reinstalling the app and losing the Drill
+History.
+
 ## License
 
 Same as Lichess Mobile: GNU GPL v3 or later. See [COPYING.md](./COPYING.md) and
