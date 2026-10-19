@@ -8,7 +8,6 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:lichess_mobile/src/constants.dart';
 import 'package:lichess_mobile/src/model/auth/auth_controller.dart';
-import 'package:lichess_mobile/src/model/auth/bearer.dart';
 import 'package:lichess_mobile/src/model/common/id.dart';
 import 'package:lichess_mobile/src/model/user/user.dart';
 import 'package:lichess_mobile/src/network/http.dart';
@@ -313,7 +312,7 @@ void main() {
       );
     });
 
-    test('adds a signed bearer token when a authUser is available the request', () async {
+    test('adds the bearer token, unsigned, when a authUser is available', () async {
       final container = await makeContainer(
         overrides: {
           httpClientFactoryProvider: httpClientFactoryProvider.overrideWith((ref) {
@@ -339,7 +338,7 @@ void main() {
         isA<http.BaseRequest>().having(
           (r) => r.headers['Authorization'],
           'Authorization',
-          'Bearer ${signBearerToken('test-token')}',
+          'Bearer test-token',
         ),
       );
     });
@@ -392,7 +391,7 @@ void main() {
             isA<http.BaseRequest>().having(
               (r) => r.headers['Authorization'],
               'Authorization',
-              'Bearer ${signBearerToken('test-token')}',
+              'Bearer test-token',
             ),
           );
 
@@ -450,7 +449,7 @@ void main() {
           isA<http.BaseRequest>().having(
             (r) => r.headers['Authorization'],
             'Authorization',
-            'Bearer ${signBearerToken('test-token')}',
+            'Bearer test-token',
           ),
         );
 
