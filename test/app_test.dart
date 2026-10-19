@@ -9,6 +9,7 @@ import 'package:lichess_mobile/src/model/settings/general_preferences.dart';
 import 'package:lichess_mobile/src/model/settings/preferences_storage.dart';
 import 'package:lichess_mobile/src/network/http.dart';
 import 'package:lichess_mobile/src/tab_scaffold.dart';
+import 'package:lichess_mobile/src/view/drill/drill_home_screen.dart';
 import 'package:lichess_mobile/src/view/home/home_tab_screen.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -18,8 +19,22 @@ import 'test_helpers.dart';
 import 'test_provider_scope.dart';
 
 void main() {
-  testWidgets('App loads', (tester) async {
+  testWidgets('App opens on the Drill home, with no tab bar', (tester) async {
     final app = await makeTestProviderScope(tester, child: const Application());
+
+    await tester.pumpWidget(app);
+
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.byType(MaterialApp), findsOneWidget);
+    expect(find.byType(DrillHomeScreen), findsOneWidget);
+    expect(find.byType(MainTabScaffold), findsNothing);
+    expect(find.byType(HomeTabScreen), findsNothing);
+    expect(find.byType(NavigationBar), findsNothing);
+  }, variant: kPlatformVariant);
+
+  testWidgets('App loads the upstream tabs when asked to', (tester) async {
+    final app = await makeTestProviderScope(tester, child: const Application(upstream: true));
 
     await tester.pumpWidget(app);
 
@@ -57,7 +72,7 @@ void main() {
 
     final app = await makeTestProviderScope(
       tester,
-      child: const Application(),
+      child: const Application(upstream: true),
       authUser: fakeAuthUser,
       overrides: {
         httpClientFactoryProvider: httpClientFactoryProvider.overrideWith(
@@ -91,7 +106,7 @@ void main() {
   }, variant: kPlatformVariant);
 
   testWidgets('Bottom navigation', variant: kPlatformVariant, (tester) async {
-    final app = await makeTestProviderScope(tester, child: const Application());
+    final app = await makeTestProviderScope(tester, child: const Application(upstream: true));
 
     await tester.pumpWidget(app);
 

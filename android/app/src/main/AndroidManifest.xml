@@ -42,104 +42,8 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="content" />
-                <data android:mimeType="application/x-chess-pgn" />
-                <data android:mimeType="application/vnd.chess-pgn" />
-                <data android:mimeType="text/x-chess-pgn" />
-            </intent-filter>
-
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <data android:scheme="content" />
-
-                <data android:pathSuffix=".pgn" />
-            </intent-filter>
-            <intent-filter>
-               <action android:name="android.intent.action.SEND" />
-               <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="application/x-chess-pgn" />
-                <data android:mimeType="application/vnd.chess-pgn" />
-                <data android:mimeType="text/x-chess-pgn" />
-            </intent-filter>
-
-            <!-- App Links verified against https://lichess.org/.well-known/assetlinks.json -->
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <data android:scheme="https" android:host="lichess.org" />
-
-                <data android:pathPattern="/training/....." />
-                <data android:pathPattern="/study/........" />
-                <data android:pathPattern="/study/......../........" />
-                <data android:pathPattern="/tournament/........" />
-
-                <!--
-                  User profile links: /@/<username> where usernames are 2–30 chars.
-                  Fixed-length patterns are used instead of /@/.* to exclude sub-paths
-                  like /@/username/blog/... which are not supported in the app.
-                  pathPattern matches the full path so /@/.. only matches a 2-char username,
-                  not /@/username/blog/slug/id.
-                -->
-                <data android:pathPattern="/@/.." />
-                <data android:pathPattern="/@/..." />
-                <data android:pathPattern="/@/...." />
-                <data android:pathPattern="/@/....." />
-                <data android:pathPattern="/@/......" />
-                <data android:pathPattern="/@/......." />
-                <data android:pathPattern="/@/........" />
-                <data android:pathPattern="/@/........." />
-                <data android:pathPattern="/@/.........." />
-                <data android:pathPattern="/@/..........." />
-                <data android:pathPattern="/@/............" />
-                <data android:pathPattern="/@/............." />
-                <data android:pathPattern="/@/.............." />
-                <data android:pathPattern="/@/..............." />
-                <data android:pathPattern="/@/................" />
-                <data android:pathPattern="/@/................." />
-                <data android:pathPattern="/@/.................." />
-                <data android:pathPattern="/@/..................." />
-                <data android:pathPattern="/@/...................." />
-                <data android:pathPattern="/@/....................." />
-                <data android:pathPattern="/@/......................" />
-                <data android:pathPattern="/@/......................." />
-                <data android:pathPattern="/@/........................" />
-                <data android:pathPattern="/@/........................." />
-                <data android:pathPattern="/@/.........................." />
-                <data android:pathPattern="/@/..........................." />
-                <data android:pathPattern="/@/............................" />
-                <data android:pathPattern="/@/............................." />
-                <data android:pathPattern="/@/.............................." />
-                <data android:pathPattern="/tv/.*" />
-
-                <data android:pathPattern="/broadcast/.*/.*/........" />
-                <data android:pathPattern="/broadcast/.*/.*/......../........" />
-
-                <!-- Board editor: bare /editor and /editor/<fen> (FEN ranks contain '/'). -->
-                <data android:pathPattern="/editor" />
-                <data android:pathPattern="/editor/.*" />
-
-                <!--
-                  Game or challenge link: any 8-char path (e.g. /abcd1234).
-                  pathPattern cannot exclude known static 8-char routes (e.g. /analysis,
-                  /settings); the app resolver handles false positives by falling back to
-                  launchUrl. On Android 15+, exclusions are enforced server-side via
-                  dynamic_app_link_components in assetlinks.json.
-                -->
-                <data android:pathPattern="/........" />
-
-                <!-- Game with color POV -->
-                <data android:pathPattern="/......../black" />
-                <data android:pathPattern="/......../white" />
-            </intent-filter>
+            <!-- Drills declares no lichess.org App Links nor PGN file intents: they open screens that
+                 Drills hides. -->
             <meta-data android:name="flutter_deeplinking_enabled" android:value="false" />
         </activity>
         <!-- OAuth custom-scheme callback receiver for flutter_appauth. We declare the intent-filter
@@ -160,17 +64,7 @@
 
         <receiver android:exported="false"
             android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver"/>
-        <receiver android:name=".widgets.BroadcastWidgetProvider"
-            android:label="@string/widget_broadcast_title"
-            android:exported="true"
-            android:permission="android.permission.BIND_APPWIDGET">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/widget_broadcast_info" />
-        </receiver>
+        <!-- The broadcast home screen widget is not declared: broadcasts are hidden in Drills. -->
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

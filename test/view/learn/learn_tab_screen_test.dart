@@ -10,7 +10,7 @@ import '../../test_provider_scope.dart';
 void main() {
   group('Learn tab', () {
     testWidgets('shows the studies when the server is up', (tester) async {
-      final app = await makeTestProviderScope(tester, child: const Application());
+      final app = await makeTestProviderScope(tester, child: const Application(upstream: true));
 
       await tester.pumpWidget(app);
       await tester.pumpAndSettle();
@@ -26,7 +26,7 @@ void main() {
     testWidgets('outage replaces the studies but keeps coordinate training', (tester) async {
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         overrides: {
           httpClientFactoryProvider: httpClientFactoryProvider.overrideWith((ref) {
             return FakeHttpClientFactory(() => serverDownClient());
@@ -54,7 +54,7 @@ void main() {
 
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         overrides: {
           httpClientFactoryProvider: httpClientFactoryProvider.overrideWith((ref) {
             return FakeHttpClientFactory(() => client);

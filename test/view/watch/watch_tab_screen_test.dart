@@ -14,7 +14,7 @@ void main() {
     testWidgets('shows the no internet message when the network is down', (tester) async {
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         overrides: {isDeviceOnlineProvider: isDeviceOnlineProvider.overrideWithValue(false)},
       );
 
@@ -32,7 +32,7 @@ void main() {
     testWidgets('shows the outage screen when the server is down', (tester) async {
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         overrides: {
           httpClientFactoryProvider: httpClientFactoryProvider.overrideWith((ref) {
             return FakeHttpClientFactory(() => serverDownClient());
@@ -52,7 +52,7 @@ void main() {
     testWidgets('pulling to refresh while still down keeps the outage screen', (tester) async {
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         overrides: {
           httpClientFactoryProvider: httpClientFactoryProvider.overrideWith((ref) {
             return FakeHttpClientFactory(() => serverDownClient());
@@ -82,7 +82,7 @@ void main() {
 
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         overrides: {
           httpClientFactoryProvider: httpClientFactoryProvider.overrideWith((ref) {
             return FakeHttpClientFactory(() => client);
@@ -110,7 +110,7 @@ void main() {
     testWidgets('resuming the app while still down keeps the outage screen', (tester) async {
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         overrides: {
           httpClientFactoryProvider: httpClientFactoryProvider.overrideWith((ref) {
             return FakeHttpClientFactory(() => serverDownClient());
@@ -141,7 +141,7 @@ void main() {
 
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         overrides: {
           httpClientFactoryProvider: httpClientFactoryProvider.overrideWith((ref) {
             return FakeHttpClientFactory(() => client);

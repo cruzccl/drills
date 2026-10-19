@@ -36,6 +36,8 @@ import 'package:lichess_mobile/src/tab_scaffold.dart';
 import 'package:lichess_mobile/src/theme.dart';
 import 'package:lichess_mobile/src/ui_event_coordinator.dart';
 import 'package:lichess_mobile/src/utils/screen.dart';
+import 'package:lichess_mobile/src/view/drill/drill_home_screen.dart';
+import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:material_ui/material_ui.dart';
 
 const String _kIosAppGroupId = 'group.org.lichess.mobileV2.LichessWidgets';
@@ -72,7 +74,15 @@ class const AppInitializationScreen({super.key}) extends ConsumerWidget {
 ///
 /// This widget is the root of the application and is responsible for setting up
 /// the theme, locale, and other global settings.
-class const Application({super.key}) extends ConsumerStatefulWidget {
+///
+/// Drills opens on the [DrillHomeScreen], with no tab bar; the rest of the app is hidden.
+class const Application({
+  super.key,
+
+  /// Whether to run the upstream app, with its tab bar and services, instead of Drills. It is
+  /// hidden from users and only kept so that the tests of the upstream screens still run.
+  @visibleForTesting final bool upstream = false,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<Application> createState() => _AppState();
 }
@@ -81,6 +91,12 @@ class _AppState() extends ConsumerState<Application> {
   /// Whether the app has checked for online status for the first time.
   bool _firstTimeOnlineCheck = false;
   final _navigatorKey = GlobalKey<NavigatorState>();
+
+  /// In Drills, which has no tabs, the root navigator takes the home tab's navigator key, so that
+  /// services and the UI event coordinator show their dialogs and snackbars in it (see
+  /// [currentNavigatorKeyProvider], which stays on the home tab).
+  GlobalKey<NavigatorState> get _rootNavigatorKey =>
+      widget.upstream ? _navigatorKey : homeNavigatorKey;
 
   // Adjusts some settings for small screens based on the MediaQuery data.
   Future<void> _screenSizeBasedInitialization(WidgetRef ref) async {
@@ -141,16 +157,20 @@ class _AppState() extends ConsumerState<Application> {
     ref.read(appLogServiceProvider).start();
     // The notification service is not started in Drills: push notifications need Firebase, which
     // is disabled.
-    ref.read(messageServiceProvider).start();
-    ref.read(challengeServiceProvider).start();
-    ref.read(accountServiceProvider).start();
-    ref.read(correspondenceServiceProvider).start();
-    ref.read(quickActionServiceProvider).start();
-    ref.read(announceServiceProvider).start();
-    ref.read(appLinksServiceProvider).start();
-    ref.read(sharedPgnServiceProvider).start();
-    ref.read(broadcastServiceProvider).start();
-    ref.read(recapServiceProvider).start();
+    // The services of the features Drills hides are not started: they would lead to screens that
+    // are not reachable, or need the `web:mobile` scope.
+    if (widget.upstream) {
+      ref.read(accountServiceProvider).start();
+      ref.read(messageServiceProvider).start();
+      ref.read(challengeServiceProvider).start();
+      ref.read(correspondenceServiceProvider).start();
+      ref.read(quickActionServiceProvider).start();
+      ref.read(announceServiceProvider).start();
+      ref.read(appLinksServiceProvider).start();
+      ref.read(sharedPgnServiceProvider).start();
+      ref.read(broadcastServiceProvider).start();
+      ref.read(recapServiceProvider).start();
+    }
 
     if (Platform.isIOS) {
       HomeWidget.setAppGroupId(_kIosAppGroupId);
@@ -188,6 +208,9 @@ class _AppState() extends ConsumerState<Application> {
     // network calls, which must not be made on the optimistic assumption that a device whose
     // status is not known yet is online.
     ref.listenManual(connectivityChangesProvider, (prev, current) async {
+      // Correspondence games are hidden in Drills.
+      if (!widget.upstream) return;
+
       // The previous state is read with [isDeviceOnlineIn], so that coming back from a check that
       // failed — offline as far as the app is concerned — is an edge like any other.
       final prevWasOffline = prev != null && !isDeviceOnlineIn(prev);
@@ -237,7 +260,7 @@ class _AppState() extends ConsumerState<Application> {
     final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
 
     return MaterialApp(
-      navigatorKey: _navigatorKey,
+      navigatorKey: _rootNavigatorKey,
       // [AppLocalizations.localizationsDelegates] cannot be used: it is generated with the
       // `flutter_localizations` delegates, which localize the Flutter material and cupertino
       // libraries, not the `material_ui` and `cupertino_ui` ones the app is built with.
@@ -248,7 +271,7 @@ class _AppState() extends ConsumerState<Application> {
         CupertinoLocalizationsEo.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
-      title: 'lichess.org',
+      title: DrillStrings.appName,
       locale: themeConfig.$5,
       theme: theme.copyWith(
         navigationBarTheme: isIOS
@@ -271,7 +294,7 @@ class _AppState() extends ConsumerState<Application> {
           ),
         );
       },
-      home: const MainTabScaffold(),
+      home: widget.upstream ? const MainTabScaffold() : const DrillHomeScreen(),
       navigatorObservers: [rootNavPageRouteObserver, rootNavRouteStackObserver],
     );
   }
