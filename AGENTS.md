@@ -678,3 +678,33 @@ Default vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-
 ### Domain docs
 
 Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+## Keeping up with upstream
+
+This fork (`origin`, `cruzccl/drills`) is rebased onto releases of Lichess Mobile (`upstream`,
+`lichess-org/mobile`), not onto its `main`: release tags (`vX.Y.Z`) are on `upstream/main`, so the
+fork's history stays linear. Ignore the `.fdroid` tags, which are not on `main`. When a new release
+is out, rebase the fork's own commits onto it and force push:
+
+```bash
+git fetch upstream --tags
+git rebase --onto vX.Y.Z <current base> main
+```
+
+The current base is `99e1fb7fb`, the `upstream/main` commit the fork was made from (just after
+v0.30.2); the first rebase is onto the first release that contains it.
+
+## Commit messages
+
+The fork's own commits follow [Conventional Commits](https://www.conventionalcommits.org), without
+scopes: `<type>: <summary>`, the summary in the imperative and lowercase, then the body. Types:
+
+- `feat`: a new feature visible in the app
+- `fix`: a bug fix
+- `refactor`: a code change that doesn't change behaviour
+- `test`: tests only
+- `build`: Gradle, app identity, signing, dependencies, CI
+- `docs`: README, glossary, ADRs, AGENTS.md, agent skill configuration
+
+A commit that closes an issue says so in its body (`Closes #N`). Upstream commits keep their own
+style: never reword them.
