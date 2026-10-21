@@ -10,6 +10,7 @@ import 'package:lichess_mobile/src/model/puzzle/puzzle_angle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_difficulty.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_theme.dart';
 import 'package:lichess_mobile/src/network/http.dart';
+import 'package:lichess_mobile/src/view/analysis/analysis_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_screen.dart';
 import 'package:lichess_mobile/src/view/puzzle/puzzle_session_widget.dart';
 import 'package:lichess_mobile/src/widgets/non_linear_slider.dart';
@@ -94,10 +95,26 @@ void main() {
     }
 
     expect(find.byType(Chessboard), findsNothing);
-    expect(find.text('Aciertos: 1'), findsOneWidget);
-    expect(find.text('Fallos: 4'), findsOneWidget);
-    expect(find.text('Porcentaje de aciertos: 20 %'), findsOneWidget);
     expect(server.solutions.map((s) => s.win), [true, false, false, false, false]);
+    await tester.pumpAndSettle();
+    expect(find.text('5 problemas · Healthy mix · Normal'), findsOneWidget);
+    expect(_summaryValue('Aciertos'), '1');
+    expect(_summaryValue('Fallos'), '4');
+    expect(_summaryValue('Porcentaje de aciertos'), '20 %');
+    expect(_summaryValue('Puntuación'), '1500 → 1470 (-30)');
+    // 1500 average puzzle rating, 1 success out of 5
+    expect(_summaryValue('Rendimiento'), '1200');
+    expect(find.text('Poco fiable'), findsOneWidget);
+    expect(find.text('Endgame (4)'), findsOneWidget);
+    expect(find.text('Fork (4)'), findsOneWidget);
+    expect(find.text('Short (4)'), findsNothing, reason: 'a length theme');
+
+    // the puzzles of the Drill, each opened on the analysis board
+    await tester.scrollUntilVisible(find.text('+10'), 200.0);
+    expect(find.text('-10'), findsWidgets);
+    await tester.tap(find.text('+10'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AnalysisScreen), findsOneWidget);
   });
 
   testWidgets('a Drill is set up with a number of puzzles, a theme and a difficulty', (
@@ -202,6 +219,13 @@ void main() {
     expect(server.angles.toSet(), {'fork'});
     expect(server.difficulties.toSet(), {'easier'});
   });
+}
+
+/// The value shown next to a label of the Drill Summary.
+String? _summaryValue(String label) {
+  final tile = find.ancestor(of: find.text(label), matching: find.byType(ListTile)).evaluate();
+  final trailing = (tile.single.widget as ListTile).trailing;
+  return trailing is Text ? trailing.data : null;
 }
 
 bool _isChipSelected(WidgetTester tester, String label) =>

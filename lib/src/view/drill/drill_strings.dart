@@ -13,10 +13,20 @@ abstract class DrillStrings() {
   static const previousMove = 'Anterior';
 
   static const summaryTitle = 'Resumen del Drill';
-  static const nbPuzzles = 'Problemas';
+  static const puzzleUnit = 'problema';
+  static const puzzlesUnit = 'problemas';
   static const successes = 'Aciertos';
   static const failures = 'Fallos';
   static const successRate = 'Porcentaje de aciertos';
+  static const rating = 'Puntuación';
+  static const totalTime = 'Tiempo total';
+  static const averageTime = 'Tiempo medio por problema';
+  static const performance = 'Rendimiento';
+  static const unreliable = 'Poco fiable';
+  static const weakestThemes = 'Temas más débiles';
+  static const puzzleList = 'Problemas';
+  static const unrated = 'sin puntuar';
+  static const pending = 'pendiente';
   static const backToHome = 'Volver';
 
   static const settingsAccount = 'Cuenta';

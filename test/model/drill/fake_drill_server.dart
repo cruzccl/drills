@@ -9,7 +9,9 @@ import 'package:http/testing.dart';
 /// Every batch request, whatever its angle, is answered with new puzzles, so that a Drill never
 /// runs out of them. All the puzzles are the same position under distinct ids: black to play,
 /// solved by [solution] (the player plays the 1st and 3rd moves). The solutions posted are
-/// recorded in [solutions]. The openings offered are [openings].
+/// recorded in [solutions], and each rated one moves the player's rating by [ratingDiff] (up when
+/// won, down when lost). The openings offered are [openings]. While [isOffline], every request
+/// fails.
 class FakeDrillServer() {
   /// The solution of every puzzle served.
   static const solution = ['g4h4', 'h8h4', 'b4h4'];
@@ -17,8 +19,26 @@ class FakeDrillServer() {
   /// The player's moves of [solution].
   static final playerMoves = [Move.parse(solution[0])!, Move.parse(solution[2])!];
 
-  /// The puzzle rating of every puzzle served.
+  /// The puzzle rating of every puzzle served, unless [puzzleRatingOf] says otherwise.
   static const puzzleRating = 1500;
+
+  /// The player's puzzle rating before any solution is posted.
+  static const initialRating = 1500;
+
+  /// How much a rated solution moves the player's rating.
+  static const ratingDiff = 10;
+
+  /// The rating of the puzzle served at an index, from 0.
+  int Function(int index) puzzleRatingOf = (_) => puzzleRating;
+
+  /// The themes of the puzzle served at an index, from 0.
+  List<String> Function(int index) puzzleThemesOf = (_) => const ['endgame', 'short', 'fork'];
+
+  /// Whether every request fails, as without a connection.
+  bool isOffline = false;
+
+  /// The player's puzzle rating.
+  int rating = initialRating;
 
   /// The solutions posted to the server, in order.
   final List<({String id, bool win, bool rated})> solutions = [];
@@ -47,6 +67,7 @@ class FakeDrillServer() {
   };
 
   late final MockClient client = MockClient((request) async {
+    if (isOffline) throw http.ClientException('offline', request.url);
     if (request.url.path == '/training/openings') {
       return http.Response(jsonEncode(openings), 200);
     }
@@ -54,10 +75,15 @@ class FakeDrillServer() {
     if (segments.length != 4 || segments.take(3).join('/') != 'api/puzzle/batch') {
       return http.Response('', 404);
     }
+    final rounds = <Map<String, dynamic>>[];
     if (request.method == 'POST') {
       final body = jsonDecode(request.body) as Map<String, dynamic>;
       for (final s in (body['solutions'] as List<dynamic>).cast<Map<String, dynamic>>()) {
-        solutions.add((id: s['id'] as String, win: s['win'] as bool, rated: s['rated'] as bool));
+        final solution = (id: s['id'] as String, win: s['win'] as bool, rated: s['rated'] as bool);
+        solutions.add(solution);
+        final diff = solution.rated ? (solution.win ? ratingDiff : -ratingDiff) : 0;
+        rating += diff;
+        rounds.add({'id': solution.id, 'win': solution.win, 'ratingDiff': diff});
       }
     }
     // The server sends at most 50 puzzles per request; a few are enough here.
@@ -66,18 +92,30 @@ class FakeDrillServer() {
       angles.add(segments.last);
       difficulties.add(request.url.queryParameters['difficulty']);
     }
-    final puzzles = [for (var i = 0; i < nb; i++) _puzzleJson('drill${nbServed++}')];
+    final puzzles = [
+      for (var i = 0; i < nb; i++)
+        _puzzleJson(
+          'drill$nbServed',
+          rating: puzzleRatingOf(nbServed),
+          themes: puzzleThemesOf(nbServed++),
+        ),
+    ];
     return http.Response(
       jsonEncode({
         'puzzles': puzzles,
-        'glicko': {'rating': 1500.0, 'deviation': 80.0},
+        'glicko': {'rating': rating.toDouble(), 'deviation': 80.0},
+        if (request.method == 'POST') 'rounds': rounds,
       }),
       200,
     );
   });
 }
 
-Map<String, dynamic> _puzzleJson(String id) => {
+Map<String, dynamic> _puzzleJson(
+  String id, {
+  required int rating,
+  required List<String> themes,
+}) => {
   'game': {
     'id': 'w32JTzEf',
     'perf': {'key': 'blitz', 'name': 'Blitz'},
@@ -96,10 +134,10 @@ Map<String, dynamic> _puzzleJson(String id) => {
   },
   'puzzle': {
     'id': id,
-    'rating': FakeDrillServer.puzzleRating,
+    'rating': rating,
     'plays': 100,
     'initialPly': 88,
     'solution': FakeDrillServer.solution,
-    'themes': ['endgame', 'short', 'fork'],
+    'themes': themes,
   },
 };

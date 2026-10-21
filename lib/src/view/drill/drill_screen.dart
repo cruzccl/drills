@@ -13,11 +13,11 @@ import 'package:lichess_mobile/src/utils/l10n_context.dart';
 import 'package:lichess_mobile/src/utils/navigation.dart';
 import 'package:lichess_mobile/src/utils/screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
+import 'package:lichess_mobile/src/view/drill/drill_summary.dart';
 import 'package:lichess_mobile/src/view/puzzle/puzzle_feedback_widget.dart';
 import 'package:lichess_mobile/src/widgets/board.dart';
 import 'package:lichess_mobile/src/widgets/bottom_bar.dart';
 import 'package:lichess_mobile/src/widgets/platform.dart';
-import 'package:lichess_mobile/src/widgets/platform_filled_button.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// The screen of the Drill being played: its puzzles one after the other, then its Drill Summary.
@@ -45,7 +45,7 @@ class const DrillScreen({super.key}) extends ConsumerWidget {
         ),
         body: switch (drill) {
           null => const SizedBox.shrink(),
-          DrillState(isOver: true) => _DrillSummary(drill),
+          DrillState(isOver: true) => DrillSummary(drill),
           _ => _DrillPuzzle(drill),
         },
       ),
@@ -299,31 +299,6 @@ class _DrillBottomBarState() extends ConsumerState<_DrillBottomBar> {
             label: context.l10n.puzzleContinueTraining,
             icon: CupertinoIcons.play_arrow_solid,
           ),
-      ],
-    );
-  }
-}
-
-class const _DrillSummary(final DrillState drill) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = TextTheme.of(context);
-    return ListView(
-      padding: Styles.bodyPadding,
-      children: [
-        Text('${DrillStrings.nbPuzzles}: ${drill.config.nbPuzzles}', style: textTheme.titleMedium),
-        const SizedBox(height: 16.0),
-        Text('${DrillStrings.successes}: ${drill.successes}', style: textTheme.bodyLarge),
-        Text('${DrillStrings.failures}: ${drill.failures}', style: textTheme.bodyLarge),
-        Text(
-          '${DrillStrings.successRate}: ${(drill.successRate * 100).round()} %',
-          style: textTheme.bodyLarge,
-        ),
-        const SizedBox(height: 24.0),
-        PlatformFilledButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text(DrillStrings.backToHome),
-        ),
       ],
     );
   }
