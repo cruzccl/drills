@@ -11,7 +11,7 @@ import 'package:http/testing.dart';
 /// solved by [solution] (the player plays the 1st and 3rd moves). The solutions posted are
 /// recorded in [solutions], and each rated one moves the player's rating by [ratingDiff] (up when
 /// won, down when lost). The openings offered are [openings]. While [isOffline], every request
-/// fails.
+/// fails. Signing out succeeds.
 class FakeDrillServer() {
   /// The solution of every puzzle served.
   static const solution = ['g4h4', 'h8h4', 'b4h4'];
@@ -68,6 +68,10 @@ class FakeDrillServer() {
 
   late final MockClient client = MockClient((request) async {
     if (isOffline) throw http.ClientException('offline', request.url);
+    if (request.url.path == '/api/token' && request.method == 'DELETE') {
+      // signing out
+      return http.Response('{"ok": true}', 200);
+    }
     if (request.url.path == '/training/openings') {
       return http.Response(jsonEncode(openings), 200);
     }

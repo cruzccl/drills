@@ -19,7 +19,7 @@ import 'package:material_ui/material_ui.dart';
 
 /// The Drill Summary: what the Drill was, its results, rating change, solving time, Drill
 /// Performance and weakest themes, then its puzzles, each opened on the analysis board.
-class const DrillSummary(final DrillState drill, {super.key}) extends ConsumerWidget {
+class const DrillSummary(final Drill drill, {super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final config = drill.config;
@@ -32,6 +32,7 @@ class const DrillSummary(final DrillState drill, {super.key}) extends ConsumerWi
             '${config.nbPuzzles} ${config.nbPuzzles == 1 ? DrillStrings.puzzleUnit : DrillStrings.puzzlesUnit}',
             drillAngleName(context, ref, config.angle),
             puzzleDifficultyL10n(context, config.difficulty),
+            if (drill.isPartial) DrillStrings.partial,
           ].join(' · '),
           style: TextTheme.of(context).titleMedium,
         ),
@@ -144,7 +145,7 @@ class const _DrillPuzzleResultTile(final DrillPuzzleResult result) extends Consu
   }
 }
 
-String _ratingText(DrillState drill) {
+String _ratingText(Drill drill) {
   final before = drill.ratingBefore?.toString() ?? '?';
   final after = drill.ratingAfter;
   final change = drill.ratingChange;

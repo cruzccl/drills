@@ -15,6 +15,7 @@ import 'package:lichess_mobile/src/utils/screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:lichess_mobile/src/view/drill/drill_summary.dart';
 import 'package:lichess_mobile/src/view/puzzle/puzzle_feedback_widget.dart';
+import 'package:lichess_mobile/src/widgets/adaptive_action_sheet.dart';
 import 'package:lichess_mobile/src/widgets/board.dart';
 import 'package:lichess_mobile/src/widgets/bottom_bar.dart';
 import 'package:lichess_mobile/src/widgets/platform.dart';
@@ -40,12 +41,27 @@ class const DrillScreen({super.key}) extends ConsumerWidget {
           title: Text(
             drill == null || drill.isOver
                 ? DrillStrings.summaryTitle
-                : '${drill.puzzleNumber} / ${drill.config.nbPuzzles}',
+                : '${drill.puzzleNumber} / ${drill.drill.config.nbPuzzles}',
           ),
+          actions: [
+            if (drill != null && !drill.isOver)
+              TextButton(
+                onPressed: () => showConfirmDialog<void>(
+                  context,
+                  title: const Text(DrillStrings.endDrillConfirmation),
+                  onConfirm: () {
+                    // Ended before any puzzle was solved, the Drill is discarded: no summary.
+                    final hasSummary = ref.read(drillControllerProvider.notifier).end();
+                    if (!hasSummary) Navigator.of(context).pop();
+                  },
+                ),
+                child: const Text(DrillStrings.endDrill),
+              ),
+          ],
         ),
         body: switch (drill) {
           null => const SizedBox.shrink(),
-          DrillState(isOver: true) => DrillSummary(drill),
+          DrillState(isOver: true) => DrillSummary(drill.drill),
           _ => _DrillPuzzle(drill),
         },
       ),
@@ -292,7 +308,7 @@ class _DrillBottomBarState() extends ConsumerState<_DrillBottomBar> {
         ),
         if (isViewing)
           BottomBarButton(
-            onTap: widget.drill.isLimitReached || puzzleState.nextContext != null
+            onTap: widget.drill.drill.isLimitReached || puzzleState.nextContext != null
                 ? ref.read(drillControllerProvider.notifier).continueDrill
                 : null,
             highlighted: true,
