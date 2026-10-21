@@ -1,9 +1,12 @@
+import 'dart:convert';
+
 import 'package:clock/clock.dart';
 import 'package:collection/collection.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:lichess_mobile/src/binding.dart';
 import 'package:lichess_mobile/src/model/auth/auth_controller.dart';
 import 'package:lichess_mobile/src/model/common/id.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle.dart';
@@ -14,6 +17,7 @@ import 'package:lichess_mobile/src/model/puzzle/puzzle_difficulty.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_preferences.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_theme.dart';
 import 'package:lichess_mobile/src/model/settings/preferences_storage.dart';
+import 'package:lichess_mobile/src/model/user/user.dart';
 import 'package:lichess_mobile/src/service/puzzle_service.dart';
 import 'package:logging/logging.dart';
 
@@ -28,11 +32,13 @@ final drillControllerProvider = NotifierProvider<DrillController, DrillState?>(
   name: 'DrillControllerProvider',
 );
 
-/// Owns the lifecycle of a Drill: starts it, records the outcome of each puzzle and ends it.
+/// Owns the lifecycle of a Drill: starts it, records the outcome of each puzzle, ends it, and
+/// resumes it after the app restarts.
 ///
 /// Puzzles are solved by the [PuzzleController] of [DrillState.puzzleContext], which applies the
 /// official result rules and sends the solutions through the [PuzzleService]. The Drill counts
-/// and records on top of it.
+/// and records on top of it. Until it is over, the Drill is kept as the unfinished Drill of the
+/// player's account ([unfinishedDrillProvider]).
 class DrillController() extends Notifier<DrillState?> {
   ProviderSubscription<PuzzleState>? _puzzleSubscription;
   _SolvingClock? _solvingClock;
@@ -44,13 +50,113 @@ class DrillController() extends Notifier<DrillState?> {
   @override
   DrillState? build() {
     ref.onDispose(() => _solvingClock?.dispose());
+    listenSelf((previous, next) {
+      // Without a Drill anymore, it was discarded or left to its account: see [_discard].
+      final userId = next?.puzzleContext.userId;
+      if (next == null || userId == null) return;
+      final unfinishedDrill = ref.read(unfinishedDrillProvider.notifier);
+      if (!next.isOver) {
+        if (next.drill != previous?.drill) unfinishedDrill.save(userId, next.drill);
+      } else if (previous != null && !previous.isOver) {
+        unfinishedDrill.clear(userId);
+      }
+    });
+    // The Drill being played stays the unfinished Drill of its account, to be resumed once signed
+    // in with it again.
+    ref.listen(authControllerProvider.select((auth) => auth?.user.id), (_, _) => _leave());
     return null;
   }
 
   /// Starts a new Drill with [config], replacing the current one if any.
   ///
+  /// The unfinished Drill replaced ends as a Partial Drill.
+  ///
   /// Returns `false` if no puzzle could be loaded.
   Future<bool> start(DrillConfig config) async {
+    final puzzleContext = await _loadPuzzle(config);
+    if (puzzleContext == null) return false;
+
+    await ref.read(lastDrillConfigProvider.notifier).save(config);
+    _play(
+      Drill(
+        config: config,
+        startedAt: clock.now(),
+        ratingBefore: puzzleContext.glicko?.rating.round(),
+      ),
+      puzzleContext,
+    );
+    return true;
+  }
+
+  /// Resumes the unfinished Drill: the one being played, or the [unfinishedDrillProvider] after the
+  /// app restarted or the player signed in again.
+  ///
+  /// Returns `false` if there is no Drill to resume or no puzzle could be loaded.
+  Future<bool> resume() async {
+    if (state case DrillState(isOver: false)) return true;
+    final drill = ref.read(unfinishedDrillProvider);
+    if (drill == null) return false;
+
+    final puzzleContext = await _loadPuzzle(drill.config);
+    if (puzzleContext == null) return false;
+    _play(drill, puzzleContext);
+    // Loading the puzzle synced the solutions left pending.
+    _onSync(rounds: puzzleContext.rounds, glicko: puzzleContext.glicko);
+    // The app was closed after the last result, before the player moved on.
+    if (drill.isLimitReached) _end();
+    return true;
+  }
+
+  /// Ends the Drill now. It is a Partial Drill if it ended before its last puzzle, or discarded if
+  /// no puzzle was solved: then there is no Drill anymore.
+  ///
+  /// The puzzle being solved, if it has no result yet, is left out. Returns whether the Drill has
+  /// a Drill Summary to show, `false` if it was discarded.
+  bool end() {
+    final drillState = state;
+    if (drillState == null) return false;
+    if (drillState.isOver) return true;
+    if (drillState.drill.results.isEmpty) {
+      _discard();
+      return false;
+    }
+    _end();
+    return true;
+  }
+
+  /// Moves on from the solved puzzle: to the next one, or to the end of the Drill after the last.
+  void continueDrill() {
+    final drillState = state;
+    if (drillState == null || drillState.isOver) return;
+
+    if (drillState.drill.isLimitReached) {
+      _end();
+      return;
+    }
+    final puzzleCtrlProvider = puzzleControllerProvider(drillState.puzzleContext);
+    final nextContext = ref.read(puzzleCtrlProvider).nextContext;
+    if (nextContext != null) {
+      ref.read(puzzleCtrlProvider.notifier).onLoadPuzzle(nextContext);
+    }
+  }
+
+  /// Drops the Drill being played without ending it, and forgets it.
+  void _discard() {
+    final userId = state?.puzzleContext.userId;
+    if (userId != null) ref.read(unfinishedDrillProvider.notifier).clear(userId);
+    _leave();
+  }
+
+  /// Drops the Drill being played without ending it: if unfinished, it stays the unfinished Drill
+  /// of its account.
+  void _leave() {
+    _puzzleSubscription?.close();
+    _puzzleSubscription = null;
+    state = null;
+  }
+
+  /// Loads the puzzle to play a Drill with [config] on.
+  Future<PuzzleContext?> _loadPuzzle(DrillConfig config) async {
     final userId = ref.read(authControllerProvider)?.user.id;
     final puzzlePrefs = ref.read(puzzlePreferencesProvider);
     final service = await _puzzleService(config.angle);
@@ -61,37 +167,20 @@ class DrillController() extends Notifier<DrillState?> {
       await ref.read(puzzlePreferencesProvider.notifier).setDifficulty(config.difficulty);
       await service.deleteBatch(userId: userId, angle: config.angle);
     }
-    final puzzleContext = await service.nextPuzzle(userId: userId, angle: config.angle);
-    if (puzzleContext == null) return false;
+    return await service.nextPuzzle(userId: userId, angle: config.angle);
+  }
 
-    await ref.read(lastDrillConfigProvider.notifier).save(config);
+  /// Plays [drill] from its next puzzle, loaded in [puzzleContext].
+  void _play(Drill drill, PuzzleContext puzzleContext) {
     _puzzleSubscription?.close();
     (_solvingClock ??= _SolvingClock()).stop();
     _isLastResultSaved = true;
     state = DrillState(
-      config: config,
+      drill: drill,
       puzzleContext: puzzleContext,
-      puzzleNumber: 1,
-      ratingBefore: puzzleContext.glicko?.rating.round(),
+      puzzleNumber: drill.results.length + 1,
     );
     _puzzleSubscription = ref.listen(puzzleControllerProvider(puzzleContext), _onPuzzleStateChange);
-    return true;
-  }
-
-  /// Moves on from the solved puzzle: to the next one, or to the end of the Drill after the last.
-  void continueDrill() {
-    final drill = state;
-    if (drill == null || drill.isOver) return;
-
-    if (drill.isLimitReached) {
-      _end();
-      return;
-    }
-    final puzzleCtrlProvider = puzzleControllerProvider(drill.puzzleContext);
-    final nextContext = ref.read(puzzleCtrlProvider).nextContext;
-    if (nextContext != null) {
-      ref.read(puzzleCtrlProvider.notifier).onLoadPuzzle(nextContext);
-    }
   }
 
   Future<PuzzleService> _puzzleService(PuzzleAngle angle) => ref.read(puzzleServiceFactoryProvider)(
@@ -114,8 +203,9 @@ class DrillController() extends Notifier<DrillState?> {
       }
     }
 
-    final drill = state;
-    if (drill == null || drill.isOver) return;
+    final drillState = state;
+    if (drillState == null || drillState.isOver) return;
+    final drill = drillState.drill;
     final solvingClock = _solvingClock!;
 
     if (next.result == null && next.mode == .play && !solvingClock.isRunning) {
@@ -130,25 +220,29 @@ class DrillController() extends Notifier<DrillState?> {
       if (drill.isLimitReached) {
         _end();
       } else {
-        state = drill.copyWith(puzzleNumber: drill.puzzleNumber + 1);
+        // Counted from the results rather than incremented: a puzzle whose solution was not saved
+        // before the app was killed is loaded again when the Drill is resumed.
+        state = drillState.copyWith(puzzleNumber: drill.results.length + 1);
       }
     } else if (result != null && drill.results.lastOrNull?.id != puzzleId) {
       _isLastResultSaved = false;
       final solvingTime = solvingClock.stop();
       final puzzle = next.puzzle.puzzle;
-      state = drill.copyWith(
-        results: drill.results.add(
-          DrillPuzzleResult(
-            id: puzzleId,
-            puzzleRating: puzzle.rating,
-            themes: puzzle.themes,
-            win: result == .win,
-            // The rule of the puzzle controller, which sends the solution.
-            rated:
-                drill.puzzleContext.userId != null &&
-                !next.hintShown &&
-                ref.read(puzzlePreferencesProvider).rated,
-            solvingTime: solvingTime,
+      state = drillState.copyWith(
+        drill: drill.copyWith(
+          results: drill.results.add(
+            DrillPuzzleResult(
+              id: puzzleId,
+              puzzleRating: puzzle.rating,
+              themes: puzzle.themes,
+              win: result == .win,
+              // The rule of the puzzle controller, which sends the solution.
+              rated:
+                  drillState.puzzleContext.userId != null &&
+                  !next.hintShown &&
+                  ref.read(puzzlePreferencesProvider).rated,
+              solvingTime: solvingTime,
+            ),
           ),
         ),
       );
@@ -156,27 +250,30 @@ class DrillController() extends Notifier<DrillState?> {
       // The puzzle controller reads the player's rating when it starts, if the first puzzle
       // didn't come with it. It is the rating before the Drill unless a solution of the Drill was
       // sent first.
-      state = drill.copyWith(ratingBefore: next.glicko!.rating.round());
+      state = drillState.copyWith(drill: drill.copyWith(ratingBefore: next.glicko!.rating.round()));
     }
   }
 
   /// Records what a sync of the solutions with the server returned: the rating change of each
   /// solution sent and the player's new rating.
   void _onSync({required IList<PuzzleRound>? rounds, required PuzzleGlicko? glicko}) {
-    final drill = state;
-    if (drill == null) return;
+    final drillState = state;
+    if (drillState == null) return;
+    final drill = drillState.drill;
     final ratingDiffs = {
       for (final round in rounds ?? const <PuzzleRound>[]) round.id: round.ratingDiff,
     };
-    state = drill.copyWith(
-      results: drill.results
-          .map(
-            (r) => r.rated && ratingDiffs.containsKey(r.id)
-                ? r.copyWith(ratingDiff: ratingDiffs[r.id])
-                : r,
-          )
-          .toIList(),
-      latestRating: glicko?.rating.round() ?? drill.latestRating,
+    state = drillState.copyWith(
+      drill: drill.copyWith(
+        results: drill.results
+            .map(
+              (r) => r.rated && ratingDiffs.containsKey(r.id)
+                  ? r.copyWith(ratingDiff: ratingDiffs[r.id])
+                  : r,
+            )
+            .toIList(),
+        latestRating: glicko?.rating.round() ?? drill.latestRating,
+      ),
     );
   }
 
@@ -200,7 +297,7 @@ class DrillController() extends Notifier<DrillState?> {
     if (drill == null) return;
 
     final userId = drill.puzzleContext.userId;
-    final angle = drill.config.angle;
+    final angle = drill.drill.config.angle;
     try {
       final batchStorage = await ref.read(puzzleBatchStorageProvider.future);
       final batch = await batchStorage.fetch(userId: userId, angle: angle);
@@ -278,19 +375,20 @@ class _SolvingClock() {
   }
 }
 
-/// The configuration of the last Drill started, preselected to set up the next one.
+/// The configuration of the last Drill started with the signed in account, preselected to set up
+/// the next one.
 final lastDrillConfigProvider = NotifierProvider<LastDrillConfig, DrillConfig>(
   LastDrillConfig.new,
   name: 'LastDrillConfigProvider',
 );
 
-class LastDrillConfig() extends Notifier<DrillConfig> with PreferencesStorage<DrillConfig> {
+class LastDrillConfig() extends Notifier<DrillConfig> with SessionPreferencesStorage<DrillConfig> {
   @override
   @protected
   final prefCategory = PrefCategory.drill;
 
   @override
-  DrillConfig get defaults => const DrillConfig(nbPuzzles: 10);
+  DrillConfig defaults({LightUser? user}) => const DrillConfig(nbPuzzles: 10);
 
   @override
   DrillConfig fromJson(Map<String, dynamic> json) => DrillConfig.fromJson(json);
@@ -302,6 +400,51 @@ class LastDrillConfig() extends Notifier<DrillConfig> with PreferencesStorage<Dr
     final nbPuzzles = config.nbPuzzles.clamp(1, kMaxDrillPuzzles);
     return nbPuzzles == config.nbPuzzles ? config : config.copyWith(nbPuzzles: nbPuzzles);
   }
+}
+
+/// The unfinished Drill of the signed in player, kept on the device so that it can be resumed after
+/// the app is closed or killed, or `null` when there is none.
+///
+/// Each account has its own, kept while signed out. The [DrillController] keeps them up to date.
+final unfinishedDrillProvider = NotifierProvider<UnfinishedDrill, Drill?>(
+  UnfinishedDrill.new,
+  name: 'UnfinishedDrillProvider',
+);
+
+class UnfinishedDrill() extends Notifier<Drill?> {
+  static String _storageKey(UserId userId) => 'drill.unfinished.$userId';
+
+  @override
+  Drill? build() {
+    final userId = ref.watch(authControllerProvider.select((auth) => auth?.user.id));
+    if (userId == null) return null;
+    final stored = LichessBinding.instance.sharedPreferences.getString(_storageKey(userId));
+    if (stored == null) return null;
+    try {
+      return Drill.fromJson(jsonDecode(stored) as Map<String, dynamic>);
+    } catch (e, st) {
+      _logger.warning('Failed to decode the unfinished Drill', e, st);
+      clear(userId);
+      return null;
+    }
+  }
+
+  /// Keeps [drill] as the unfinished Drill of the account [userId].
+  Future<void> save(UserId userId, Drill drill) async {
+    if (userId == _signedInUserId) state = drill;
+    await LichessBinding.instance.sharedPreferences.setString(
+      _storageKey(userId),
+      jsonEncode(drill.toJson()),
+    );
+  }
+
+  /// Forgets the unfinished Drill of the account [userId].
+  Future<void> clear(UserId userId) async {
+    if (userId == _signedInUserId) state = null;
+    await LichessBinding.instance.sharedPreferences.remove(_storageKey(userId));
+  }
+
+  UserId? get _signedInUserId => ref.read(authControllerProvider)?.user.id;
 }
 
 /// The largest number of puzzles a Drill can have.
@@ -353,32 +496,47 @@ sealed class DrillConfig with _$DrillConfig implements Serializable {
   factory fromJson(Map<String, dynamic> json) => _$DrillConfigFromJson(json);
 }
 
+/// The Drill being played: the [Drill] and the puzzle being solved.
 @freezed
-sealed class const DrillState._() with _$DrillState {
+sealed class DrillState with _$DrillState {
   const factory({
-    required DrillConfig config,
+    required Drill drill,
 
     /// The context of the [PuzzleController] solving the Drill's puzzles.
     ///
-    /// It is the context of the first puzzle: the same controller loads the following ones.
+    /// It is the context of the first puzzle played: the same controller loads the following ones.
     required PuzzleContext puzzleContext,
 
     /// The number of the puzzle being solved, from 1.
     required int puzzleNumber,
+    @Default(false) bool isOver,
+  }) = _DrillState;
+}
+
+/// A Drill's configuration and the outcome of its puzzles, from which its Drill Summary is made.
+@Freezed(fromJson: true, toJson: true)
+sealed class const Drill._() with _$Drill implements Serializable {
+  const factory({
+    required DrillConfig config,
+    required DateTime startedAt,
 
     /// The outcome of each puzzle solved, in order.
     @Default(IListConst<DrillPuzzleResult>([])) IList<DrillPuzzleResult> results,
-    @Default(false) bool isOver,
 
     /// The player's puzzle rating when the Drill started, if known.
     int? ratingBefore,
 
     /// The player's puzzle rating returned by the latest sync of the solutions with the server.
     int? latestRating,
-  }) = _DrillState;
+  }) = _Drill;
+
+  factory fromJson(Map<String, dynamic> json) => _$DrillFromJson(json);
 
   /// Whether every puzzle of the Drill has been solved.
   bool get isLimitReached => results.length >= config.nbPuzzles;
+
+  /// Whether the Drill, once ended, is a Partial Drill: it ended before its last puzzle.
+  bool get isPartial => !isLimitReached;
 
   int get successes => results.where((r) => r.win).length;
 
@@ -439,7 +597,7 @@ sealed class const DrillState._() with _$DrillState {
 }
 
 /// The outcome of a puzzle of a Drill.
-@freezed
+@Freezed(fromJson: true, toJson: true)
 sealed class const DrillPuzzleResult._() with _$DrillPuzzleResult {
   const factory({
     required PuzzleId id,
@@ -457,6 +615,8 @@ sealed class const DrillPuzzleResult._() with _$DrillPuzzleResult {
     /// `null` when it is not [rated].
     int? ratingDiff,
   }) = _DrillPuzzleResult;
+
+  factory fromJson(Map<String, dynamic> json) => _$DrillPuzzleResultFromJson(json);
 
   /// Whether the result is rated but its rating change is not known yet.
   bool get isRatingDiffPending => rated && ratingDiff == null;

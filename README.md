@@ -20,6 +20,8 @@ summary of the results.
   account exactly as in the official app.
 - While a Drill runs, only the progress is shown; results, rating changes and performance are
   revealed in the summary at the end.
+- A Drill can be ended early, as a partial Drill. One left unfinished can be resumed at any time,
+  even after the app was closed. Each Lichess account signed in on the device has its own.
 
 See [GLOSSARY.md](./GLOSSARY.md) for the terms used in this fork and [docs/adr](./docs/adr) for
 the decisions behind it.

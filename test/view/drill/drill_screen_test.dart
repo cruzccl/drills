@@ -9,6 +9,7 @@ import 'package:lichess_mobile/src/model/drill/drill_controller.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_angle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_difficulty.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_theme.dart';
+import 'package:lichess_mobile/src/model/settings/preferences_storage.dart';
 import 'package:lichess_mobile/src/network/http.dart';
 import 'package:lichess_mobile/src/view/analysis/analysis_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_screen.dart';
@@ -117,6 +118,71 @@ void main() {
     expect(find.byType(AnalysisScreen), findsOneWidget);
   });
 
+  testWidgets('a Drill ended early shows its summary, marked as partial', (tester) async {
+    await openHome(tester, signedIn: true);
+    await tester.tap(find.widgetWithText(ChoiceChip, '5'));
+    await tester.tap(find.text('Empezar'));
+    await tester.pumpAndSettle();
+
+    await _failCurrentPuzzle(tester);
+    await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('2 / 5'), findsOneWidget);
+
+    await tester.tap(find.text('Terminar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('5 problemas · Healthy mix · Normal · Parcial'), findsOneWidget);
+    expect(_summaryValue('Fallos'), '1');
+  });
+
+  testWidgets('a Drill ended before any puzzle is solved goes back home', (tester) async {
+    await openHome(tester, signedIn: true);
+    await tester.tap(find.text('Empezar'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Terminar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DrillScreen), findsNothing);
+    expect(find.text('Empezar'), findsOneWidget);
+    expect(find.textContaining('Reanudar'), findsNothing);
+  });
+
+  testWidgets('the home screen offers to resume an unfinished Drill', (tester) async {
+    await openHome(tester, signedIn: true);
+    await tester.tap(find.widgetWithText(ChoiceChip, '5'));
+    await tester.tap(find.text('Empezar'));
+    await tester.pumpAndSettle();
+    await _failCurrentPuzzle(tester);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('1 / 5 · Healthy mix · Normal'), findsOneWidget);
+
+    await tester.tap(find.text('Reanudar el Drill'));
+    // the next arrow of the failed puzzle blinks: no pumpAndSettle
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(DrillScreen), findsOneWidget);
+    expect(find.text('1 / 5'), findsOneWidget, reason: 'still on the failed puzzle');
+
+    // starting a new Drill instead asks first
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Empezar'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DrillScreen), findsNothing);
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(find.text('1 / 5'), findsOneWidget);
+    expect(find.byType(DrillScreen), findsOneWidget);
+  });
+
   testWidgets('a Drill is set up with a number of puzzles, a theme and a difficulty', (
     tester,
   ) async {
@@ -198,7 +264,7 @@ void main() {
       tester,
       signedIn: true,
       defaultPreferences: {
-        'preferences.drill': jsonEncode(
+        SessionPreferencesStorage.key(PrefCategory.drill.storageKey, fakeAuthUser): jsonEncode(
           const DrillConfig(
             nbPuzzles: 37,
             angle: PuzzleTheme(PuzzleThemeKey.fork),
@@ -219,6 +285,14 @@ void main() {
     expect(server.angles.toSet(), {'fork'});
     expect(server.difficulties.toSet(), {'easier'});
   });
+}
+
+/// Fails the puzzle the Drill is on by viewing its solution, once it is offered.
+Future<void> _failCurrentPuzzle(WidgetTester tester) async {
+  await tester.pump(const Duration(seconds: 5));
+  await tester.tap(find.byIcon(Icons.flag_outlined));
+  // the solution is replayed and the next arrow blinks: no pumpAndSettle
+  await tester.pump(const Duration(seconds: 1));
 }
 
 /// The value shown next to a label of the Drill Summary.

@@ -9,12 +9,18 @@ abstract class DrillStrings() {
   static const theme = 'Tema';
   static const startDrill = 'Empezar';
   static const couldNotStartDrill = 'No se han podido cargar los problemas.';
+  static const resumeDrill = 'Reanudar el Drill';
+  static const replaceUnfinishedDrillConfirmation =
+      '¿Empezar un Drill nuevo? El que está sin terminar se dará por terminado.';
 
   static const previousMove = 'Anterior';
+  static const endDrill = 'Terminar';
+  static const endDrillConfirmation = '¿Terminar el Drill ahora?';
 
   static const summaryTitle = 'Resumen del Drill';
   static const puzzleUnit = 'problema';
   static const puzzlesUnit = 'problemas';
+  static const partial = 'Parcial';
   static const successes = 'Aciertos';
   static const failures = 'Fallos';
   static const successRate = 'Porcentaje de aciertos';
