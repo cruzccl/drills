@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lichess_mobile/src/model/drill/drill_controller.dart';
+import 'package:lichess_mobile/src/model/puzzle/puzzle_angle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_controller.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_difficulty.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_preferences.dart';
+import 'package:lichess_mobile/src/model/puzzle/puzzle_theme.dart';
 import 'package:lichess_mobile/src/network/http.dart';
 import 'package:lichess_mobile/src/service/puzzle_service.dart';
 
@@ -73,6 +75,56 @@ void main() {
     expect(drill.failures, 2);
     expect(drill.successRate, 0.6);
     expect(server.solutions.map((s) => s.win), [true, false, true, true, false]);
+  });
+
+  test('a Drill is played with its number of puzzles, theme and difficulty', () async {
+    final container = await makeDrillContainer();
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(
+      const DrillConfig(
+        nbPuzzles: 12,
+        angle: PuzzleTheme(PuzzleThemeKey.fork),
+        difficulty: PuzzleDifficulty.hardest,
+      ),
+    );
+
+    for (var i = 0; i < 12; i++) {
+      expect(container.read(drillControllerProvider)!.isOver, isFalse);
+      await _solveCurrentPuzzle(container, win: true);
+      drillCtrl.continueDrill();
+    }
+
+    expect(container.read(drillControllerProvider)!.isOver, isTrue);
+    expect(server.solutions, hasLength(12));
+    expect(server.angles.toSet(), {'fork'});
+    expect(server.difficulties.toSet(), {'hardest'});
+  });
+
+  test('a Drill can be played on an opening', () async {
+    final container = await makeDrillContainer();
+
+    await container
+        .read(drillControllerProvider.notifier)
+        .start(const DrillConfig(nbPuzzles: 5, angle: PuzzleOpening('Sicilian_Defense')));
+
+    expect(server.angles.toSet(), {'Sicilian_Defense'});
+  });
+
+  test('the configuration of the last Drill started is remembered', () async {
+    final container = await makeDrillContainer();
+    expect(container.read(lastDrillConfigProvider), const DrillConfig(nbPuzzles: 10));
+    const config = DrillConfig(
+      nbPuzzles: 37,
+      angle: PuzzleOpening('Sicilian_Defense'),
+      difficulty: PuzzleDifficulty.easier,
+    );
+
+    await container.read(drillControllerProvider.notifier).start(config);
+
+    expect(container.read(lastDrillConfigProvider), config);
+    container.dispose();
+    final restarted = await makeDrillContainer();
+    expect(restarted.read(lastDrillConfigProvider), config);
   });
 
   test('with auto-next, a solved puzzle moves on by itself, but a failed one waits', () async {

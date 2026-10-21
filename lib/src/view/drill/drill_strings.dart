@@ -5,7 +5,8 @@ abstract class DrillStrings() {
 
   static const homeSignInPrompt =
       'Inicia sesión con tu cuenta de Lichess para que tus Drills cuenten en ella.';
-  static const homeDrillDescription = '5 problemas · Mezcla variada · Dificultad normal';
+  static const nbPuzzlesChoice = 'Número de problemas';
+  static const theme = 'Tema';
   static const startDrill = 'Empezar';
   static const couldNotStartDrill = 'No se han podido cargar los problemas.';
 

@@ -35,6 +35,7 @@ enum PrefCategory(final String storageKey) {
   log('preferences.log'),
   clockTool('preferences.clockTool'),
   relation('preferences.relation'),
+  drill('preferences.drill'),
 }
 
 /// A [Notifier] mixin to provide a way to store and retrieve preferences.
