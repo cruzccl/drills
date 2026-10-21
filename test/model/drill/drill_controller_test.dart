@@ -10,13 +10,16 @@ import 'package:lichess_mobile/src/model/puzzle/puzzle_angle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_controller.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_difficulty.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_preferences.dart';
+import 'package:lichess_mobile/src/model/puzzle/puzzle_solve_limit.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_theme.dart';
 import 'package:lichess_mobile/src/model/user/user.dart';
+import 'package:lichess_mobile/src/network/connectivity.dart';
 import 'package:lichess_mobile/src/network/http.dart';
 import 'package:lichess_mobile/src/service/puzzle_service.dart';
 
 import '../../network/fake_http_client_factory.dart';
 import '../../test_container.dart';
+import '../../utils/fake_connectivity.dart';
 import '../auth/fake_auth_storage.dart';
 import 'fake_drill_server.dart';
 
@@ -33,6 +36,9 @@ void main() {
     overrides: {
       httpClientFactoryProvider: httpClientFactoryProvider.overrideWith(
         (ref) => FakeHttpClientFactory(() => server.client),
+      ),
+      drillSendRetryDelayProvider: drillSendRetryDelayProvider.overrideWithValue(
+        const Duration(seconds: 1),
       ),
     },
   );
@@ -238,10 +244,9 @@ void main() {
       final container = await makeDrillContainer();
       final drillCtrl = container.read(drillControllerProvider.notifier);
       await drillCtrl.start(const DrillConfig(nbPuzzles: 2));
-      final binding = TestWidgetsFlutterBinding.instance;
-      void setAppLifecycleStates(List<AppLifecycleState> states) =>
-          states.forEach(binding.handleAppLifecycleStateChanged);
-      if (binding.lifecycleState != .resumed) setAppLifecycleStates(const [.resumed]);
+      if (TestWidgetsFlutterBinding.instance.lifecycleState != .resumed) {
+        _setAppLifecycleStates(const [.resumed]);
+      }
 
       await _solveCurrentPuzzle(
         container,
@@ -256,9 +261,9 @@ void main() {
         win: false,
         whilePlaying: () {
           now = now.add(const Duration(seconds: 10));
-          setAppLifecycleStates(const [.inactive, .hidden, .paused]);
+          _setAppLifecycleStates(const [.inactive, .hidden, .paused]);
           now = now.add(const Duration(minutes: 5));
-          setAppLifecycleStates(const [.hidden, .inactive, .resumed]);
+          _setAppLifecycleStates(const [.hidden, .inactive, .resumed]);
           now = now.add(const Duration(seconds: 5));
         },
       );
@@ -302,6 +307,166 @@ void main() {
     expect(drill.drill.results.map((r) => r.ratingDiff), [10, 10]);
     expect(drill.drill.ratingAfter, 1520);
     expect(drill.drill.ratingChange, 20);
+  });
+
+  test('a Drill can be solved offline once started, its results sent when back online', () async {
+    final container = await makeDrillContainer();
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(const DrillConfig(nbPuzzles: 8));
+
+    await _goOffline(container, server);
+    for (var i = 0; i < 8; i++) {
+      await _solveCurrentPuzzle(container, win: i.isEven);
+      drillCtrl.continueDrill();
+    }
+
+    var drill = container.read(drillControllerProvider)!;
+    expect(drill.isOver, isTrue);
+    expect(drill.drill.results, hasLength(8));
+    expect(server.solutions, isEmpty);
+    expect(drill.drill.ratingAfter, isNull, reason: 'pending');
+    // 1500 average puzzle rating, 4 successes out of 8
+    expect(drill.drill.performance, 1500, reason: 'known without the server');
+    // the solutions sent when the Drill ended stay pending
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    expect(server.solutions, isEmpty);
+
+    await _goOnline(container, server);
+    await _waitFor(() => !container.read(drillControllerProvider)!.drill.hasPendingRatingDiff);
+
+    drill = container.read(drillControllerProvider)!;
+    expect(server.solutions, hasLength(8));
+    expect(drill.drill.ratingAfter, FakeDrillServer.initialRating);
+    expect(drill.drill.ratingChange, 0);
+  });
+
+  test('the results are sent even if the app misses the connection coming back', () async {
+    final container = await makeDrillContainer();
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(const DrillConfig(nbPuzzles: 2));
+    // the requests fail, without the app noticing it is offline
+    server.isOffline = true;
+    for (var i = 0; i < 2; i++) {
+      await _solveCurrentPuzzle(container, win: true);
+      drillCtrl.continueDrill();
+    }
+    expect(container.read(drillControllerProvider)!.isOver, isTrue);
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    expect(server.solutions, isEmpty);
+
+    server.isOffline = false;
+    await _waitFor(() => !container.read(drillControllerProvider)!.drill.hasPendingRatingDiff);
+
+    expect(server.solutions, hasLength(2));
+    expect(container.read(drillControllerProvider)!.drill.ratingChange, 20);
+  });
+
+  test('the results of a casual Drill solved offline are sent when back online', () async {
+    final container = await makeDrillContainer();
+    await container.read(puzzlePreferencesProvider.notifier).setRated(false);
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(const DrillConfig(nbPuzzles: 2));
+
+    await _goOffline(container, server);
+    for (var i = 0; i < 2; i++) {
+      await _solveCurrentPuzzle(container, win: true);
+      drillCtrl.continueDrill();
+    }
+    expect(container.read(drillControllerProvider)!.isOver, isTrue);
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    expect(server.solutions, isEmpty);
+
+    await _goOnline(container, server);
+    await _waitFor(() => server.solutions.length == 2);
+
+    expect(server.solutions.map((s) => s.rated), [false, false]);
+  });
+
+  test('the results are sent when back online, even with no puzzle left to download', () async {
+    server.nbAvailable = 3;
+    final container = await makeDrillContainer();
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(const DrillConfig(nbPuzzles: 3));
+
+    await _goOffline(container, server);
+    for (var i = 0; i < 3; i++) {
+      await _solveCurrentPuzzle(container, win: true, waitForNext: i < 2);
+      drillCtrl.continueDrill();
+    }
+    expect(container.read(drillControllerProvider)!.isOver, isTrue);
+
+    await _goOnline(container, server);
+    await _waitFor(() => !container.read(drillControllerProvider)!.drill.hasPendingRatingDiff);
+
+    expect(server.solutions, hasLength(3));
+    expect(container.read(drillControllerProvider)!.drill.ratingChange, 30);
+  });
+
+  test('the solutions stay pending while Lichess limits the solving rate', () async {
+    final container = await makeDrillContainer();
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(const DrillConfig(nbPuzzles: 3));
+
+    server.isSolveLimited = true;
+    for (var i = 0; i < 3; i++) {
+      await _solveCurrentPuzzle(container, win: true);
+      drillCtrl.continueDrill();
+    }
+
+    expect(container.read(drillControllerProvider)!.isOver, isTrue);
+    expect(server.nbSolveRequests, 1, reason: 'backed off after the first 429');
+    // neither the Drill ending nor the connection coming back sends them while backed off
+    await _goOffline(container, server);
+    await _goOnline(container, server);
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    expect(server.nbSolveRequests, 1);
+    expect(container.read(drillControllerProvider)!.drill.ratingAfter, isNull, reason: 'pending');
+
+    // the back-off is over when the player comes back to the app
+    server.isSolveLimited = false;
+    container
+        .read(puzzleSolveLimiterProvider.notifier)
+        .markLimitedAt(DateTime.now().subtract(kPuzzleSolveLimitDuration), 1);
+    _setAppLifecycleStates(const [.inactive, .hidden, .paused]);
+    _setAppLifecycleStates(const [.hidden, .inactive, .resumed]);
+    await _waitFor(() => !container.read(drillControllerProvider)!.drill.hasPendingRatingDiff);
+
+    expect(server.solutions, hasLength(3));
+    expect(container.read(drillControllerProvider)!.drill.ratingChange, 30);
+  });
+
+  test('the pending solutions are kept when a Drill starts at another difficulty', () async {
+    final container = await makeDrillContainer();
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(const DrillConfig(nbPuzzles: 2));
+    // the requests fail, without the app noticing it is offline
+    server.isOffline = true;
+    await _solveCurrentPuzzle(container, win: true);
+    drillCtrl.continueDrill();
+    await _solveCurrentPuzzle(container, win: false);
+    drillCtrl.continueDrill();
+    expect(container.read(drillControllerProvider)!.isOver, isTrue);
+
+    server.isOffline = false;
+    await drillCtrl.start(const DrillConfig(nbPuzzles: 2, difficulty: .hardest));
+
+    expect(server.solutions.map((s) => s.win), [true, false]);
+    expect(server.difficulties.last, 'hardest');
+  });
+
+  test('a Drill starts at another difficulty while Lichess limits the solving rate', () async {
+    final container = await makeDrillContainer();
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(const DrillConfig(nbPuzzles: 2));
+    server.isSolveLimited = true;
+    await _solveCurrentPuzzle(container, win: true);
+    drillCtrl.end();
+
+    final started = await drillCtrl.start(const DrillConfig(nbPuzzles: 2, difficulty: .hardest));
+
+    expect(started, isTrue);
+    expect(server.difficulties.last, 'hardest');
+    expect(server.nbSolveRequests, 1, reason: 'still backed off');
   });
 
   test('ending a Drill early makes it a Partial Drill of the puzzles solved', () async {
@@ -459,11 +624,13 @@ PuzzleState _puzzleState(ProviderContainer container) => container.read(
 /// Solves the puzzle the Drill is on, waiting for its result to be sent to the server.
 ///
 /// It is won by playing the solution, or lost by viewing the solution. [whilePlaying] is called
-/// once the player can move, before the puzzle is solved.
+/// once the player can move, before the puzzle is solved. Without [waitForNext], when no puzzle is
+/// left to play, it only waits for the solution to be saved.
 Future<void> _solveCurrentPuzzle(
   ProviderContainer container, {
   required bool win,
   bool hint = false,
+  bool waitForNext = true,
   void Function()? whilePlaying,
 }) async {
   final ctrlProvider = puzzleControllerProvider(
@@ -483,11 +650,37 @@ Future<void> _solveCurrentPuzzle(
   } else {
     puzzleCtrl.viewSolution();
   }
+  if (!waitForNext) {
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    return;
+  }
   // the solution is sent and the next puzzle prepared, or already loaded with auto-next
   await _waitFor(() {
     final state = container.read(ctrlProvider);
     return state.nextContext != null || state.puzzle.puzzle.id != puzzleId;
   });
+}
+
+void _setAppLifecycleStates(List<AppLifecycleState> states) =>
+    states.forEach(TestWidgetsFlutterBinding.instance.handleAppLifecycleStateChanged);
+
+/// Takes the device offline, waiting for the app to notice.
+Future<void> _goOffline(ProviderContainer container, FakeDrillServer server) =>
+    _setDeviceOnline(container, server, false);
+
+/// Brings the device back online, waiting for the app to notice.
+Future<void> _goOnline(ProviderContainer container, FakeDrillServer server) =>
+    _setDeviceOnline(container, server, true);
+
+Future<void> _setDeviceOnline(
+  ProviderContainer container,
+  FakeDrillServer server,
+  bool isOnline,
+) async {
+  server.isOffline = !isOnline;
+  await container.read(connectivityChangesProvider.future);
+  FakeConnectivity.controller.add([if (isOnline) .wifi else .none]);
+  await _waitFor(() => container.read(isDeviceOnlineProvider) == isOnline);
 }
 
 Future<void> _waitFor(bool Function() condition) async {

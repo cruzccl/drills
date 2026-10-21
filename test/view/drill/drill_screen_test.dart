@@ -10,6 +10,7 @@ import 'package:lichess_mobile/src/model/puzzle/puzzle_angle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_difficulty.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_theme.dart';
 import 'package:lichess_mobile/src/model/settings/preferences_storage.dart';
+import 'package:lichess_mobile/src/network/connectivity.dart';
 import 'package:lichess_mobile/src/network/http.dart';
 import 'package:lichess_mobile/src/view/analysis/analysis_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_screen.dart';
@@ -22,6 +23,7 @@ import '../../model/drill/fake_drill_server.dart';
 import '../../network/fake_http_client_factory.dart';
 import '../../test_helpers.dart';
 import '../../test_provider_scope.dart';
+import '../../utils/fake_connectivity.dart';
 
 void main() {
   late FakeDrillServer server;
@@ -136,6 +138,38 @@ void main() {
 
     expect(find.text('5 problemas · Healthy mix · Normal · Parcial'), findsOneWidget);
     expect(_summaryValue('Fallos'), '1');
+  });
+
+  testWidgets('the Drill Summary shows the rating as pending until it is synced', (tester) async {
+    await openHome(tester, signedIn: true);
+    await tester.tap(find.widgetWithText(ChoiceChip, '5'));
+    await tester.tap(find.text('Empezar'));
+    await tester.pumpAndSettle();
+
+    server.isOffline = true;
+    FakeConnectivity.controller.add([.none]);
+    await _failCurrentPuzzle(tester);
+    await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.text('Terminar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    expect(_summaryValue('Puntuación'), '1500 → pendiente');
+    expect(_summaryValue('Rendimiento'), '1000', reason: 'known without the server');
+    await tester.scrollUntilVisible(find.text('pendiente'), 200.0);
+
+    server.isOffline = false;
+    // past the throttling of connectivity changes
+    await tester.pump(kConnectivityThrottleDelay);
+    FakeConnectivity.controller.add([.wifi]);
+    await tester.pumpAndSettle();
+
+    expect(find.text('pendiente'), findsNothing);
+    expect(find.text('-10'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Puntuación'), -200.0);
+    expect(_summaryValue('Puntuación'), '1500 → 1490 (-10)');
   });
 
   testWidgets('a Drill ended before any puzzle is solved goes back home', (tester) async {

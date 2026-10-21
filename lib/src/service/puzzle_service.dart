@@ -96,6 +96,20 @@ class PuzzleService(
     );
   }
 
+  /// Syncs the puzzle queue with the server, sending the solutions still pending, and returns the
+  /// glicko rating and the results of the solutions sent, if available.
+  ///
+  /// Unlike [nextPuzzle], they are returned even when no puzzle is left to play.
+  /// This future should never fail on network errors.
+  Future<({PuzzleGlicko? glicko, IList<PuzzleRound>? rounds})> syncSolutions({
+    required UserId? userId,
+    required PuzzleAngle angle,
+  }) {
+    return Result.release(
+      _syncAndLoadData(userId, angle).map((data) => (glicko: data.$2, rounds: data.$3)),
+    );
+  }
+
   /// Update puzzle queue with the solved puzzle, sync with server and returns
   /// the next puzzle with the glicko rating if available.
   ///
