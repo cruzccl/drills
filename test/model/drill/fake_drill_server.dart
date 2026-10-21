@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dartchess/dartchess.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:lichess_mobile/src/model/puzzle/puzzle_preferences.dart';
 
 /// A fake Lichess puzzle server for Drill tests.
 ///
@@ -11,7 +12,7 @@ import 'package:http/testing.dart';
 /// solved by [solution] (the player plays the 1st and 3rd moves). The solutions posted are
 /// recorded in [solutions], and each rated one moves the player's rating by [ratingDiff] (up when
 /// won, down when lost). The openings offered are [openings]. While [isOffline], every request
-/// fails. Signing out succeeds.
+/// fails; while [isSolveLimited], posting solutions does. Signing out succeeds.
 class FakeDrillServer() {
   /// The solution of every puzzle served.
   static const solution = ['g4h4', 'h8h4', 'b4h4'];
@@ -37,6 +38,13 @@ class FakeDrillServer() {
   /// Whether every request fails, as without a connection.
   bool isOffline = false;
 
+  /// Whether posting solutions is answered with 429 Too Many Requests, as when the player solved
+  /// too many puzzles lately.
+  bool isSolveLimited = false;
+
+  /// The number of requests posting solutions, rate limited ones included.
+  int nbSolveRequests = 0;
+
   /// The player's puzzle rating.
   int rating = initialRating;
 
@@ -45,6 +53,9 @@ class FakeDrillServer() {
 
   /// The number of puzzles served so far.
   int nbServed = 0;
+
+  /// The number of puzzles the server has to serve, as for a rare theme or opening.
+  int nbAvailable = 1 << 30;
 
   /// The difficulty asked by each batch request fetching puzzles, in order.
   ///
@@ -81,6 +92,9 @@ class FakeDrillServer() {
     }
     final rounds = <Map<String, dynamic>>[];
     if (request.method == 'POST') {
+      nbSolveRequests++;
+      // with its request, by which the client tells it from the 429s it retries
+      if (isSolveLimited) return http.Response('', 429, request: request);
       final body = jsonDecode(request.body) as Map<String, dynamic>;
       for (final s in (body['solutions'] as List<dynamic>).cast<Map<String, dynamic>>()) {
         final solution = (id: s['id'] as String, win: s['win'] as bool, rated: s['rated'] as bool);
@@ -90,8 +104,10 @@ class FakeDrillServer() {
         rounds.add({'id': solution.id, 'win': solution.win, 'ratingDiff': diff});
       }
     }
-    // The server sends at most 50 puzzles per request; a few are enough here.
-    final nb = int.parse(request.url.queryParameters['nb'] ?? '0').clamp(0, 5);
+    // As the real server, at most 50 puzzles per request.
+    final nb = int.parse(request.url.queryParameters['nb'] ?? '0')
+        .clamp(0, kServerPuzzleBatchCap)
+        .clamp(0, nbAvailable - nbServed);
     if (nb > 0) {
       angles.add(segments.last);
       difficulties.add(request.url.queryParameters['difficulty']);

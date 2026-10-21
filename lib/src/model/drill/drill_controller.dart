@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:clock/clock.dart';
@@ -15,9 +16,12 @@ import 'package:lichess_mobile/src/model/puzzle/puzzle_batch_storage.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_controller.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_difficulty.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_preferences.dart';
+import 'package:lichess_mobile/src/model/puzzle/puzzle_repository.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_theme.dart';
 import 'package:lichess_mobile/src/model/settings/preferences_storage.dart';
 import 'package:lichess_mobile/src/model/user/user.dart';
+import 'package:lichess_mobile/src/network/connectivity.dart';
+import 'package:lichess_mobile/src/network/http.dart';
 import 'package:lichess_mobile/src/service/puzzle_service.dart';
 import 'package:logging/logging.dart';
 
@@ -30,6 +34,12 @@ final _logger = Logger('DrillController');
 final drillControllerProvider = NotifierProvider<DrillController, DrillState?>(
   DrillController.new,
   name: 'DrillControllerProvider',
+);
+
+/// How long to wait before trying again to send the pending solutions of an ended Drill.
+final drillSendRetryDelayProvider = Provider<Duration>(
+  (ref) => const Duration(seconds: 30),
+  name: 'DrillSendRetryDelayProvider',
 );
 
 /// Owns the lifecycle of a Drill: starts it, records the outcome of each puzzle, ends it, and
@@ -47,9 +57,25 @@ class DrillController() extends Notifier<DrillState?> {
   /// the server, or kept pending if it could not be sent.
   bool _isLastResultSaved = true;
 
+  /// Whether the pending solutions are being sent by [_sendPendingSolutions].
+  bool _isSendingPendingSolutions = false;
+
+  /// Whether to try sending the pending solutions again once done, as asked meanwhile.
+  bool _shouldRetrySendingPendingSolutions = false;
+
+  /// Tries again later to send the pending solutions, see [_scheduleRetry].
+  Timer? _retryTimer;
+
   @override
   DrillState? build() {
-    ref.onDispose(() => _solvingClock?.dispose());
+    // While the server limits the solving rate, the puzzle service doesn't send the pending
+    // solutions: coming back to the app is a good time to check whether that is over.
+    final appLifecycleListener = AppLifecycleListener(onResume: _retrySendingPendingSolutions);
+    ref.onDispose(() {
+      _retryTimer?.cancel();
+      _solvingClock?.dispose();
+      appLifecycleListener.dispose();
+    });
     listenSelf((previous, next) {
       // Without a Drill anymore, it was discarded or left to its account: see [_discard].
       final userId = next?.puzzleContext.userId;
@@ -64,6 +90,10 @@ class DrillController() extends Notifier<DrillState?> {
     // The Drill being played stays the unfinished Drill of its account, to be resumed once signed
     // in with it again.
     ref.listen(authControllerProvider.select((auth) => auth?.user.id), (_, _) => _leave());
+    // Solutions left pending offline are sent as soon as the device is back online.
+    ref.listen(isDeviceOnlineProvider, (wasOnline, isOnline) {
+      if (isOnline && wasOnline == false) _retrySendingPendingSolutions();
+    });
     return null;
   }
 
@@ -150,6 +180,7 @@ class DrillController() extends Notifier<DrillState?> {
   /// Drops the Drill being played without ending it: if unfinished, it stays the unfinished Drill
   /// of its account.
   void _leave() {
+    _retryTimer?.cancel();
     _puzzleSubscription?.close();
     _puzzleSubscription = null;
     state = null;
@@ -161,17 +192,49 @@ class DrillController() extends Notifier<DrillState?> {
     final puzzlePrefs = ref.read(puzzlePreferencesProvider);
     final service = await _puzzleService(config.angle);
     // The puzzle service and controller fetch puzzles at the difficulty of the preferences, which
-    // Drills don't expose otherwise. The puzzles queued at another difficulty are dropped, as when
-    // the difficulty is changed in the official app.
+    // Drills don't expose otherwise.
     if (puzzlePrefs.difficulty != config.difficulty) {
       await ref.read(puzzlePreferencesProvider.notifier).setDifficulty(config.difficulty);
-      await service.deleteBatch(userId: userId, angle: config.angle);
+      await _requeue(userId: userId, angle: config.angle, difficulty: config.difficulty);
     }
     return await service.nextPuzzle(userId: userId, angle: config.angle);
   }
 
+  /// Replaces the puzzles queued for [angle] with puzzles at [difficulty], keeping the solutions
+  /// still to send.
+  ///
+  /// As when the difficulty is changed in the official app, the puzzles queued at another
+  /// difficulty are dropped. The new ones are downloaded without sending the solutions, which the
+  /// server may not take yet: the puzzle service sends them when it can.
+  Future<void> _requeue({
+    required UserId? userId,
+    required PuzzleAngle angle,
+    required PuzzleDifficulty difficulty,
+  }) async {
+    final batchStorage = await ref.read(puzzleBatchStorageProvider.future);
+    IList<Puzzle> unsolved = const IListConst([]);
+    try {
+      final response = await ref.withClient(
+        (client) =>
+            PuzzleRepository(client)
+                .selectBatch(nb: kMaxDrillPuzzles, angle: angle, difficulty: difficulty),
+      );
+      unsolved = response.puzzles;
+    } catch (e, st) {
+      // Without puzzles at that difficulty, no Drill can be started.
+      _logger.warning('Failed to download the puzzles', e, st);
+    }
+    final batch = await batchStorage.fetch(userId: userId, angle: angle);
+    await batchStorage.save(
+      userId: userId,
+      angle: angle,
+      data: PuzzleBatch(solved: batch?.solved ?? const IListConst([]), unsolved: unsolved),
+    );
+  }
+
   /// Plays [drill] from its next puzzle, loaded in [puzzleContext].
   void _play(Drill drill, PuzzleContext puzzleContext) {
+    _retryTimer?.cancel();
     _puzzleSubscription?.close();
     (_solvingClock ??= _SolvingClock()).stop();
     _isLastResultSaved = true;
@@ -284,6 +347,43 @@ class DrillController() extends Notifier<DrillState?> {
     if (_isLastResultSaved) _sendPendingSolutions();
   }
 
+  /// Tries again to send the solutions of the ended Drill left pending, rated or not.
+  ///
+  /// While the Drill is played, the puzzle controller sends them with the next solution instead.
+  Future<void> _retrySendingPendingSolutions() async {
+    final drillState = state;
+    if (drillState == null || !drillState.isOver || drillState.drill.results.isEmpty) return;
+    if (!_isLastResultSaved) {
+      // Without a puzzle left to play, the puzzle controller doesn't tell when it is done with
+      // the last result: it is once the puzzle is no longer queued.
+      final batchStorage = await ref.read(puzzleBatchStorageProvider.future);
+      final batch = await batchStorage.fetch(
+        userId: drillState.puzzleContext.userId,
+        angle: drillState.drill.config.angle,
+      );
+      final lastId = drillState.drill.results.last.id;
+      if (!ref.mounted || state != drillState) return;
+      if (batch == null || batch.unsolved.any((p) => p.puzzle.id == lastId)) {
+        _scheduleRetry();
+        return;
+      }
+      _isLastResultSaved = true;
+    }
+    _sendPendingSolutions();
+  }
+
+  /// Tries again to send the pending solutions after [drillSendRetryDelayProvider], while the app
+  /// is shown.
+  ///
+  /// The device coming back online is not always noticed: its connectivity is checked at most every
+  /// few seconds, and a check made as the connection comes back may still find it offline.
+  void _scheduleRetry() {
+    _retryTimer?.cancel();
+    // Coming back to the app tries again anyway.
+    if (WidgetsBinding.instance.lifecycleState case .hidden || .paused || .detached) return;
+    _retryTimer = Timer(ref.read(drillSendRetryDelayProvider), _retrySendingPendingSolutions);
+  }
+
   /// Sends the solutions that could not be sent yet, so that the Drill Summary gets their rating
   /// changes as soon as possible.
   ///
@@ -295,21 +395,43 @@ class DrillController() extends Notifier<DrillState?> {
     _puzzleSubscription = null;
     final drill = state;
     if (drill == null) return;
+    if (_isSendingPendingSolutions) {
+      _shouldRetrySendingPendingSolutions = true;
+      return;
+    }
 
     final userId = drill.puzzleContext.userId;
     final angle = drill.drill.config.angle;
+    _isSendingPendingSolutions = true;
+    var isStillPending = true;
     try {
       final batchStorage = await ref.read(puzzleBatchStorageProvider.future);
       final batch = await batchStorage.fetch(userId: userId, angle: angle);
-      if (batch == null || batch.solved.isEmpty || !ref.mounted) return;
-      final synced = await (await _puzzleService(angle)).nextPuzzle(userId: userId, angle: angle);
+      if (batch == null || batch.solved.isEmpty || !ref.mounted) {
+        isStillPending = false;
+        return;
+      }
+      final service = await _puzzleService(angle);
+      final synced = await service.syncSolutions(userId: userId, angle: angle);
       // Another Drill may have started meanwhile.
-      if (synced != null && ref.mounted && state?.puzzleContext == drill.puzzleContext) {
+      if (ref.mounted && state?.puzzleContext == drill.puzzleContext) {
         _onSync(rounds: synced.rounds, glicko: synced.glicko);
+        final remaining = await batchStorage.fetch(userId: userId, angle: angle);
+        isStillPending = remaining != null && remaining.solved.isNotEmpty;
       }
     } catch (e, st) {
       // The solutions stay pending, as when they can't be sent.
       _logger.warning('Failed to send the pending solutions', e, st);
+    } finally {
+      _isSendingPendingSolutions = false;
+      if (ref.mounted) {
+        if (_shouldRetrySendingPendingSolutions) {
+          _shouldRetrySendingPendingSolutions = false;
+          _retrySendingPendingSolutions();
+        } else if (isStillPending && state?.puzzleContext == drill.puzzleContext) {
+          _scheduleRetry();
+        }
+      }
     }
   }
 }
