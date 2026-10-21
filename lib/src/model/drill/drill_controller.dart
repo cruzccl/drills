@@ -8,9 +8,11 @@ import 'package:lichess_mobile/src/model/puzzle/puzzle_controller.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_difficulty.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_preferences.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_theme.dart';
+import 'package:lichess_mobile/src/model/settings/preferences_storage.dart';
 import 'package:lichess_mobile/src/service/puzzle_service.dart';
 
 part 'drill_controller.freezed.dart';
+part 'drill_controller.g.dart';
 
 /// The Drill being played, or `null` when there is none.
 final drillControllerProvider = NotifierProvider<DrillController, DrillState?>(
@@ -48,6 +50,7 @@ class DrillController() extends Notifier<DrillState?> {
     final puzzleContext = await service.nextPuzzle(userId: userId, angle: config.angle);
     if (puzzleContext == null) return false;
 
+    await ref.read(lastDrillConfigProvider.notifier).save(config);
     _puzzleSubscription?.close();
     state = DrillState(config: config, puzzleContext: puzzleContext, puzzleNumber: 1);
     _puzzleSubscription = ref.listen(puzzleControllerProvider(puzzleContext), _onPuzzleStateChange);
@@ -98,17 +101,51 @@ class DrillController() extends Notifier<DrillState?> {
   }
 }
 
+/// The configuration of the last Drill started, preselected to set up the next one.
+final lastDrillConfigProvider = NotifierProvider<LastDrillConfig, DrillConfig>(
+  LastDrillConfig.new,
+  name: 'LastDrillConfigProvider',
+);
+
+class LastDrillConfig() extends Notifier<DrillConfig> with PreferencesStorage<DrillConfig> {
+  @override
+  @protected
+  final prefCategory = PrefCategory.drill;
+
+  @override
+  DrillConfig get defaults => const DrillConfig(nbPuzzles: 10);
+
+  @override
+  DrillConfig fromJson(Map<String, dynamic> json) => DrillConfig.fromJson(json);
+
+  @override
+  DrillConfig build() {
+    final config = fetch();
+    // Edited or corrupted prefs could hold a number of puzzles the setup screen doesn't allow.
+    final nbPuzzles = config.nbPuzzles.clamp(1, kMaxDrillPuzzles);
+    return nbPuzzles == config.nbPuzzles ? config : config.copyWith(nbPuzzles: nbPuzzles);
+  }
+}
+
+/// The largest number of puzzles a Drill can have.
+///
+/// It is the most puzzles a batch request returns ([kServerPuzzleBatchCap]), so that a Drill's
+/// puzzles can all be downloaded at once.
+const kMaxDrillPuzzles = kServerPuzzleBatchCap;
+
 /// How a Drill is configured when it starts.
-@freezed
-sealed class DrillConfig with _$DrillConfig {
+@Freezed(fromJson: true, toJson: true)
+sealed class DrillConfig with _$DrillConfig implements Serializable {
   const factory({
-    /// The number of puzzles of the Drill.
+    /// The number of puzzles of the Drill, from 1 to [kMaxDrillPuzzles].
     required int nbPuzzles,
 
     /// The theme or opening of the puzzles.
     @Default(PuzzleTheme(PuzzleThemeKey.mix)) PuzzleAngle angle,
     @Default(PuzzleDifficulty.normal) PuzzleDifficulty difficulty,
   }) = _DrillConfig;
+
+  factory fromJson(Map<String, dynamic> json) => _$DrillConfigFromJson(json);
 }
 
 @freezed

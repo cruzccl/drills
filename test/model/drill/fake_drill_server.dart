@@ -6,10 +6,10 @@ import 'package:http/testing.dart';
 
 /// A fake Lichess puzzle server for Drill tests.
 ///
-/// Every batch request of the mix angle is answered with new puzzles, so that a Drill never runs
-/// out of them. All the puzzles are the same position under distinct ids: black to play, solved
-/// by [solution] (the player plays the 1st and 3rd moves). The solutions posted are recorded in
-/// [solutions].
+/// Every batch request, whatever its angle, is answered with new puzzles, so that a Drill never
+/// runs out of them. All the puzzles are the same position under distinct ids: black to play,
+/// solved by [solution] (the player plays the 1st and 3rd moves). The solutions posted are
+/// recorded in [solutions]. The openings offered are [openings].
 class FakeDrillServer() {
   /// The solution of every puzzle served.
   static const solution = ['g4h4', 'h8h4', 'b4h4'];
@@ -26,14 +26,34 @@ class FakeDrillServer() {
   /// The number of puzzles served so far.
   int nbServed = 0;
 
-  /// The difficulty asked by each batch request, in order.
+  /// The difficulty asked by each batch request fetching puzzles, in order.
+  ///
+  /// Requests for no puzzles, with which the player's rating is read, are left out.
   final List<String?> difficulties = [];
 
+  /// The angle (theme or opening key) of each batch request fetching puzzles, in order.
+  final List<String> angles = [];
+
+  /// The openings of `/training/openings`: a family with one variation.
+  static const openings = {
+    'openings': [
+      {
+        'family': {'key': 'Sicilian_Defense', 'name': 'Sicilian Defense', 'count': 300},
+        'openings': [
+          {'key': 'Sicilian_Defense_Najdorf_Variation', 'name': 'Najdorf Variation', 'count': 40},
+        ],
+      },
+    ],
+  };
+
   late final MockClient client = MockClient((request) async {
-    if (request.url.path != '/api/puzzle/batch/mix') {
+    if (request.url.path == '/training/openings') {
+      return http.Response(jsonEncode(openings), 200);
+    }
+    final segments = request.url.pathSegments;
+    if (segments.length != 4 || segments.take(3).join('/') != 'api/puzzle/batch') {
       return http.Response('', 404);
     }
-    difficulties.add(request.url.queryParameters['difficulty']);
     if (request.method == 'POST') {
       final body = jsonDecode(request.body) as Map<String, dynamic>;
       for (final s in (body['solutions'] as List<dynamic>).cast<Map<String, dynamic>>()) {
@@ -42,6 +62,10 @@ class FakeDrillServer() {
     }
     // The server sends at most 50 puzzles per request; a few are enough here.
     final nb = int.parse(request.url.queryParameters['nb'] ?? '0').clamp(0, 5);
+    if (nb > 0) {
+      angles.add(segments.last);
+      difficulties.add(request.url.queryParameters['difficulty']);
+    }
     final puzzles = [for (var i = 0; i < nb; i++) _puzzleJson('drill${nbServed++}')];
     return http.Response(
       jsonEncode({
