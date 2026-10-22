@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:chessground/chessground.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:dartchess/dartchess.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lichess_mobile/src/app.dart';
 import 'package:lichess_mobile/src/model/drill/drill_controller.dart';
@@ -136,7 +137,7 @@ void main() {
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
 
-    expect(find.text('5 problemas · Healthy mix · Normal · Parcial'), findsOneWidget);
+    expect(find.text('5 problemas · Healthy mix · Normal · Incompleto'), findsOneWidget);
     expect(_summaryValue('Fallos'), '1');
   });
 
@@ -319,6 +320,83 @@ void main() {
     expect(server.angles.toSet(), {'fork'});
     expect(server.difficulties.toSet(), {'easier'});
   });
+
+  testWidgets('the Drill History lists the past Drills, opened or deleted', (tester) async {
+    await openHome(
+      tester,
+      signedIn: true,
+      defaultPreferences: {
+        SessionPreferencesStorage.key(PrefCategory.drill.storageKey, fakeAuthUser): jsonEncode(
+          const DrillConfig(nbPuzzles: 1).toJson(),
+        ),
+      },
+    );
+    await tester.tap(find.byIcon(Icons.history));
+    await tester.pumpAndSettle();
+    expect(find.text('Todavía no has terminado ningún Drill.'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await _playOnePuzzleDrill(tester);
+    await tester.tap(find.byIcon(Icons.history));
+    await tester.pumpAndSettle();
+    expect(find.text('Hoy'), findsOneWidget);
+    expect(find.text('Healthy mix'), findsOneWidget);
+    // no success out of 1, where 50 % was expected from the puzzle's 1500 and the player's 1500
+    expect(find.text('0 %'), findsOneWidget);
+    expect(find.text('esperado 50 %'), findsOneWidget);
+    expect(find.text('1000'), findsOneWidget);
+    expect(find.text('Poco fiable'), findsOneWidget);
+    // in the day header and the Drill
+    expect(find.text('−10'), findsNWidgets(2));
+    expect(find.text('1490'), findsOneWidget);
+    expect(find.byType(LineChart), findsNothing, reason: 'a single Drill');
+
+    await tester.tap(find.text('Healthy mix'));
+    await tester.pumpAndSettle();
+    expect(find.text('Resumen del Drill'), findsOneWidget);
+    expect(_summaryValue('Fallos'), '1');
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // the chart, from 2 Drills
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await _playOnePuzzleDrill(tester);
+    await tester.tap(find.byIcon(Icons.history));
+    await tester.pumpAndSettle();
+    expect(find.text('Healthy mix'), findsNWidgets(2));
+    expect(find.text('2 Drills · '), findsOneWidget);
+    expect(find.byType(LineChart), findsOneWidget);
+    expect(find.text('Últimos 2 Drills'), findsOneWidget);
+    await tester.tap(find.text('Aciertos'));
+    await tester.pumpAndSettle();
+    expect(find.byType(BarChart), findsOneWidget);
+    await tester.tap(find.text('Todos'));
+    await tester.pumpAndSettle();
+    expect(find.text('Todos los Drills (2)'), findsOneWidget);
+
+    for (var i = 0; i < 2; i++) {
+      await tester.longPress(find.text('Healthy mix').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('Healthy mix'), findsNothing);
+    expect(find.text('Todavía no has terminado ningún Drill.'), findsOneWidget);
+  });
+}
+
+/// Plays a Drill of 1 puzzle from the home screen, failed, and goes back home from its summary.
+Future<void> _playOnePuzzleDrill(WidgetTester tester) async {
+  await tester.tap(find.text('Empezar'));
+  await tester.pumpAndSettle();
+  await _failCurrentPuzzle(tester);
+  await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
+  await tester.pumpAndSettle();
+  await tester.scrollUntilVisible(find.text('Volver'), 200.0);
+  await tester.tap(find.text('Volver'));
+  await tester.pumpAndSettle();
 }
 
 /// Fails the puzzle the Drill is on by viewing its solution, once it is offered.

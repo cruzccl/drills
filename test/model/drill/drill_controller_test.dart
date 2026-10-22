@@ -1,11 +1,16 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:clock/clock.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lichess_mobile/src/db/drill_database.dart';
 import 'package:lichess_mobile/src/model/auth/auth_controller.dart';
 import 'package:lichess_mobile/src/model/common/id.dart';
 import 'package:lichess_mobile/src/model/drill/drill_controller.dart';
+import 'package:lichess_mobile/src/model/drill/drill_history.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_angle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_controller.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_difficulty.dart';
@@ -16,6 +21,8 @@ import 'package:lichess_mobile/src/model/user/user.dart';
 import 'package:lichess_mobile/src/network/connectivity.dart';
 import 'package:lichess_mobile/src/network/http.dart';
 import 'package:lichess_mobile/src/service/puzzle_service.dart';
+import 'package:path/path.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../../network/fake_http_client_factory.dart';
 import '../../test_container.dart';
@@ -29,7 +36,19 @@ void main() {
 
   late FakeDrillServer server;
 
-  setUp(() => server = FakeDrillServer());
+  /// The database of Drills, kept on the device across app restarts.
+  late Database drillDatabase;
+
+  setUp(() async {
+    server = FakeDrillServer();
+    drillDatabase = await openDrillDatabase(
+      databaseFactoryFfi,
+      inMemoryDatabasePath,
+      singleInstance: false,
+    );
+  });
+
+  tearDown(() => drillDatabase.close());
 
   Future<ProviderContainer> makeDrillContainer({AuthUser authUser = fakeAuthUser}) => makeContainer(
     authUser: authUser,
@@ -40,6 +59,7 @@ void main() {
       drillSendRetryDelayProvider: drillSendRetryDelayProvider.overrideWithValue(
         const Duration(seconds: 1),
       ),
+      drillDatabaseProvider: drillDatabaseProvider.overrideWith((ref) => drillDatabase),
     },
   );
 
@@ -615,7 +635,286 @@ void main() {
     expect(container.read(unfinishedDrillProvider)!.config.nbPuzzles, 3);
     expect(container.read(drillControllerProvider)!.puzzleNumber, 1);
   });
+
+  test('an ended Drill is kept in the Drill History, with its summary', () async {
+    final container = await makeDrillContainer();
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(const DrillConfig(nbPuzzles: 2));
+    expect(await _history(container), isEmpty);
+
+    await _solveCurrentPuzzle(container, win: true);
+    drillCtrl.continueDrill();
+    await _solveCurrentPuzzle(container, win: false);
+    drillCtrl.continueDrill();
+    expect(container.read(drillControllerProvider)!.isOver, isTrue);
+    container.dispose();
+
+    final restarted = await makeDrillContainer();
+    final history = await _history(restarted);
+    expect(history, hasLength(1));
+    expect(history.single.config.nbPuzzles, 2);
+    expect(history.single.isPartial, isFalse);
+    expect(history.single.wins, [true, false]);
+    expect(history.single.ratingChange, 0);
+  });
+
+  test('the Drill History gets the rating changes synced after the Drill ended', () async {
+    final container = await makeDrillContainer();
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(const DrillConfig(nbPuzzles: 2));
+    await _goOffline(container, server);
+    for (var i = 0; i < 2; i++) {
+      await _solveCurrentPuzzle(container, win: true);
+      drillCtrl.continueDrill();
+    }
+    await _waitFor(() => _loadedHistory(container)?.length == 1);
+    expect(_loadedHistory(container)!.single.ratingAfter, isNull);
+
+    await _goOnline(container, server);
+    await _waitFor(() => _loadedHistory(container)!.single.ratingAfter != null);
+
+    expect(_loadedHistory(container)!.single.ratingChange, 20);
+  });
+
+  test('an unfinished Drill ended by starting a new one is kept as a Partial Drill', () async {
+    final container = await makeDrillContainer();
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(_drill);
+    await _solveCurrentPuzzle(container, win: true);
+    drillCtrl.continueDrill();
+    // the requests fail, without the app noticing it is offline: the solution is left pending
+    server.isOffline = true;
+    await _solveCurrentPuzzle(container, win: false);
+
+    server.isOffline = false;
+    await drillCtrl.start(const DrillConfig(nbPuzzles: 3));
+
+    final history = await _history(container);
+    expect(history, hasLength(1));
+    expect(history.single.config, _drill);
+    expect(history.single.isPartial, isTrue);
+    expect(history.single.wins, [true, false]);
+    // the pending solution was sent as the new Drill started
+    final drill = await container.read(drillHistoryDrillProvider(history.single.startedAt).future);
+    expect(drill!.results.map((r) => r.ratingDiff), [10, -10]);
+    expect(history.single.ratingChange, 0);
+  });
+
+  test('a Drill ended before any puzzle is solved is not kept', () async {
+    final container = await makeDrillContainer();
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(_drill);
+    drillCtrl.end();
+    await drillCtrl.start(_drill);
+    await drillCtrl.start(_drill);
+
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    expect(await _history(container), isEmpty);
+  });
+
+  test('each account has its own Drill History, kept while signed out', () async {
+    final container = await makeDrillContainer();
+    await _playDrill(container, nbPuzzles: 1);
+    expect(await _history(container), hasLength(1));
+
+    await container.read(authControllerProvider.notifier).signOut();
+    expect(await _history(container), isEmpty);
+    container.dispose();
+
+    final other = await makeDrillContainer(authUser: _otherAuthUser);
+    expect(await _history(other), isEmpty);
+    await _playDrill(other, nbPuzzles: 2);
+    await _playDrill(other, nbPuzzles: 3);
+    expect(await _history(other), hasLength(2));
+    other.dispose();
+
+    final back = await makeDrillContainer();
+    final history = await _history(back);
+    expect(history.map((d) => d.config.nbPuzzles), [1]);
+  });
+
+  test('the Drill History lists the Drills newest first, and a Drill can be deleted', () async {
+    var now = DateTime(2026, 10, 21, 9);
+    await withClock(Clock(() => now), () async {
+      final container = await makeDrillContainer();
+      for (final nbPuzzles in [1, 2, 3]) {
+        await _playDrill(container, nbPuzzles: nbPuzzles);
+        now = now.add(const Duration(hours: 1));
+      }
+
+      final history = await _history(container);
+      expect(history.map((d) => d.config.nbPuzzles), [3, 2, 1]);
+      expect(history.map((d) => d.startedAt.hour), [11, 10, 9]);
+
+      await container.read(drillHistoryProvider.notifier).delete(history[1].startedAt);
+
+      expect(_loadedHistory(container)!.map((d) => d.config.nbPuzzles), [3, 1]);
+      container.dispose();
+      final restarted = await makeDrillContainer();
+      final kept = await _history(restarted);
+      expect(kept.map((d) => d.config.nbPuzzles), [3, 1]);
+    });
+  });
+
+  test('a deleted Drill stays deleted when its rating changes come', () async {
+    final container = await makeDrillContainer();
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(const DrillConfig(nbPuzzles: 1));
+    await _goOffline(container, server);
+    await _solveCurrentPuzzle(container, win: true);
+    drillCtrl.continueDrill();
+    await _waitFor(() => _loadedHistory(container)?.length == 1);
+
+    await container
+        .read(drillHistoryProvider.notifier)
+        .delete(_loadedHistory(container)!.single.startedAt);
+    await _goOnline(container, server);
+    await _waitFor(() => !container.read(drillControllerProvider)!.drill.hasPendingRatingDiff);
+
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    expect(await _history(container), isEmpty);
+  });
+
+  test('the Drill History is loaded a page at a time, whole days at once', () async {
+    final container = await makeDrillContainer();
+    final history = container.read(drillHistoryProvider.notifier);
+    // 4 Drills a day for 17 days, then 3 more: 71 Drills
+    for (var i = 0; i < 71; i++) {
+      await history.add(_userId, _pastDrill(DateTime(2026, 9, 1 + i ~/ 4, 8 + i % 4)));
+    }
+    container.invalidate(drillHistoryProvider);
+
+    var loaded = await container.read(drillHistoryProvider.future);
+    // 30, and the other Drill of the day of the 30th
+    expect(loaded.entries, hasLength(31));
+    expect(loaded.entries.first.startedAt, DateTime(2026, 9, 18, 10));
+    expect(loaded.hasMore, isTrue);
+
+    await history.loadMore();
+    loaded = container.read(drillHistoryProvider).value!;
+    expect(loaded.entries, hasLength(63));
+    expect(loaded.hasMore, isTrue);
+
+    await history.loadMore();
+    loaded = container.read(drillHistoryProvider).value!;
+    expect(loaded.entries, hasLength(71));
+    expect(loaded.entries.last.startedAt, DateTime(2026, 9, 1, 8));
+    expect(loaded.hasMore, isFalse);
+  });
+
+  test('the Drills kept before the summaries existed are listed with them', () async {
+    final directory = await Directory.systemTemp.createTemp('drills_test');
+    addTearDown(() => directory.delete(recursive: true));
+    final path = join(directory.path, 'drills.db');
+    final drill = _pastDrill(DateTime(2026, 10, 21, 22, 36));
+    final v1 = await databaseFactoryFfi.openDatabase(
+      path,
+      options: OpenDatabaseOptions(
+        version: 1,
+        onCreate: (db, _) => db.execute(
+          'CREATE TABLE drill_history(userId TEXT NOT NULL, startedAt TEXT NOT NULL, '
+          'data TEXT NOT NULL, PRIMARY KEY (userId, startedAt))',
+        ),
+      ),
+    );
+    await v1.insert('drill_history', {
+      'userId': _userId.value,
+      'startedAt': drill.startedAt.toUtc().toIso8601String(),
+      'data': jsonEncode(drill.toJson()),
+    });
+    await v1.close();
+    await drillDatabase.close();
+    drillDatabase = await openDrillDatabase(databaseFactoryFfi, path);
+
+    final container = await makeDrillContainer();
+
+    final entry = (await _history(container)).single;
+    expect(entry.startedAt, drill.startedAt);
+    expect(entry.wins, [true, false, true, true, false]);
+    expect(entry.ratingChange, 10);
+    final points = await container.read(drillChartPointsProvider.future);
+    expect(points.single.performance, 1600);
+  });
+
+  test("a Drill's expected share of puzzles solved is from its puzzles' ratings", () async {
+    server.puzzleRatingOf = (index) => index == 0 ? 1500 : 1900;
+    final container = await makeDrillContainer();
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(const DrillConfig(nbPuzzles: 2));
+    for (var i = 0; i < 2; i++) {
+      await _solveCurrentPuzzle(container, win: true);
+      drillCtrl.continueDrill();
+    }
+
+    final drill = container.read(drillControllerProvider)!.drill;
+    // 50 % for the puzzle at the player's 1500, 9 % for the one 400 points above
+    expect(drill.expectedSuccessRate, closeTo(0.2955, 0.0001));
+    await _waitFor(() => _loadedHistory(container)?.length == 1);
+    expect(_loadedHistory(container)!.single.expectedSuccessRate, closeTo(0.2955, 0.0001));
+  });
+
+  test('the chart has the values of every Drill, oldest first', () async {
+    final container = await makeDrillContainer();
+    final history = container.read(drillHistoryProvider.notifier);
+    await history.add(_userId, _pastDrill(DateTime(2026, 10, 20)));
+    await history.add(_userId, _pastDrill(DateTime(2026, 10, 21), rated: false));
+
+    final points = await container.read(drillChartPointsProvider.future);
+
+    expect(points.map((p) => p.startedAt), [DateTime(2026, 10, 20), DateTime(2026, 10, 21)]);
+    // 1500 average puzzle rating, 3 successes out of 5
+    expect(points.map((p) => p.performance), [1600, 1600]);
+    expect(points.map((p) => p.successRate), [0.6, 0.6]);
+    expect(points.map((p) => p.expectedSuccessRate), [0.5, 0.5]);
+    expect(points.map((p) => p.ratingAfter), [1510, null], reason: 'a casual Drill');
+    expect(points.map((p) => p.isPerformanceReliable), [false, false]);
+  });
 }
+
+/// Plays a whole Drill of [nbPuzzles], all of them solved, and waits for it to be kept in the
+/// Drill History.
+Future<void> _playDrill(ProviderContainer container, {required int nbPuzzles}) async {
+  final drillCtrl = container.read(drillControllerProvider.notifier);
+  final nbKept = (await _history(container)).length;
+  await drillCtrl.start(DrillConfig(nbPuzzles: nbPuzzles));
+  for (var i = 0; i < nbPuzzles; i++) {
+    await _solveCurrentPuzzle(container, win: true);
+    drillCtrl.continueDrill();
+  }
+  await _waitFor(() => _loadedHistory(container)?.length == nbKept + 1);
+}
+
+/// An ended Drill of 5 puzzles at 1500 started at [startedAt] by a player at 1500, with 3
+/// successes: +10 for each, −10 for each failure, when [rated].
+Drill _pastDrill(DateTime startedAt, {bool rated = true}) {
+  const wins = [true, false, true, true, false];
+  return Drill(
+    config: const DrillConfig(nbPuzzles: 5),
+    startedAt: startedAt,
+    ratingBefore: 1500,
+    latestRating: rated ? 1510 : 1500,
+    results: [
+      for (final (i, win) in wins.indexed)
+        DrillPuzzleResult(
+          id: PuzzleId('past$i'),
+          puzzleRating: 1500,
+          themes: const ISetConst({}),
+          win: win,
+          rated: rated,
+          solvingTime: const Duration(seconds: 10),
+          ratingDiff: rated ? (win ? 10 : -10) : null,
+        ),
+    ].toIList(),
+  );
+}
+
+/// The summaries of the Drills of the Drill History, once loaded.
+Future<IList<DrillHistoryEntry>> _history(ProviderContainer container) async =>
+    (await container.read(drillHistoryProvider.future)).entries;
+
+/// The summaries of the Drills of the Drill History loaded so far, if any.
+IList<DrillHistoryEntry>? _loadedHistory(ProviderContainer container) =>
+    container.read(drillHistoryProvider).value?.entries;
 
 PuzzleState _puzzleState(ProviderContainer container) => container.read(
   puzzleControllerProvider(container.read(drillControllerProvider)!.puzzleContext),
