@@ -39,7 +39,6 @@ abstract class DrillStrings() {
   static const historyTitle = 'Historial de Drills';
   static const emptyHistory = 'Todavía no has terminado ningún Drill.';
   static const deleteDrillConfirmation = '¿Eliminar este Drill del historial?';
-  static const casual = 'Sin puntuar';
   static const today = 'Hoy';
   static const yesterday = 'Ayer';
   static const points = 'Puntos';

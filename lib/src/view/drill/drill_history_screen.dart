@@ -159,12 +159,6 @@ class const _DrillCard(final DrillHistoryEntry entry) extends ConsumerWidget {
                   ),
                   if (entry.isPartial)
                     _Badge(DrillStrings.partial, color: colors.brag, textColor: Colors.black),
-                  if (entry.isCasual)
-                    _Badge(
-                      DrillStrings.casual,
-                      color: colorScheme.surfaceContainerHighest,
-                      textColor: colorScheme.onSurfaceVariant,
-                    ),
                 ],
               ),
               const SizedBox(height: 4.0),
@@ -235,6 +229,7 @@ class const _DrillCard(final DrillHistoryEntry entry) extends ConsumerWidget {
                       valueColor: entry.isCasual || ratingChange == null
                           ? textShade(context, Styles.subtitleOpacity)
                           : _signColor(context, ratingChange),
+                      opacity: entry.isCasual ? 0.55 : 1.0,
                       detail: entry.isCasual
                           ? Text(ratingBefore)
                           : Row(
