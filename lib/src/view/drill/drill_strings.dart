@@ -44,7 +44,7 @@ abstract class DrillStrings() {
   static const yesterday = 'Ayer';
   static const points = 'Puntos';
   static const ofTotal = 'de';
-  static const expected = 'esperado';
+  static const expected = 'Esperado';
   static const average = 'media';
   static const allDrills = 'Todos';
   static const noChartData = 'Sin datos';

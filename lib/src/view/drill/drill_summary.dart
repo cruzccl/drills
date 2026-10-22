@@ -33,7 +33,14 @@ class const DrillSummary(final Drill drill, {super.key}) extends ConsumerWidget 
           children: [
             _SummaryTile(DrillStrings.successes, '${drill.successes}'),
             _SummaryTile(DrillStrings.failures, '${drill.failures}'),
-            _SummaryTile(DrillStrings.successRate, '${(drill.successRate * 100).round()} %'),
+            _SummaryTile(
+              DrillStrings.successRate,
+              '${(drill.successRate * 100).round()} %',
+              subtitle: switch (drill.expectedSuccessRate) {
+                final expected? => '${DrillStrings.expected} ${(expected * 100).round()} %',
+                null => null,
+              },
+            ),
             ListTile(title: const Text(DrillStrings.rating), trailing: _RatingChange(drill)),
             _SummaryTile(DrillStrings.totalTime, formatSolvingTime(drill.totalSolvingTime)),
             _SummaryTile(DrillStrings.averageTime, formatSolvingTime(drill.averageSolvingTime)),
