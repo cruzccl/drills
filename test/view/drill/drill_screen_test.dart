@@ -15,7 +15,9 @@ import 'package:lichess_mobile/src/network/connectivity.dart';
 import 'package:lichess_mobile/src/network/http.dart';
 import 'package:lichess_mobile/src/view/analysis/analysis_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_screen.dart';
+import 'package:lichess_mobile/src/view/engine/engine_button.dart';
 import 'package:lichess_mobile/src/view/puzzle/puzzle_session_widget.dart';
+import 'package:lichess_mobile/src/widgets/bottom_bar.dart';
 import 'package:lichess_mobile/src/widgets/non_linear_slider.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -319,6 +321,51 @@ void main() {
     expect(find.text('1 / 37'), findsOneWidget);
     expect(server.angles.toSet(), {'fork'});
     expect(server.difficulties.toSet(), {'easier'});
+  });
+
+  testWidgets("a Drill puzzle's analysis board shows the threat instead of the menu", (
+    tester,
+  ) async {
+    await openHome(
+      tester,
+      signedIn: true,
+      defaultPreferences: {
+        SessionPreferencesStorage.key(PrefCategory.drill.storageKey, fakeAuthUser): jsonEncode(
+          const DrillConfig(nbPuzzles: 1).toJson(),
+        ),
+      },
+    );
+    await tester.tap(find.text('Empezar'));
+    await tester.pumpAndSettle();
+    await _failCurrentPuzzle(tester);
+    await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('-10'), 200.0);
+    await tester.tap(find.text('-10'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AnalysisScreen), findsOneWidget);
+
+    // no menu leading to the analysis settings, the board editor or a study
+    expect(find.byIcon(Icons.menu), findsNothing);
+    // the share button at the top stays
+    expect(find.byIcon(Icons.more_horiz), findsOneWidget);
+
+    BottomBarButton threatButton() =>
+        tester.widget<BottomBarButton>(find.widgetWithIcon(BottomBarButton, Icons.crisis_alert));
+    expect(threatButton().label, 'Show threat');
+    await tester.tap(find.byIcon(Icons.crisis_alert));
+    await tester.pumpAndSettle();
+    expect(threatButton().label, 'Stop showing threat');
+    expect(threatButton().highlighted, isTrue);
+    await tester.tap(find.byIcon(Icons.crisis_alert));
+    await tester.pumpAndSettle();
+    expect(threatButton().label, 'Show threat');
+    expect(threatButton().highlighted, isFalse);
+
+    // with the engine off, the threat cannot be shown
+    await tester.tap(find.byType(EngineToggleButton));
+    await tester.pumpAndSettle();
+    expect(threatButton().onTap, isNull);
   });
 
   testWidgets('the Drill History lists the past Drills, opened or deleted', (tester) async {

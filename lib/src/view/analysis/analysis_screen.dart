@@ -60,19 +60,29 @@ typedef _AnalysisScreenData = ({
   bool hasChartClocks,
 });
 
-class const AnalysisScreen({required final AnalysisOptions options, super.key})
-    extends StatelessWidget {
-  static Route<dynamic> buildRoute(AnalysisOptions options) {
-    return buildScreenRoute(screen: AnalysisScreen(options: options));
+/// The analysis board.
+///
+/// With [isDrill], for reviewing a Drill puzzle, the bottom bar has a show threat button instead
+/// of the menu: the rest of the menu leads out of Drills or needs permissions the app doesn't ask
+/// for.
+class const AnalysisScreen({
+  required final AnalysisOptions options,
+  final bool isDrill = false,
+  super.key,
+}) extends StatelessWidget {
+  static Route<dynamic> buildRoute(AnalysisOptions options, {bool isDrill = false}) {
+    return buildScreenRoute(
+      screen: AnalysisScreen(options: options, isDrill: isDrill),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return _AnalysisScreen(options: options);
+    return _AnalysisScreen(options: options, isDrill: isDrill);
   }
 }
 
-class const _AnalysisScreen({required final AnalysisOptions options})
+class const _AnalysisScreen({required final AnalysisOptions options, required final bool isDrill})
     extends ConsumerStatefulWidget {
   @override
   ConsumerState<_AnalysisScreen> createState() => _AnalysisScreenState();
@@ -169,6 +179,7 @@ class _AnalysisScreenState() extends ConsumerState<_AnalysisScreen> {
         body: switch (asyncState) {
           AsyncData(:final value) => _TabbedBody(
             options: widget.options,
+            isDrill: widget.isDrill,
             // Move times can only be shown for games played with a clock.
             showMoveTimes: value.hasChartClocks,
           ),
@@ -220,8 +231,11 @@ class _AnalysisScreenState() extends ConsumerState<_AnalysisScreen> {
 ///
 /// Which tabs are available depends on the loaded game, so the list can only be built once the
 /// analysis state is available.
-class const _TabbedBody({required final AnalysisOptions options, required final bool showMoveTimes})
-    extends StatefulWidget {
+class const _TabbedBody({
+  required final AnalysisOptions options,
+  required final bool isDrill,
+  required final bool showMoveTimes,
+}) extends StatefulWidget {
   @override
   State<_TabbedBody> createState() => _TabbedBodyState();
 }
@@ -263,6 +277,7 @@ class _TabbedBodyState() extends State<_TabbedBody> with SingleTickerProviderSta
     final smallBoard = _smallBoard ?? isSmallBoardByDefault(context);
     return _Body(
       options: widget.options,
+      isDrill: widget.isDrill,
       controller: _tabController,
       tabs: tabs,
       smallBoard: smallBoard,
@@ -273,6 +288,7 @@ class _TabbedBodyState() extends State<_TabbedBody> with SingleTickerProviderSta
 
 class const _Body({
   required final AnalysisOptions options,
+  required final bool isDrill,
   required final TabController controller,
   required final List<AnalysisTab> tabs,
   required final bool smallBoard,
@@ -377,6 +393,7 @@ class const _Body({
             : null,
         bottomBar: _BottomBar(
           options: options,
+          isDrill: isDrill,
           tabController: controller,
           smallBoard: smallBoard,
           onToggleSmallBoard: onToggleSmallBoard,
@@ -470,6 +487,7 @@ class const _PlayerName({required final Player player}) extends StatelessWidget 
 
 class const _BottomBar({
   required final AnalysisOptions options,
+  required final bool isDrill,
   required final TabController tabController,
   required final bool smallBoard,
   required final VoidCallback onToggleSmallBoard,
@@ -478,19 +496,41 @@ class const _BottomBar({
   Widget build(BuildContext context, WidgetRef ref) {
     final ctrlProvider = analysisControllerProvider(options);
     final analysisState = ref.watch(ctrlProvider).requireValue;
+    final isEngineAvailable = analysisState.isEngineAvailable(
+      ref.watch(engineEvaluationPreferencesProvider),
+    );
+    final isShowingThreat = isEngineAvailable && analysisState.engineInThreatMode;
 
     return BottomBar(
       cupertinoGlass: true,
       children: [
         BottomBarGroup(
           children: [
-            BottomBarButton(
-              label: context.l10n.menu,
-              onTap: () {
-                _showAnalysisMenu(context, ref);
-              },
-              icon: Icons.menu,
-            ),
+            if (isDrill) ...[
+              BottomBarButton(
+                label: isShowingThreat
+                    ? context.l10n.mobileStopShowingThreat
+                    : context.l10n.showThreat,
+                highlighted: isShowingThreat,
+                onTap: isShowingThreat || (isEngineAvailable && analysisState.canShowThreat)
+                    ? () => ref.read(ctrlProvider.notifier).toggleEngineThreatMode()
+                    : null,
+                icon: Icons.crisis_alert,
+              ),
+              // Upstream moved the flip board button into the menu, which Drills hides.
+              BottomBarButton(
+                label: context.l10n.flipBoard,
+                onTap: () => ref.read(ctrlProvider.notifier).toggleBoard(),
+                icon: CupertinoIcons.arrow_2_squarepath,
+              ),
+            ] else
+              BottomBarButton(
+                label: context.l10n.menu,
+                onTap: () {
+                  _showAnalysisMenu(context, ref);
+                },
+                icon: Icons.menu,
+              ),
             if (canToggleBoardSize(context))
               BoardSizeToggleButton(smallBoard: smallBoard, onTap: onToggleSmallBoard),
           ],
