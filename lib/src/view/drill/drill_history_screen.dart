@@ -107,7 +107,7 @@ class const _DayHeader(final DateTime day, final List<DrillHistoryEntry> entries
           ),
           if (change != null)
             Text(
-              _signed(change),
+              formatRatingChange(change),
               style: TextStyle(fontSize: 13, fontWeight: .bold, color: _signColor(context, change)),
             ),
         ],
@@ -231,7 +231,7 @@ class const _DrillCard(final DrillHistoryEntry entry) extends ConsumerWidget {
                           ? '—'
                           : ratingChange == null
                           ? '···'
-                          : _signed(ratingChange),
+                          : formatRatingChange(ratingChange),
                       valueColor: entry.isCasual || ratingChange == null
                           ? textShade(context, Styles.subtitleOpacity)
                           : _signColor(context, ratingChange),
@@ -493,7 +493,7 @@ class const _ChartHeadline(
         .week => DrillStrings.sinceLastWeek,
         .month => DrillStrings.sinceLastMonth,
       };
-      comparison = change == null ? '' : '${_signed(change)} $since';
+      comparison = change == null ? '' : '${formatRatingChange(change)} $since';
       comparisonColor = change != null ? _signColor(context, change) : null;
     }
     return Text.rich(
@@ -676,12 +676,6 @@ Color? _signColor(BuildContext context, int change) => change > 0
     : change < 0
     ? context.lichessColors.error
     : null;
-
-String _signed(int value) => value > 0
-    ? '+$value'
-    : value < 0
-    ? '−${-value}'
-    : '±0';
 
 /// The name of the day of [date]: today, yesterday, or its date, with the year if it is not this
 /// year's, and with the day of the week unless [short].
