@@ -116,7 +116,7 @@ void main() {
     expect(find.text('Short (4)'), findsNothing, reason: 'a length theme');
 
     // the puzzles of the Drill, each opened on the analysis board
-    await tester.scrollUntilVisible(find.text('+10'), 200.0);
+    await tester.scrollUntilVisible(find.text('+10').hitTestable(), 200.0);
     expect(find.text('-10'), findsWidgets);
     await tester.tap(find.text('+10'));
     await tester.pumpAndSettle();
@@ -161,7 +161,7 @@ void main() {
 
     expect(_summaryValue('Puntuación'), '1500 → pendiente');
     expect(_summaryValue('Rendimiento'), '1000', reason: 'known without the server');
-    await tester.scrollUntilVisible(find.text('pendiente'), 200.0);
+    await tester.scrollUntilVisible(find.text('pendiente').last, 200.0);
 
     server.isOffline = false;
     // past the throttling of connectivity changes
@@ -340,7 +340,7 @@ void main() {
     await _failCurrentPuzzle(tester);
     await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('-10'), 200.0);
+    await tester.scrollUntilVisible(find.text('-10').hitTestable(), 200.0);
     await tester.tap(find.text('-10'));
     await tester.pumpAndSettle();
     expect(find.byType(AnalysisScreen), findsOneWidget);
@@ -454,11 +454,26 @@ Future<void> _failCurrentPuzzle(WidgetTester tester) async {
   await tester.pump(const Duration(seconds: 1));
 }
 
-/// The value shown next to a label of the Drill Summary.
-String? _summaryValue(String label) {
-  final tile = find.ancestor(of: find.text(label), matching: find.byType(ListTile)).evaluate();
-  final trailing = (tile.single.widget as ListTile).trailing;
-  return trailing is Text ? trailing.data : null;
+/// The value shown next to a label of the Drill Summary, with its arrow icon written as →.
+String _summaryValue(String label) {
+  final tile = find.ancestor(of: find.text(label), matching: find.byType(ListTile));
+  final trailing = find.byWidget((tile.evaluate().single.widget as ListTile).trailing!);
+  return find
+      .descendant(
+        of: trailing,
+        matchRoot: true,
+        matching: find.byWidgetPredicate(
+          (widget) => widget is Text || (widget is Icon && widget.icon == Icons.arrow_forward),
+        ),
+      )
+      .evaluate()
+      .map(
+        (element) => switch (element.widget) {
+          Text(:final data) => data,
+          _ => '→',
+        },
+      )
+      .join(' ');
 }
 
 bool _isChipSelected(WidgetTester tester, String label) =>

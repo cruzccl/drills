@@ -34,7 +34,7 @@ class const DrillSummary(final Drill drill, {super.key}) extends ConsumerWidget 
             _SummaryTile(DrillStrings.successes, '${drill.successes}'),
             _SummaryTile(DrillStrings.failures, '${drill.failures}'),
             _SummaryTile(DrillStrings.successRate, '${(drill.successRate * 100).round()} %'),
-            _SummaryTile(DrillStrings.rating, _ratingText(drill)),
+            ListTile(title: const Text(DrillStrings.rating), trailing: _RatingChange(drill)),
             _SummaryTile(DrillStrings.totalTime, formatSolvingTime(drill.totalSolvingTime)),
             _SummaryTile(DrillStrings.averageTime, formatSolvingTime(drill.averageSolvingTime)),
             Opacity(
@@ -78,6 +78,31 @@ class const _SummaryTile(final String label, final String value, {final String? 
       title: Text(label),
       subtitle: subtitle != null ? Text(subtitle!) : null,
       trailing: Text(value, style: TextTheme.of(context).titleMedium),
+    );
+  }
+}
+
+/// The rating before and after [drill], and its change, with the same centered arrow as the Drill
+/// History cards (the → character sits below the middle of the digits).
+class const _RatingChange(final Drill drill) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final style = TextTheme.of(context).titleMedium;
+    final after = drill.ratingAfter;
+    final change = drill.ratingChange;
+    return Row(
+      mainAxisSize: .min,
+      spacing: 4.0,
+      children: [
+        Text(drill.ratingBefore?.toString() ?? '?', style: style),
+        const Icon(Icons.arrow_forward, size: 16),
+        Text(
+          after == null
+              ? DrillStrings.pending
+              : '$after${change != null ? ' (${_signed(change)})' : ''}',
+          style: style,
+        ),
+      ],
     );
   }
 }
@@ -147,15 +172,6 @@ String drillDescription(BuildContext context, WidgetRef ref, Drill drill) {
     puzzleDifficultyL10n(context, config.difficulty),
     if (drill.isPartial) DrillStrings.partial,
   ].join(' · ');
-}
-
-String _ratingText(Drill drill) {
-  final before = drill.ratingBefore?.toString() ?? '?';
-  final after = drill.ratingAfter;
-  final change = drill.ratingChange;
-  return after == null
-      ? '$before → ${DrillStrings.pending}'
-      : '$before → $after${change != null ? ' (${_signed(change)})' : ''}';
 }
 
 String _signed(int value) => value > 0 ? '+$value' : '$value';
