@@ -111,112 +111,115 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
         ],
       ),
       body: isSignedIn
-          ? ListView(
-              padding: Styles.bodyPadding.add(MediaQuery.paddingOf(context)),
-              children: [
-                if (unfinishedDrill != null) ...[
+          // The body's own context: the padding of the screen's isn't the one inside the scaffold.
+          ? Builder(
+              builder: (context) => ListView(
+                padding: Styles.bodyPadding.add(MediaQuery.paddingOf(context)),
+                children: [
+                  if (unfinishedDrill != null) ...[
+                    ListSection(
+                      margin: EdgeInsets.zero,
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.play_arrow),
+                          title: const Text(DrillStrings.resumeDrill),
+                          subtitle: Text(
+                            [
+                              '${unfinishedDrill.results.length} / ${unfinishedDrill.config.nbPuzzles}',
+                              drillAngleName(context, ref, unfinishedDrill.config.angle),
+                              puzzleDifficultyL10n(context, unfinishedDrill.config.difficulty),
+                            ].join(' · '),
+                          ),
+                          trailing: const Icon(Icons.keyboard_arrow_right),
+                          onTap: _isStarting ? null : _resumeDrill,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24.0),
+                  ],
+                  const FilterTitle(DrillStrings.nbPuzzlesChoice),
+                  // Spread across the width, in line with the slider below, unlike a [Filter]. Without
+                  // a checkmark, a selected chip keeps its width and doesn't move the others.
+                  SizedBox(
+                    width: double.infinity,
+                    child: Wrap(
+                      alignment: .spaceBetween,
+                      spacing: 8.0,
+                      runSpacing: Theme.of(context).platform == .iOS ? 8.0 : 0.0,
+                      children: [
+                        for (final nb in _quickPickNbPuzzles)
+                          PlatformChoiceChip(
+                            label: Text('$nb'),
+                            selected: nb == _config.nbPuzzles,
+                            showCheckmark: false,
+                            onSelected: (_) => _setNbPuzzles(nb),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: NonLinearSlider(
+                          value: _config.nbPuzzles,
+                          values: _sliderNbPuzzles,
+                          onChange: (nb) => _setNbPuzzles(nb.toInt()),
+                          // The number of puzzles is already set while dragging.
+                          onChangeEnd: (_) {},
+                        ),
+                      ),
+                      SizedBox(
+                        width: 40.0,
+                        child: Text(
+                          '${_config.nbPuzzles}',
+                          textAlign: .end,
+                          style: TextTheme.of(context).titleLarge,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16.0),
                   ListSection(
                     margin: EdgeInsets.zero,
                     children: [
                       ListTile(
-                        leading: const Icon(Icons.play_arrow),
-                        title: const Text(DrillStrings.resumeDrill),
-                        subtitle: Text(
-                          [
-                            '${unfinishedDrill.results.length} / ${unfinishedDrill.config.nbPuzzles}',
-                            drillAngleName(context, ref, unfinishedDrill.config.angle),
-                            puzzleDifficultyL10n(context, unfinishedDrill.config.difficulty),
-                          ].join(' · '),
-                        ),
+                        title: const Text(DrillStrings.theme),
+                        subtitle: Text(drillAngleName(context, ref, _config.angle)),
                         trailing: const Icon(Icons.keyboard_arrow_right),
-                        onTap: _isStarting ? null : _resumeDrill,
+                        onTap: _chooseAngle,
+                      ),
+                      SettingsListTile(
+                        settingsLabel: Text(context.l10n.puzzleDifficultyLevel),
+                        settingsValue: puzzleDifficultyL10n(context, _config.difficulty),
+                        onTap: () => showChoicePicker(
+                          context,
+                          choices: PuzzleDifficulty.values,
+                          selectedItem: _config.difficulty,
+                          labelBuilder: (d) => Text(puzzleDifficultyL10n(context, d)),
+                          onSelectedItemChanged: (d) =>
+                              setState(() => _config = _config.copyWith(difficulty: d)),
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 24.0),
-                ],
-                const FilterTitle(DrillStrings.nbPuzzlesChoice),
-                // Spread across the width, in line with the slider below, unlike a [Filter]. Without
-                // a checkmark, a selected chip keeps its width and doesn't move the others.
-                SizedBox(
-                  width: double.infinity,
-                  child: Wrap(
-                    alignment: .spaceBetween,
-                    spacing: 8.0,
-                    runSpacing: Theme.of(context).platform == .iOS ? 8.0 : 0.0,
-                    children: [
-                      for (final nb in _quickPickNbPuzzles)
-                        PlatformChoiceChip(
-                          label: Text('$nb'),
-                          selected: nb == _config.nbPuzzles,
-                          showCheckmark: false,
-                          onSelected: (_) => _setNbPuzzles(nb),
-                        ),
-                    ],
+                  PlatformFilledButton(
+                    onPressed: _isStarting
+                        ? null
+                        : unfinishedDrill != null
+                        // A new Drill ends the unfinished one.
+                        ? () => showConfirmDialog<void>(
+                            context,
+                            title: const Text(DrillStrings.replaceUnfinishedDrillConfirmation),
+                            onConfirm: _startDrill,
+                          )
+                        : _startDrill,
+                    child: _isStarting
+                        ? const ButtonLoadingIndicator()
+                        : const Text(DrillStrings.startDrill),
                   ),
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: NonLinearSlider(
-                        value: _config.nbPuzzles,
-                        values: _sliderNbPuzzles,
-                        onChange: (nb) => _setNbPuzzles(nb.toInt()),
-                        // The number of puzzles is already set while dragging.
-                        onChangeEnd: (_) {},
-                      ),
-                    ),
-                    SizedBox(
-                      width: 40.0,
-                      child: Text(
-                        '${_config.nbPuzzles}',
-                        textAlign: .end,
-                        style: TextTheme.of(context).titleLarge,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16.0),
-                ListSection(
-                  margin: EdgeInsets.zero,
-                  children: [
-                    ListTile(
-                      title: const Text(DrillStrings.theme),
-                      subtitle: Text(drillAngleName(context, ref, _config.angle)),
-                      trailing: const Icon(Icons.keyboard_arrow_right),
-                      onTap: _chooseAngle,
-                    ),
-                    SettingsListTile(
-                      settingsLabel: Text(context.l10n.puzzleDifficultyLevel),
-                      settingsValue: puzzleDifficultyL10n(context, _config.difficulty),
-                      onTap: () => showChoicePicker(
-                        context,
-                        choices: PuzzleDifficulty.values,
-                        selectedItem: _config.difficulty,
-                        labelBuilder: (d) => Text(puzzleDifficultyL10n(context, d)),
-                        onSelectedItemChanged: (d) =>
-                            setState(() => _config = _config.copyWith(difficulty: d)),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24.0),
-                PlatformFilledButton(
-                  onPressed: _isStarting
-                      ? null
-                      : unfinishedDrill != null
-                      // A new Drill ends the unfinished one.
-                      ? () => showConfirmDialog<void>(
-                          context,
-                          title: const Text(DrillStrings.replaceUnfinishedDrillConfirmation),
-                          onConfirm: _startDrill,
-                        )
-                      : _startDrill,
-                  child: _isStarting
-                      ? const ButtonLoadingIndicator()
-                      : const Text(DrillStrings.startDrill),
-                ),
-              ],
+                ],
+              ),
             )
           : Center(
               child: Padding(

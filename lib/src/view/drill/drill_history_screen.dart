@@ -49,20 +49,23 @@ class const DrillHistoryScreen({super.key}) extends ConsumerWidget {
               }
               return false;
             },
-            child: ListView(
-              padding: Styles.bodyPadding.add(MediaQuery.paddingOf(context)),
-              children: [
-                if (entries.length > 1) ...[const _ChartCard(), const SizedBox(height: 24.0)],
-                for (final (day, dayEntries) in _groupByDay(entries)) ...[
-                  _DayHeader(day, dayEntries),
-                  for (final entry in dayEntries) ...[
-                    _DrillCard(entry),
-                    const SizedBox(height: 10.0),
+            // The body's own context: the padding of the screen's isn't the one inside the scaffold.
+            child: Builder(
+              builder: (context) => ListView(
+                padding: Styles.bodyPadding.add(MediaQuery.paddingOf(context)),
+                children: [
+                  if (entries.length > 1) ...[const _ChartCard(), const SizedBox(height: 24.0)],
+                  for (final (day, dayEntries) in _groupByDay(entries)) ...[
+                    _DayHeader(day, dayEntries),
+                    for (final entry in dayEntries) ...[
+                      _DrillCard(entry),
+                      const SizedBox(height: 10.0),
+                    ],
+                    const SizedBox(height: 14.0),
                   ],
-                  const SizedBox(height: 14.0),
+                  if (hasMore) const Center(child: CircularProgressIndicator.adaptive()),
                 ],
-                if (hasMore) const Center(child: CircularProgressIndicator.adaptive()),
-              ],
+              ),
             ),
           ),
         AsyncError() => const Center(child: Text('Could not load the Drill History')),
