@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:clock/clock.dart';
 import 'package:collection/collection.dart';
@@ -10,6 +11,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:lichess_mobile/src/binding.dart';
 import 'package:lichess_mobile/src/model/auth/auth_controller.dart';
 import 'package:lichess_mobile/src/model/common/id.dart';
+import 'package:lichess_mobile/src/model/drill/drill_history.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_angle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_batch_storage.dart';
@@ -83,8 +85,15 @@ class DrillController() extends Notifier<DrillState?> {
       final unfinishedDrill = ref.read(unfinishedDrillProvider.notifier);
       if (!next.isOver) {
         if (next.drill != previous?.drill) unfinishedDrill.save(userId, next.drill);
-      } else if (previous != null && !previous.isOver) {
-        unfinishedDrill.clear(userId);
+        return;
+      }
+      if (previous != null && !previous.isOver) unfinishedDrill.clear(userId);
+      // Once ended, the Drill is kept in the Drill History, with the rating changes as they come.
+      final history = ref.read(drillHistoryProvider.notifier);
+      if (previous?.isOver != true) {
+        history.add(userId, next.drill);
+      } else if (next.drill != previous?.drill) {
+        history.replace(userId, next.drill);
       }
     });
     // The Drill being played stays the unfinished Drill of its account, to be resumed once signed
@@ -106,6 +115,14 @@ class DrillController() extends Notifier<DrillState?> {
     final puzzleContext = await _loadPuzzle(config);
     if (puzzleContext == null) return false;
 
+    final userId = puzzleContext.userId;
+    if (userId != null) {
+      final history = ref.read(drillHistoryProvider.notifier);
+      final replaced = ref.read(unfinishedDrillProvider);
+      if (replaced != null && replaced.results.isNotEmpty) await history.add(userId, replaced);
+      // Loading the puzzle synced the solutions left pending, maybe of the Drill replaced.
+      await history.recordRatingDiffs(userId, puzzleContext.rounds);
+    }
     await ref.read(lastDrillConfigProvider.notifier).save(config);
     _play(
       Drill(
@@ -323,21 +340,18 @@ class DrillController() extends Notifier<DrillState?> {
     final drillState = state;
     if (drillState == null) return;
     final drill = drillState.drill;
-    final ratingDiffs = {
-      for (final round in rounds ?? const <PuzzleRound>[]) round.id: round.ratingDiff,
-    };
     state = drillState.copyWith(
-      drill: drill.copyWith(
-        results: drill.results
-            .map(
-              (r) => r.rated && ratingDiffs.containsKey(r.id)
-                  ? r.copyWith(ratingDiff: ratingDiffs[r.id])
-                  : r,
-            )
-            .toIList(),
-        latestRating: glicko?.rating.round() ?? drill.latestRating,
-      ),
+      drill: drill
+          .withRatingDiffs(rounds)
+          .copyWith(latestRating: glicko?.rating.round() ?? drill.latestRating),
     );
+    // Solutions of previous Drills may have been sent along.
+    final userId = drillState.puzzleContext.userId;
+    if (userId != null) {
+      ref
+          .read(drillHistoryProvider.notifier)
+          .recordRatingDiffs(userId, rounds, except: drill.startedAt);
+    }
   }
 
   /// Ends the Drill, then sends its pending solutions to the server, once the puzzle controller is
@@ -413,8 +427,15 @@ class DrillController() extends Notifier<DrillState?> {
       }
       final service = await _puzzleService(angle);
       final synced = await service.syncSolutions(userId: userId, angle: angle);
-      // Another Drill may have started meanwhile.
-      if (ref.mounted && state?.puzzleContext == drill.puzzleContext) {
+      if (!ref.mounted) return;
+      if (state?.puzzleContext != drill.puzzleContext) {
+        // Another Drill started meanwhile: the ended one is only in the Drill History now.
+        if (userId != null) {
+          ref
+              .read(drillHistoryProvider.notifier)
+              .recordRatingDiffs(userId, synced.rounds, except: state?.drill.startedAt);
+        }
+      } else {
         _onSync(rounds: synced.rounds, glicko: synced.glicko);
         final remaining = await batchStorage.fetch(userId: userId, angle: angle);
         isStillPending = remaining != null && remaining.solved.isNotEmpty;
@@ -686,6 +707,22 @@ sealed class const Drill._() with _$Drill implements Serializable {
   /// Whether there are enough puzzles for the [performance] to mean something.
   bool get isPerformanceReliable => results.length >= kMinReliableDrillPuzzles;
 
+  /// The share of puzzles the player was expected to solve, from 0 to 1, or `null` if their rating
+  /// when the Drill started is unknown or no puzzle was solved.
+  ///
+  /// Each puzzle's chance is the expected score of the rating formula between the player's rating
+  /// and the puzzle's (Glicko's, leaving out the rating deviation), so that it is about 50 % for a
+  /// puzzle at the player's rating whatever the difficulty.
+  double? get expectedSuccessRate {
+    final rating = ratingBefore;
+    if (rating == null || results.isEmpty) return null;
+    return results.map((r) => 1 / (1 + math.pow(10, (r.puzzleRating - rating) / 400))).average;
+  }
+
+  /// Whether no result counts for the player's rating: the Drill was played with rated puzzles
+  /// off, or with a hint for each puzzle.
+  bool get isCasual => results.isNotEmpty && results.every((r) => !r.rated);
+
   /// The themes most frequent among the failed puzzles, most failed first, at most
   /// [kMaxWeakestThemes] of them.
   ///
@@ -703,6 +740,27 @@ sealed class const Drill._() with _$Drill implements Serializable {
       ..sortByCompare((e) => e.value, (a, b) => b.compareTo(a));
     return themes.take(kMaxWeakestThemes).map((e) => (theme: e.key, failures: e.value)).toIList();
   }
+
+  /// The Drill with the rating changes of the solutions sent in [rounds] given to its rated
+  /// results still without one.
+  Drill withRatingDiffs(IList<PuzzleRound>? rounds) {
+    final ratingDiffs = {
+      for (final round in rounds ?? const <PuzzleRound>[]) round.id: round.ratingDiff,
+    };
+    if (ratingDiffs.isEmpty) return this;
+    return copyWith(
+      results: results
+          .map(
+            (r) => r.isRatingDiffPending && ratingDiffs.containsKey(r.id)
+                ? r.copyWith(ratingDiff: ratingDiffs[r.id])
+                : r,
+          )
+          .toIList(),
+    );
+  }
+
+  /// The sum of the rating changes known.
+  int get ratingDiffsTotal => results.fold(0, (total, r) => total + (r.ratingDiff ?? 0));
 
   /// Whether a rated puzzle's rating change is not known yet, its solution not being synced.
   bool get hasPendingRatingDiff => results.any((r) => r.isRatingDiffPending);

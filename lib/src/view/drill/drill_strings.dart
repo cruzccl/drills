@@ -20,7 +20,7 @@ abstract class DrillStrings() {
   static const summaryTitle = 'Resumen del Drill';
   static const puzzleUnit = 'problema';
   static const puzzlesUnit = 'problemas';
-  static const partial = 'Parcial';
+  static const partial = 'Incompleto';
   static const successes = 'Aciertos';
   static const failures = 'Fallos';
   static const successRate = 'Porcentaje de aciertos';
@@ -34,6 +34,30 @@ abstract class DrillStrings() {
   static const unrated = 'sin puntuar';
   static const pending = 'pendiente';
   static const backToHome = 'Volver';
+
+  static const history = 'Historial';
+  static const historyTitle = 'Historial de Drills';
+  static const emptyHistory = 'Todavía no has terminado ningún Drill.';
+  static const deleteDrillConfirmation = '¿Eliminar este Drill del historial?';
+  static const casual = 'Sin puntuar';
+  static const today = 'Hoy';
+  static const yesterday = 'Ayer';
+  static const points = 'Puntos';
+  static const ofTotal = 'de';
+  static const expected = 'esperado';
+  static const average = 'media';
+  static const allDrills = 'Todos';
+  static const noChartData = 'Sin datos';
+  static const sinceLastDrill = 'sobre el anterior';
+  static const sinceLastWeek = 'sobre la semana anterior';
+  static const sinceLastMonth = 'sobre el mes anterior';
+  static const byWeek = 'por semanas';
+  static const byMonth = 'por meses';
+  static const afterRatedDrills = 'tras cada Drill puntuado';
+  static const drillUnit = 'Drill';
+  static const drillsUnit = 'Drills';
+  static const lastDrills = 'Últimos';
+  static const allDrillsCount = 'Todos los Drills';
 
   static const settingsAccount = 'Cuenta';
   static const settingsPuzzles = 'Problemas';

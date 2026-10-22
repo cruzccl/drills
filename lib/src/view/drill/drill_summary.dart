@@ -22,20 +22,11 @@ import 'package:material_ui/material_ui.dart';
 class const DrillSummary(final Drill drill, {super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final config = drill.config;
     final performance = drill.performance;
     return ListView(
       padding: Styles.bodyPadding.add(MediaQuery.paddingOf(context)),
       children: [
-        Text(
-          [
-            '${config.nbPuzzles} ${config.nbPuzzles == 1 ? DrillStrings.puzzleUnit : DrillStrings.puzzlesUnit}',
-            drillAngleName(context, ref, config.angle),
-            puzzleDifficultyL10n(context, config.difficulty),
-            if (drill.isPartial) DrillStrings.partial,
-          ].join(' · '),
-          style: TextTheme.of(context).titleMedium,
-        ),
+        Text(drillDescription(context, ref, drill), style: TextTheme.of(context).titleMedium),
         const SizedBox(height: 16.0),
         ListSection(
           margin: .zero,
@@ -44,8 +35,8 @@ class const DrillSummary(final Drill drill, {super.key}) extends ConsumerWidget 
             _SummaryTile(DrillStrings.failures, '${drill.failures}'),
             _SummaryTile(DrillStrings.successRate, '${(drill.successRate * 100).round()} %'),
             _SummaryTile(DrillStrings.rating, _ratingText(drill)),
-            _SummaryTile(DrillStrings.totalTime, _formatDuration(drill.totalSolvingTime)),
-            _SummaryTile(DrillStrings.averageTime, _formatDuration(drill.averageSolvingTime)),
+            _SummaryTile(DrillStrings.totalTime, formatSolvingTime(drill.totalSolvingTime)),
+            _SummaryTile(DrillStrings.averageTime, formatSolvingTime(drill.averageSolvingTime)),
             Opacity(
               opacity: drill.isPerformanceReliable ? 1.0 : 0.5,
               child: _SummaryTile(
@@ -137,12 +128,24 @@ class const _DrillPuzzleResultTile(final DrillPuzzleResult result) extends Consu
                   : colors.error,
             ),
           ),
-          Text(_formatDuration(result.solvingTime), style: TextTheme.of(context).bodySmall),
+          Text(formatSolvingTime(result.solvingTime), style: TextTheme.of(context).bodySmall),
         ],
       ),
       onTap: () => _openAnalysis(context, ref),
     );
   }
+}
+
+/// What [drill] was: its number of puzzles, theme and difficulty, and whether it is a Partial
+/// Drill.
+String drillDescription(BuildContext context, WidgetRef ref, Drill drill) {
+  final config = drill.config;
+  return [
+    '${config.nbPuzzles} ${config.nbPuzzles == 1 ? DrillStrings.puzzleUnit : DrillStrings.puzzlesUnit}',
+    drillAngleName(context, ref, config.angle),
+    puzzleDifficultyL10n(context, config.difficulty),
+    if (drill.isPartial) DrillStrings.partial,
+  ].join(' · ');
 }
 
 String _ratingText(Drill drill) {
@@ -157,7 +160,7 @@ String _ratingText(Drill drill) {
 String _signed(int value) => value > 0 ? '+$value' : '$value';
 
 /// Formats a solving time as minutes and seconds, such as 2:05.
-String _formatDuration(Duration duration) {
+String formatSolvingTime(Duration duration) {
   final seconds = duration.inSeconds;
   return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
 }

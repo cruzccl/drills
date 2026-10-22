@@ -12,6 +12,7 @@ import 'package:l10n_esperanto/l10n_esperanto.dart';
 import 'package:lichess_mobile/l10n/l10n.dart';
 import 'package:lichess_mobile/src/constants.dart';
 import 'package:lichess_mobile/src/db/database.dart';
+import 'package:lichess_mobile/src/db/drill_database.dart';
 import 'package:lichess_mobile/src/model/account/account_preferences.dart';
 import 'package:lichess_mobile/src/model/auth/auth_controller.dart';
 import 'package:lichess_mobile/src/model/auth/auth_storage.dart';
@@ -232,6 +233,15 @@ Future<Widget> makeTestProviderScope(
     aggregatorProvider: aggregatorProvider.overrideWith((ref) {
       // Use a zero aggregation interval to disable aggregation for tests.
       return Aggregator(ref.watch(lichessClientProvider), aggregationInterval: Duration.zero);
+    }),
+    drillDatabaseProvider: drillDatabaseProvider.overrideWith((ref) async {
+      final db = await openDrillDatabase(
+        databaseFactoryFfiNoIsolate,
+        inMemoryDatabasePath,
+        singleInstance: false,
+      );
+      ref.onDispose(db.close);
+      return db;
     }),
     webSocketChannelFactoryProvider: webSocketChannelFactoryProvider.overrideWith((ref) {
       return defaultFakeWebSocketChannelFactory;

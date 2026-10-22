@@ -22,6 +22,8 @@ summary of the results.
   revealed in the summary at the end.
 - A Drill can be ended early, as a partial Drill. One left unfinished can be resumed at any time,
   even after the app was closed. Each Lichess account signed in on the device has its own.
+- Past Drills are kept on the device in a Drill History, one per account, grouped by day, under a
+  chart of their performance, rating or success rate; each one can be reviewed again or deleted.
 
 See [GLOSSARY.md](./GLOSSARY.md) for the terms used in this fork and [docs/adr](./docs/adr) for
 the decisions behind it.

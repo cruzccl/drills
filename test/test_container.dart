@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:lichess_mobile/src/constants.dart';
 import 'package:lichess_mobile/src/db/database.dart';
+import 'package:lichess_mobile/src/db/drill_database.dart';
 import 'package:lichess_mobile/src/model/auth/auth_controller.dart';
 import 'package:lichess_mobile/src/model/common/preloaded_data.dart';
 import 'package:lichess_mobile/src/model/engine/engine_factory.dart';
@@ -86,6 +87,15 @@ Future<ProviderContainer> makeContainer({
     }),
     databaseProvider: databaseProvider.overrideWith((ref) async {
       final db = await openAppDatabase(databaseFactoryFfi, inMemoryDatabasePath);
+      ref.onDispose(db.close);
+      return db;
+    }),
+    drillDatabaseProvider: drillDatabaseProvider.overrideWith((ref) async {
+      final db = await openDrillDatabase(
+        databaseFactoryFfi,
+        inMemoryDatabasePath,
+        singleInstance: false,
+      );
       ref.onDispose(db.close);
       return db;
     }),

@@ -11,6 +11,7 @@ import 'package:lichess_mobile/src/utils/l10n_context.dart';
 import 'package:lichess_mobile/src/view/auth/sign_in_error.dart';
 import 'package:lichess_mobile/src/view/auth/sign_in_options.dart';
 import 'package:lichess_mobile/src/view/drill/drill_angle_screen.dart';
+import 'package:lichess_mobile/src/view/drill/drill_history_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_settings_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
@@ -96,6 +97,12 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
       appBar: PlatformAppBar(
         title: const Text(DrillStrings.appName),
         actions: [
+          if (isSignedIn)
+            SemanticIconButton(
+              icon: const Icon(Icons.history),
+              semanticsLabel: DrillStrings.history,
+              onPressed: () => Navigator.of(context).push(DrillHistoryScreen.buildRoute()),
+            ),
           SemanticIconButton(
             icon: const Icon(Icons.settings_outlined),
             semanticsLabel: context.l10n.settingsSettings,
