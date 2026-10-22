@@ -87,7 +87,8 @@ class const _DrillPuzzleResultTile(final DrillPuzzleResult result) extends Consu
     try {
       final puzzle = await _loadPuzzle(ref, result.id);
       if (context.mounted) {
-        Navigator.of(context).push(AnalysisScreen.buildRoute(drillPuzzleAnalysisOptions(puzzle)));
+        Navigator.of(context)
+            .push(AnalysisScreen.buildRoute(drillPuzzleAnalysisOptions(puzzle), isDrill: true));
       }
     } catch (_) {
       if (context.mounted) {
