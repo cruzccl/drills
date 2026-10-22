@@ -106,7 +106,7 @@ class const _RatingChange(final Drill drill) extends StatelessWidget {
         Text(
           after == null
               ? DrillStrings.pending
-              : '$after${change != null ? ' (${_signed(change)})' : ''}',
+              : '$after${change != null ? ' (${formatRatingChange(change)})' : ''}',
           style: style,
         ),
       ],
@@ -152,7 +152,7 @@ class const _DrillPuzzleResultTile(final DrillPuzzleResult result) extends Consu
                 ? DrillStrings.unrated
                 : ratingDiff == null
                 ? DrillStrings.pending
-                : _signed(ratingDiff),
+                : formatRatingChange(ratingDiff),
             style: TextStyle(
               color: ratingDiff == null || ratingDiff == 0
                   ? null
@@ -181,7 +181,12 @@ String drillDescription(BuildContext context, WidgetRef ref, Drill drill) {
   ].join(' · ');
 }
 
-String _signed(int value) => value > 0 ? '+$value' : '$value';
+/// Formats a rating change with its sign, such as +10, −10 or ±0.
+String formatRatingChange(int value) => value > 0
+    ? '+$value'
+    : value < 0
+    ? '−${-value}'
+    : '±0';
 
 /// Formats a solving time as minutes and seconds, such as 2:05.
 String formatSolvingTime(Duration duration) {
