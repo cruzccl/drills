@@ -229,6 +229,24 @@ void main() {
     expect(drill.drill.ratingChange, 10);
   });
 
+  test('the rating before and after a Drill leave out its decimals, as on Lichess', () async {
+    server.ratingDecimals = 0.6;
+    final container = await makeDrillContainer();
+    await container.read(drillControllerProvider.notifier).start(const DrillConfig(nbPuzzles: 1));
+
+    // 1500.6 then 1490.4: Lichess shows 1500 then 1490, and a rating diff of -10
+    await _solveCurrentPuzzle(
+      container,
+      win: false,
+      whilePlaying: () => server.ratingDecimals = 0.4,
+    );
+
+    final drill = container.read(drillControllerProvider)!.drill;
+    expect(drill.ratingBefore, 1500);
+    expect(drill.ratingAfter, 1490);
+    expect(drill.ratingChange, -10);
+  });
+
   test('the Drill Summary has the Drill Performance and the weakest themes', () async {
     server.puzzleRatingOf = (index) => 1500 + index * 100;
     server.puzzleThemesOf = (index) => switch (index) {
