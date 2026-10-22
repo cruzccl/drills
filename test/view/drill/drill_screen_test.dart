@@ -107,6 +107,8 @@ void main() {
     expect(_summaryValue('Aciertos'), '1');
     expect(_summaryValue('Fallos'), '4');
     expect(_summaryValue('Porcentaje de aciertos'), '20 %');
+    // from the puzzles' 1500 and the player's 1500
+    expect(find.text('Esperado 50 %'), findsOneWidget);
     expect(_summaryValue('Puntuación'), '1500 → 1470 (-30)');
     // 1500 average puzzle rating, 1 success out of 5
     expect(_summaryValue('Rendimiento'), '1200');
@@ -389,9 +391,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Hoy'), findsOneWidget);
     expect(find.text('Healthy mix'), findsOneWidget);
-    // no success out of 1, where 50 % was expected from the puzzle's 1500 and the player's 1500
     expect(find.text('0 %'), findsOneWidget);
-    expect(find.text('esperado 50 %'), findsOneWidget);
+    expect(find.textContaining('Esperado'), findsNothing, reason: 'in the Drill Summary only');
     expect(find.text('1000'), findsOneWidget);
     expect(find.text('Poco fiable'), findsOneWidget);
     // in the day header and the Drill
