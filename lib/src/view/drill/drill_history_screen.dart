@@ -216,8 +216,6 @@ class const _DrillCard(final DrillHistoryEntry entry) extends ConsumerWidget {
                           '${entry.successes} / ${entry.nbPlayed}',
                           if (entry.isPartial) '${DrillStrings.ofTotal} ${config.nbPuzzles}',
                         ].join(' · '),
-                        if (entry.expectedSuccessRate case final expected?)
-                          '${DrillStrings.expected} ${(expected * 100).round()} %',
                       ],
                     ),
                     _MetricTile(
