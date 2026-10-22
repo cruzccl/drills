@@ -48,6 +48,9 @@ class FakeDrillServer() {
   /// The player's puzzle rating.
   int rating = initialRating;
 
+  /// The decimals of the player's rating, which the server sends but Lichess doesn't show.
+  double ratingDecimals = 0.0;
+
   /// The solutions posted to the server, in order.
   final List<({String id, bool win, bool rated})> solutions = [];
 
@@ -123,7 +126,7 @@ class FakeDrillServer() {
     return http.Response(
       jsonEncode({
         'puzzles': puzzles,
-        'glicko': {'rating': rating.toDouble(), 'deviation': 80.0},
+        'glicko': {'rating': rating + ratingDecimals, 'deviation': 80.0},
         if (request.method == 'POST') 'rounds': rounds,
       }),
       200,

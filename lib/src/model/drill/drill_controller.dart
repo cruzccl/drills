@@ -128,7 +128,7 @@ class DrillController() extends Notifier<DrillState?> {
       Drill(
         config: config,
         startedAt: clock.now(),
-        ratingBefore: puzzleContext.glicko?.rating.round(),
+        ratingBefore: puzzleContext.glicko?.shownRating,
       ),
       puzzleContext,
     );
@@ -330,7 +330,7 @@ class DrillController() extends Notifier<DrillState?> {
       // The puzzle controller reads the player's rating when it starts, if the first puzzle
       // didn't come with it. It is the rating before the Drill unless a solution of the Drill was
       // sent first.
-      state = drillState.copyWith(drill: drill.copyWith(ratingBefore: next.glicko!.rating.round()));
+      state = drillState.copyWith(drill: drill.copyWith(ratingBefore: next.glicko!.shownRating));
     }
   }
 
@@ -343,7 +343,7 @@ class DrillController() extends Notifier<DrillState?> {
     state = drillState.copyWith(
       drill: drill
           .withRatingDiffs(rounds)
-          .copyWith(latestRating: glicko?.rating.round() ?? drill.latestRating),
+          .copyWith(latestRating: glicko?.shownRating ?? drill.latestRating),
     );
     // Solutions of previous Drills may have been sent along.
     final userId = drillState.puzzleContext.userId;
@@ -455,6 +455,12 @@ class DrillController() extends Notifier<DrillState?> {
       }
     }
   }
+}
+
+extension on PuzzleGlicko {
+  /// The rating as Lichess shows it, and computes the rating diff of each solution from: without
+  /// its decimals, not rounded.
+  int get shownRating => rating.toInt();
 }
 
 /// Times the puzzle being solved: from when the player can move to its result, only while the app
