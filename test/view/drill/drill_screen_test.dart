@@ -109,7 +109,7 @@ void main() {
     expect(_summaryValue('Porcentaje de aciertos'), '20 %');
     // from the puzzles' 1500 and the player's 1500
     expect(find.text('Esperado 50 %'), findsOneWidget);
-    expect(_summaryValue('Puntuación'), '1500 → 1470 (-30)');
+    expect(_summaryValue('Puntuación'), '1500 → 1470 (−30)');
     // 1500 average puzzle rating, 1 success out of 5
     expect(_summaryValue('Rendimiento'), '1200');
     expect(find.text('Poco fiable'), findsOneWidget);
@@ -119,7 +119,7 @@ void main() {
 
     // the puzzles of the Drill, each opened on the analysis board
     await tester.scrollUntilVisible(find.text('+10').hitTestable(), 200.0);
-    expect(find.text('-10'), findsWidgets);
+    expect(find.text('−10'), findsWidgets);
     await tester.tap(find.text('+10'));
     await tester.pumpAndSettle();
     expect(find.byType(AnalysisScreen), findsOneWidget);
@@ -172,9 +172,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('pendiente'), findsNothing);
-    expect(find.text('-10'), findsOneWidget);
+    expect(find.text('−10'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Puntuación'), -200.0);
-    expect(_summaryValue('Puntuación'), '1500 → 1490 (-10)');
+    expect(_summaryValue('Puntuación'), '1500 → 1490 (−10)');
   });
 
   testWidgets('a Drill ended before any puzzle is solved goes back home', (tester) async {
@@ -342,8 +342,8 @@ void main() {
     await _failCurrentPuzzle(tester);
     await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('-10').hitTestable(), 200.0);
-    await tester.tap(find.text('-10'));
+    await tester.scrollUntilVisible(find.text('−10').hitTestable(), 200.0);
+    await tester.tap(find.text('−10'));
     await tester.pumpAndSettle();
     expect(find.byType(AnalysisScreen), findsOneWidget);
 
