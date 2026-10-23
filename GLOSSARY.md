@@ -5,7 +5,8 @@ A personal fork of Lichess Mobile whose home screen is a bounded tactics trainin
 ## Language
 
 **Drill**:
-A bounded series of a chosen number of rated puzzles, configured when it starts, that ends with a Drill Summary.
+A bounded series of a chosen number of puzzles, rated when signed in, configured when it starts, that ends with a Drill Summary.
+A Drill played signed out counts on no Lichess account (its puzzles are unrated and nothing is sent to Lichess) and is not kept in any Drill History.
 _Avoid_: Session, training, puzzle set
 
 **Partial Drill**:

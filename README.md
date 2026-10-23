@@ -18,6 +18,8 @@ summary of the results.
 - You choose the number of puzzles, a theme or opening, and a difficulty, and press start.
 - Puzzles are fetched and solved through the Lichess puzzle API, so they count on your Lichess
   account exactly as in the official app.
+- Signed out, Drills can still be played anonymously: their puzzles are unrated, nothing is sent
+  to Lichess, and they are not kept in any Drill History.
 - While a Drill runs, only the progress is shown; results, rating changes and performance are
   revealed in the summary at the end. A setting can also show how long you have been on the
   puzzle in progress, timed only while the app is shown.
