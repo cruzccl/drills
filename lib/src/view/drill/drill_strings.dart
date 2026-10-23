@@ -61,6 +61,7 @@ abstract class DrillStrings() {
   static const settingsAccount = 'Cuenta';
   static const settingsPuzzles = 'Problemas';
   static const settingsAppearance = 'Apariencia';
+  static const showClock = 'Mostrar reloj';
 
   static const about =
       'Drills es una versión personal y no oficial de Lichess Mobile. '
