@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lichess_mobile/l10n/l10n.dart';
 import 'package:lichess_mobile/src/model/auth/auth_controller.dart';
 import 'package:lichess_mobile/src/model/common/preloaded_data.dart';
+import 'package:lichess_mobile/src/model/drill/drill_preferences.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_preferences.dart';
 import 'package:lichess_mobile/src/model/settings/board_preferences.dart';
 import 'package:lichess_mobile/src/model/settings/general_preferences.dart';
@@ -39,6 +40,7 @@ class const DrillSettingsScreen({super.key}) extends ConsumerWidget {
     final isOnline = ref.watch(isDeviceOnlineProvider);
     final generalPrefs = ref.watch(generalPreferencesProvider);
     final puzzlePrefs = ref.watch(puzzlePreferencesProvider);
+    final showClock = ref.watch(drillPreferencesProvider.select((p) => p.showClock));
     final hapticFeedback = ref.watch(boardPreferencesProvider.select((p) => p.hapticFeedback));
     final packageInfo = ref.read(preloadedDataProvider).requireValue.packageInfo;
     final authUser = ref.watch(authControllerProvider);
@@ -99,6 +101,13 @@ class const DrillSettingsScreen({super.key}) extends ConsumerWidget {
                 value: puzzlePrefs.autoNext,
                 onChanged: (value) {
                   ref.read(puzzlePreferencesProvider.notifier).setAutoNext(value);
+                },
+              ),
+              SwitchSettingTile(
+                title: const Text(DrillStrings.showClock),
+                value: showClock,
+                onChanged: (value) {
+                  ref.read(drillPreferencesProvider.notifier).setShowClock(value);
                 },
               ),
             ],

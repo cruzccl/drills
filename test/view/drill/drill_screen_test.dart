@@ -7,12 +7,14 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lichess_mobile/src/app.dart';
 import 'package:lichess_mobile/src/model/drill/drill_controller.dart';
+import 'package:lichess_mobile/src/model/drill/drill_preferences.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_angle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_difficulty.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_theme.dart';
 import 'package:lichess_mobile/src/model/settings/preferences_storage.dart';
 import 'package:lichess_mobile/src/network/connectivity.dart';
 import 'package:lichess_mobile/src/network/http.dart';
+import 'package:lichess_mobile/src/styles/styles.dart';
 import 'package:lichess_mobile/src/view/analysis/analysis_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_screen.dart';
 import 'package:lichess_mobile/src/view/engine/engine_button.dart';
@@ -69,6 +71,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(DrillScreen), findsOneWidget);
     expect(find.text('1 / 5'), findsOneWidget);
+    expect(find.byIcon(Icons.timer_outlined), findsNothing, reason: 'the clock is off by default');
 
     // wait for the opponent's move, then play the solution
     await tester.pump(const Duration(milliseconds: 1500));
@@ -123,6 +126,38 @@ void main() {
     await tester.tap(find.text('+10'));
     await tester.pumpAndSettle();
     expect(find.byType(AnalysisScreen), findsOneWidget);
+  });
+
+  testWidgets('with the clock on, the time spent on the puzzle ticks until its result', (
+    tester,
+  ) async {
+    await openHome(
+      tester,
+      signedIn: true,
+      defaultPreferences: {
+        PrefCategory.drillSettings.storageKey: jsonEncode(
+          const DrillPrefs(showClock: true).toJson(),
+        ),
+      },
+    );
+
+    await tester.tap(find.text('Empezar'));
+    await tester.pumpAndSettle();
+    // wait for the opponent's move: the player can move
+    await tester.pump(const Duration(milliseconds: 1500));
+    final timeWhenPlaying = _clockSeconds(tester);
+    await tester.pump(const Duration(seconds: 3));
+    expect(_clockSeconds(tester), timeWhenPlaying + 3);
+
+    await _failCurrentPuzzle(tester);
+    final timeAtResult = _clockSeconds(tester);
+    await tester.pump(const Duration(seconds: 5));
+    expect(_clockSeconds(tester), timeAtResult, reason: 'stopped at the result');
+    expect(_clockColor(tester), tester.element(_clock()).lichessColors.error);
+
+    await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
+    await tester.pump(const Duration(milliseconds: 1500));
+    expect(_clockSeconds(tester), lessThan(2), reason: 'the next puzzle is timed from zero');
   });
 
   testWidgets('a Drill ended early shows its summary, marked as partial', (tester) async {
@@ -454,6 +489,19 @@ Future<void> _failCurrentPuzzle(WidgetTester tester) async {
   // the solution is replayed and the next arrow blinks: no pumpAndSettle
   await tester.pump(const Duration(seconds: 1));
 }
+
+Finder _clock() => find.descendant(
+  of: find.ancestor(of: find.byIcon(Icons.timer_outlined), matching: find.byType(Row)).first,
+  matching: find.byType(Text),
+);
+
+/// The time shown by the clock of the Drill screen, in seconds.
+int _clockSeconds(WidgetTester tester) {
+  final [minutes, seconds] = tester.widget<Text>(_clock()).data!.split(':');
+  return int.parse(minutes) * 60 + int.parse(seconds);
+}
+
+Color? _clockColor(WidgetTester tester) => tester.widget<Text>(_clock()).style?.color;
 
 /// The value shown next to a label of the Drill Summary, with its arrow icon written as →.
 String _summaryValue(String label) {

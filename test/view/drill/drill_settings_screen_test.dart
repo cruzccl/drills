@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:lichess_mobile/src/app.dart';
 import 'package:lichess_mobile/src/model/auth/auth_repository.dart';
+import 'package:lichess_mobile/src/model/drill/drill_preferences.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_preferences.dart';
 import 'package:lichess_mobile/src/model/settings/board_preferences.dart';
 import 'package:lichess_mobile/src/network/http.dart';
@@ -83,6 +84,7 @@ void main() {
       'Sign out',
       'Rated',
       'Jump to next puzzle immediately',
+      'Mostrar reloj',
       'Sound',
       'Touch feedback',
       'Theme',
@@ -114,7 +116,9 @@ void main() {
     expect(find.textContaining('Gracias a Lichess'), findsOneWidget);
   });
 
-  testWidgets('the puzzle and touch feedback switches change the preferences', (tester) async {
+  testWidgets('the puzzle, clock and touch feedback switches change the preferences', (
+    tester,
+  ) async {
     await openSettings(tester);
     final container = containerOf(tester);
 
@@ -125,6 +129,10 @@ void main() {
     expect(container.read(puzzlePreferencesProvider).autoNext, false);
     await toggle(tester, 'Jump to next puzzle immediately');
     expect(container.read(puzzlePreferencesProvider).autoNext, true);
+
+    expect(container.read(drillPreferencesProvider).showClock, false);
+    await toggle(tester, 'Mostrar reloj');
+    expect(container.read(drillPreferencesProvider).showClock, true);
 
     final hapticFeedback = container.read(boardPreferencesProvider).hapticFeedback;
     await toggle(tester, 'Touch feedback');

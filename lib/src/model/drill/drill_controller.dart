@@ -253,7 +253,8 @@ class DrillController() extends Notifier<DrillState?> {
   void _play(Drill drill, PuzzleContext puzzleContext) {
     _retryTimer?.cancel();
     _puzzleSubscription?.close();
-    (_solvingClock ??= _SolvingClock()).stop();
+    _solvingClock?.dispose();
+    _solvingClock = _SolvingClock(_onSolvingTimeChange);
     _isLastResultSaved = true;
     state = DrillState(
       drill: drill,
@@ -261,6 +262,12 @@ class DrillController() extends Notifier<DrillState?> {
       puzzleNumber: drill.results.length + 1,
     );
     _puzzleSubscription = ref.listen(puzzleControllerProvider(puzzleContext), _onPuzzleStateChange);
+  }
+
+  void _onSolvingTimeChange(DrillSolvingTime solvingTime) {
+    final drillState = state;
+    if (drillState == null || drillState.isOver || drillState.solvingTime == solvingTime) return;
+    state = drillState.copyWith(solvingTime: solvingTime);
   }
 
   Future<PuzzleService> _puzzleService(PuzzleAngle angle) => ref.read(puzzleServiceFactoryProvider)(
@@ -283,14 +290,14 @@ class DrillController() extends Notifier<DrillState?> {
       }
     }
 
-    final drillState = state;
-    if (drillState == null || drillState.isOver) return;
-    final drill = drillState.drill;
+    if (state == null || state!.isOver) return;
     final solvingClock = _solvingClock!;
-
     if (next.result == null && next.mode == .play && !solvingClock.isRunning) {
       solvingClock.start();
     }
+    // Read after starting the clock, which updates the state.
+    final drillState = state!;
+    final drill = drillState.drill;
 
     final puzzleId = next.puzzle.puzzle.id;
     final result = next.result;
@@ -308,7 +315,7 @@ class DrillController() extends Notifier<DrillState?> {
       _isLastResultSaved = false;
       final solvingTime = solvingClock.stop();
       final puzzle = next.puzzle.puzzle;
-      state = drillState.copyWith(
+      state = state!.copyWith(
         drill: drill.copyWith(
           results: drill.results.add(
             DrillPuzzleResult(
@@ -465,7 +472,7 @@ extension on PuzzleGlicko {
 
 /// Times the puzzle being solved: from when the player can move to its result, only while the app
 /// is shown.
-class _SolvingClock() {
+class _SolvingClock(final ValueChanged<DrillSolvingTime> _onChange) {
   this {
     _isAppHidden = switch (WidgetsBinding.instance.lifecycleState) {
       .hidden || .paused || .detached => true,
@@ -482,11 +489,7 @@ class _SolvingClock() {
 
   bool _isRunning = false;
 
-  /// The time spent on the puzzle, up to [_runningSince].
-  Duration _elapsed = Duration.zero;
-
-  /// Since when the time has been running, or `null` while it doesn't.
-  DateTime? _runningSince;
+  DrillSolvingTime _time = const DrillSolvingTime();
 
   /// Whether a puzzle is being timed, even while the app is hidden.
   bool get isRunning => _isRunning;
@@ -494,7 +497,7 @@ class _SolvingClock() {
   /// Starts timing a new puzzle.
   void start() {
     _isRunning = true;
-    _elapsed = Duration.zero;
+    _time = const DrillSolvingTime();
     _update();
   }
 
@@ -502,7 +505,7 @@ class _SolvingClock() {
   Duration stop() {
     _isRunning = false;
     _update();
-    return _elapsed;
+    return _time.elapsed;
   }
 
   void dispose() => _appLifecycleListener.dispose();
@@ -514,13 +517,12 @@ class _SolvingClock() {
 
   void _update() {
     final shouldRun = _isRunning && !_isAppHidden;
-    final since = _runningSince;
-    if (since != null && !shouldRun) {
-      _elapsed += clock.now().difference(since);
-      _runningSince = null;
-    } else if (since == null && shouldRun) {
-      _runningSince = clock.now();
+    if (_time.isRunning && !shouldRun) {
+      _time = DrillSolvingTime(elapsed: _time.at(clock.now()));
+    } else if (!_time.isRunning && shouldRun) {
+      _time = _time.copyWith(runningSince: clock.now());
     }
+    _onChange(_time);
   }
 }
 
@@ -658,8 +660,32 @@ sealed class DrillState with _$DrillState {
 
     /// The number of the puzzle being solved, from 1.
     required int puzzleNumber,
+
+    /// The time spent on the puzzle being solved so far, or on the last one once it is solved.
+    @Default(DrillSolvingTime()) DrillSolvingTime solvingTime,
     @Default(false) bool isOver,
   }) = _DrillState;
+}
+
+/// The time spent on a puzzle of a Drill, timed from when the player can move to its result, only
+/// while the app is shown.
+@freezed
+sealed class const DrillSolvingTime._() with _$DrillSolvingTime {
+  const factory({
+    /// The time spent up to [runningSince].
+    @Default(Duration.zero) Duration elapsed,
+
+    /// Since when the time has been running, or `null` while it doesn't.
+    DateTime? runningSince,
+  }) = _DrillSolvingTime;
+
+  bool get isRunning => runningSince != null;
+
+  /// The time spent at [now].
+  Duration at(DateTime now) {
+    final since = runningSince;
+    return since == null ? elapsed : elapsed + now.difference(since);
+  }
 }
 
 /// A Drill's configuration and the outcome of its puzzles, from which its Drill Summary is made.

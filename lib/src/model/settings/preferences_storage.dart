@@ -37,6 +37,7 @@ enum PrefCategory(final String storageKey) {
   relation('preferences.relation'),
   drill('preferences.drill'),
   drillChart('preferences.drillChart'),
+  drillSettings('preferences.drillSettings'),
 }
 
 /// A [Notifier] mixin to provide a way to store and retrieve preferences.
