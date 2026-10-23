@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lichess_mobile/src/constants.dart';
 import 'package:lichess_mobile/src/model/drill/drill_controller.dart';
 import 'package:lichess_mobile/src/model/drill/drill_preferences.dart';
+import 'package:lichess_mobile/src/model/drill/drill_puzzle_analysis.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_controller.dart';
 import 'package:lichess_mobile/src/model/settings/board_preferences.dart';
 import 'package:lichess_mobile/src/styles/styles.dart';
@@ -14,6 +15,7 @@ import 'package:lichess_mobile/src/utils/immersive_mode.dart';
 import 'package:lichess_mobile/src/utils/l10n_context.dart';
 import 'package:lichess_mobile/src/utils/navigation.dart';
 import 'package:lichess_mobile/src/utils/screen.dart';
+import 'package:lichess_mobile/src/view/analysis/analysis_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:lichess_mobile/src/view/drill/drill_summary.dart';
 import 'package:lichess_mobile/src/view/puzzle/puzzle_feedback_widget.dart';
@@ -371,6 +373,18 @@ class _DrillBottomBarState() extends ConsumerState<_DrillBottomBar> {
             onTap: canGetHelp ? puzzleCtrl.viewSolution : null,
           ),
         ],
+        // Only the puzzle just solved: zen mode hides the previous ones until the Drill Summary.
+        if (isViewing)
+          BottomBarButton(
+            onTap: () => Navigator.of(context).push(
+              AnalysisScreen.buildRoute(
+                drillPuzzleAnalysisOptions(puzzleState.puzzle),
+                isDrill: true,
+              ),
+            ),
+            label: context.l10n.analysis,
+            icon: Icons.biotech,
+          ),
         BottomBarButton(
           onTap: puzzleState.canGoBack ? puzzleCtrl.userPrevious : null,
           label: DrillStrings.previousMove,
