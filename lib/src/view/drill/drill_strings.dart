@@ -8,6 +8,7 @@ abstract class DrillStrings() {
   static const nbPuzzlesChoice = 'Número de problemas';
   static const theme = 'Tema';
   static const startDrill = 'Empezar';
+  static const warmUpWithStorm = 'Calentar con Puzzle Storm';
   static const couldNotStartDrill = 'No se han podido cargar los problemas.';
   static const resumeDrill = 'Reanudar el Drill';
   static const replaceUnfinishedDrillConfirmation =
@@ -59,7 +60,7 @@ abstract class DrillStrings() {
   static const allDrillsCount = 'Todos los Drills';
 
   static const settingsAccount = 'Cuenta';
-  static const settingsPuzzles = 'Problemas';
+  static const settingsDrills = 'Drills';
   static const settingsAppearance = 'Apariencia';
   static const showClock = 'Mostrar reloj';
 
