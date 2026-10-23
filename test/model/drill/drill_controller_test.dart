@@ -319,6 +319,43 @@ void main() {
     });
   });
 
+  test('the time spent on the puzzle being solved is in the state, to be shown', () async {
+    var now = DateTime(2026, 10, 21);
+    await withClock(Clock(() => now), () async {
+      final container = await makeDrillContainer();
+      final drillCtrl = container.read(drillControllerProvider.notifier);
+      await drillCtrl.start(const DrillConfig(nbPuzzles: 2));
+      if (TestWidgetsFlutterBinding.instance.lifecycleState != .resumed) {
+        _setAppLifecycleStates(const [.resumed]);
+      }
+      DrillSolvingTime solvingTime() => container.read(drillControllerProvider)!.solvingTime;
+
+      await _solveCurrentPuzzle(
+        container,
+        win: true,
+        whilePlaying: () {
+          expect(solvingTime().isRunning, isTrue);
+          now = now.add(const Duration(seconds: 10));
+          expect(solvingTime().at(now), const Duration(seconds: 10));
+          _setAppLifecycleStates(const [.inactive, .hidden, .paused]);
+          expect(solvingTime(), const DrillSolvingTime(elapsed: Duration(seconds: 10)));
+          now = now.add(const Duration(minutes: 5));
+          _setAppLifecycleStates(const [.hidden, .inactive, .resumed]);
+          expect(solvingTime().isRunning, isTrue);
+          now = now.add(const Duration(seconds: 5));
+        },
+      );
+      // stopped at the result, until the next puzzle
+      expect(solvingTime(), const DrillSolvingTime(elapsed: Duration(seconds: 15)));
+      now = now.add(const Duration(minutes: 1));
+      expect(solvingTime().at(now), const Duration(seconds: 15));
+
+      drillCtrl.continueDrill();
+      await _waitFor(() => solvingTime().isRunning);
+      expect(solvingTime().at(now), Duration.zero);
+    });
+  });
+
   test('pending solutions are sent as soon as the Drill ends', () async {
     final container = await makeDrillContainer();
     final drillCtrl = container.read(drillControllerProvider.notifier);

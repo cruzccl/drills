@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:chessground/chessground.dart';
+import 'package:clock/clock.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lichess_mobile/src/constants.dart';
 import 'package:lichess_mobile/src/model/drill/drill_controller.dart';
+import 'package:lichess_mobile/src/model/drill/drill_preferences.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_controller.dart';
 import 'package:lichess_mobile/src/model/settings/board_preferences.dart';
 import 'package:lichess_mobile/src/styles/styles.dart';
@@ -33,16 +35,21 @@ class const DrillScreen({super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final drill = ref.watch(drillControllerProvider);
+    final showClock = ref.watch(drillPreferencesProvider.select((p) => p.showClock));
 
     return WakelockWidget(
       child: PlatformScaffold(
         extendBodyBehindAppBar: false,
         appBar: PlatformAppBar(
-          title: Text(
-            drill == null || drill.isOver
-                ? DrillStrings.summaryTitle
-                : '${drill.puzzleNumber} / ${drill.drill.config.nbPuzzles}',
-          ),
+          title: drill == null || drill.isOver
+              ? const Text(DrillStrings.summaryTitle)
+              : Row(
+                  mainAxisSize: .min,
+                  children: [
+                    Text('${drill.puzzleNumber} / ${drill.drill.config.nbPuzzles}'),
+                    if (showClock) ...[const SizedBox(width: 14.0), _SolvingClock(drill)],
+                  ],
+                ),
           actions: [
             if (drill != null && !drill.isOver)
               TextButton(
@@ -65,6 +72,77 @@ class const DrillScreen({super.key}) extends ConsumerWidget {
           _ => _DrillPuzzle(drill),
         },
       ),
+    );
+  }
+}
+
+/// The time spent on the puzzle being solved, ticking while it is timed, then in the color of its
+/// result.
+class const _SolvingClock(final DrillState drill) extends StatefulWidget {
+  @override
+  State<_SolvingClock> createState() => _SolvingClockState();
+}
+
+class _SolvingClockState() extends State<_SolvingClock> {
+  Timer? _tickTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleTick();
+  }
+
+  @override
+  void didUpdateWidget(_SolvingClock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.drill.solvingTime != widget.drill.solvingTime) _scheduleTick();
+  }
+
+  @override
+  void dispose() {
+    _tickTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Rebuilds when the next second is reached, while the time runs.
+  void _scheduleTick() {
+    _tickTimer?.cancel();
+    final solvingTime = widget.drill.solvingTime;
+    if (!solvingTime.isRunning) return;
+    final elapsed = solvingTime.at(clock.now()).inMicroseconds;
+    final untilNextSecond = Duration(microseconds: 1000000 - elapsed % 1000000);
+    _tickTimer = Timer(untilNextSecond, () {
+      setState(_scheduleTick);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final drill = widget.drill;
+    final solvingTime = drill.solvingTime;
+    // Once solved, the puzzle's result is the last one until the next puzzle is loaded.
+    final result = !solvingTime.isRunning && drill.drill.results.length >= drill.puzzleNumber
+        ? drill.drill.results.last
+        : null;
+    final color = switch (result?.win) {
+      true => context.lichessColors.good,
+      false => context.lichessColors.error,
+      null => textShade(context, Styles.subtitleOpacity),
+    };
+    return Row(
+      mainAxisSize: .min,
+      children: [
+        Icon(Icons.timer_outlined, size: 18.0, color: color),
+        const SizedBox(width: 4.0),
+        Text(
+          formatSolvingTime(solvingTime.at(clock.now())),
+          style: TextStyle(
+            color: color,
+            fontSize: 17.0,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
     );
   }
 }

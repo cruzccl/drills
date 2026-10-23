@@ -19,7 +19,8 @@ summary of the results.
 - Puzzles are fetched and solved through the Lichess puzzle API, so they count on your Lichess
   account exactly as in the official app.
 - While a Drill runs, only the progress is shown; results, rating changes and performance are
-  revealed in the summary at the end.
+  revealed in the summary at the end. A setting can also show how long you have been on the
+  puzzle in progress, timed only while the app is shown.
 - A Drill can be ended early, as a partial Drill. One left unfinished can be resumed at any time,
   even after the app was closed. Each Lichess account signed in on the device has its own.
 - Past Drills are kept on the device in a Drill History, one per account, grouped by day, under a
