@@ -59,6 +59,16 @@ abstract class DrillStrings() {
   static const lastDrills = 'Últimos';
   static const allDrillsCount = 'Todos los Drills';
 
+  static const profile = 'Mi perfil';
+  static const puzzles = 'Problemas';
+  static const puzzleRating = 'Valoración de problemas';
+  static const highestRating = 'Máxima';
+  static const lowestRating = 'Mínima';
+  static const played = 'jugados';
+  static const highScore = 'récord';
+  static const run = 'ronda';
+  static const runs = 'rondas';
+
   static const settingsAccount = 'Cuenta';
   static const settingsDrills = 'Drills';
   static const settingsAppearance = 'Apariencia';
