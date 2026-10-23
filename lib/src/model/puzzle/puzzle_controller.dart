@@ -193,6 +193,20 @@ class PuzzleController(final PuzzleContext initialContext) extends Notifier<Puzz
     }
   }
 
+  /// Shows the from-square of the next solution move, failing the puzzle if it has no result yet:
+  /// in a Drill, asking for a hint is the step before giving up.
+  ///
+  /// Unlike [toggleHint], it doesn't set [PuzzleState.hintShown], which would make the failure
+  /// unrated, and the hint can't be hidden again. It does nothing while the opponent is to move,
+  /// after the player's move and before the reply, when the next solution move is not theirs.
+  void showHintAsFailure() {
+    final nextMove = state._nextSolutionMove;
+    if (state.mode != PuzzleMode.play || state.currentPosition.turn != state.pov) return;
+    if (nextMove == null) return;
+    if (state.result == null) _onFailOrWin(PuzzleResult.lose);
+    state = state.copyWith(hintSquare: nextMove.from);
+  }
+
   void skipMove() {
     if (initialContext.isPuzzleStreak == true && state._nextSolutionMove != null) {
       onUserMove(state._nextSolutionMove!);

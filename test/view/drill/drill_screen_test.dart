@@ -93,12 +93,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('2 / 5'), findsOneWidget);
 
-    // fail the remaining puzzles by viewing their solution, once it is offered
+    // fail the remaining puzzles by giving up, once it is offered
     for (var i = 0; i < 4; i++) {
-      await tester.pump(const Duration(seconds: 5));
-      await tester.tap(find.byIcon(Icons.flag_outlined));
-      // the solution is replayed and the next arrow blinks: no pumpAndSettle
-      await tester.pump(const Duration(seconds: 1));
+      await _failCurrentPuzzle(tester);
       await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
       await tester.pump(const Duration(milliseconds: 100));
     }
@@ -126,6 +123,35 @@ void main() {
     await tester.tap(find.text('+10'));
     await tester.pumpAndSettle();
     expect(find.byType(AnalysisScreen), findsOneWidget);
+  });
+
+  testWidgets('one button asks for a hint, which fails the puzzle, then gives up', (tester) async {
+    await openHome(tester, signedIn: true);
+    await tester.tap(find.text('Empezar'));
+    await tester.pumpAndSettle();
+
+    // wait for the opponent's move and for the hint to be offered
+    await tester.pump(const Duration(seconds: 5));
+    expect(find.byIcon(Icons.flag_outlined), findsNothing, reason: 'no separate solution button');
+    await tester.tap(find.byIcon(Icons.lightbulb_outline));
+    await tester.pumpAndSettle();
+    expect(server.solutions.map((s) => (win: s.win, rated: s.rated)), [(win: false, rated: true)]);
+    expect(find.byIcon(Icons.lightbulb_outline), findsNothing);
+    expect(find.byIcon(Icons.flag_outlined), findsOneWidget);
+
+    // the right move clears the hint: the button asks for a hint again, which is only shown
+    await playMove(tester, 'g4', 'h4', orientation: Side.black);
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.lightbulb_outline));
+    await tester.pumpAndSettle();
+    expect(server.solutions, hasLength(1));
+
+    // giving up shows the solution
+    await tester.tap(find.byIcon(Icons.flag_outlined));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byIcon(CupertinoIcons.play_arrow_solid), findsOneWidget);
+    expect(server.solutions, hasLength(1));
   });
 
   testWidgets('with the clock on, the time spent on the puzzle ticks until its result', (
@@ -524,9 +550,11 @@ Future<void> _playOnePuzzleDrill(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-/// Fails the puzzle the Drill is on by viewing its solution, once it is offered.
+/// Fails the puzzle the Drill is on by asking for a hint then giving up, once they are offered.
 Future<void> _failCurrentPuzzle(WidgetTester tester) async {
   await tester.pump(const Duration(seconds: 5));
+  await tester.tap(find.byIcon(Icons.lightbulb_outline));
+  await tester.pump();
   await tester.tap(find.byIcon(Icons.flag_outlined));
   // the solution is replayed and the next arrow blinks: no pumpAndSettle
   await tester.pump(const Duration(seconds: 1));
