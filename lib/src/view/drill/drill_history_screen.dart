@@ -20,9 +20,6 @@ import 'package:material_ui/material_ui.dart';
 /// How far from the end of the list the next page of older Drills is loaded.
 const _loadMoreExtent = 600.0;
 
-/// How much a share of puzzles solved must be above or below the share expected to be good or bad.
-const _successRateMargin = 0.05;
-
 /// The Drill History: the past Drills, newest first and grouped by day, under a chart of their
 /// Drill Performance, rating or share of puzzles solved.
 ///
@@ -108,7 +105,7 @@ class const _DayHeader(final DateTime day, final List<DrillHistoryEntry> entries
           if (change != null)
             Text(
               formatRatingChange(change),
-              style: TextStyle(fontSize: 13, fontWeight: .bold, color: _signColor(context, change)),
+              style: TextStyle(fontSize: 13, fontWeight: .bold, color: signColor(context, change)),
             ),
         ],
       ),
@@ -200,7 +197,7 @@ class const _DrillCard(final DrillHistoryEntry entry) extends ConsumerWidget {
                     _MetricTile(
                       label: DrillStrings.successes,
                       value: '${(entry.successRate * 100).round()} %',
-                      valueColor: _successRateColor(
+                      valueColor: successRateColor(
                         context,
                         entry.successRate,
                         entry.expectedSuccessRate,
@@ -228,7 +225,7 @@ class const _DrillCard(final DrillHistoryEntry entry) extends ConsumerWidget {
                           : formatRatingChange(ratingChange),
                       valueColor: entry.isCasual || ratingChange == null
                           ? textShade(context, Styles.subtitleOpacity)
-                          : _signColor(context, ratingChange),
+                          : signColor(context, ratingChange),
                       opacity: entry.isCasual ? 0.55 : 1.0,
                       detail: entry.isCasual
                           ? Text(ratingBefore)
@@ -475,7 +472,7 @@ class const _ChartHeadline(
     if (metric == .successRate) {
       final average = values.map((v) => v.value).average;
       value = '${(last.value * 100).round()} %';
-      valueColor = _successRateColor(context, last.value, last.expected);
+      valueColor = successRateColor(context, last.value, last.expected);
       comparison = '${DrillStrings.average} ${(average * 100).round()} %';
       comparisonColor = textShade(context, Styles.subtitleOpacity);
     } else {
@@ -489,7 +486,7 @@ class const _ChartHeadline(
         .month => DrillStrings.sinceLastMonth,
       };
       comparison = change == null ? '' : '${formatRatingChange(change)} $since';
-      comparisonColor = change != null ? _signColor(context, change) : null;
+      comparisonColor = change != null ? signColor(context, change) : null;
     }
     return Text.rich(
       TextSpan(
@@ -604,7 +601,7 @@ class const _SuccessRateChart(final IList<DrillChartValue> values) extends State
                       toY: v.value * 100,
                       width: barWidth,
                       color:
-                          _successRateColor(context, v.value, v.expected) ??
+                          successRateColor(context, v.value, v.expected) ??
                           ColorScheme.of(context).onSurface,
                       borderRadius: BorderRadius.all(Radius.circular(barWidth > 6 ? 3.0 : 1.0)),
                     ),
@@ -652,25 +649,6 @@ TextSpan _tooltipDate(BuildContext context, DateTime date) => TextSpan(
     color: ColorScheme.of(context).onInverseSurface,
   ),
 );
-
-/// Green or red when [successRate] is clearly above or below the share [expected], else `null` for
-/// the text color, as when the share expected is not known.
-Color? _successRateColor(BuildContext context, double successRate, double? expected) {
-  if (expected == null) return null;
-  final colors = context.lichessColors;
-  return successRate >= expected + _successRateMargin
-      ? colors.good
-      : successRate <= expected - _successRateMargin
-      ? colors.error
-      : null;
-}
-
-/// Green for a gain, red for a loss, `null` for the text color when there is no change.
-Color? _signColor(BuildContext context, int change) => change > 0
-    ? context.lichessColors.good
-    : change < 0
-    ? context.lichessColors.error
-    : null;
 
 /// The name of the day of [date]: today, yesterday, or its date, with the year if it is not this
 /// year's, and with the day of the week unless [short].

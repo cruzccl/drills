@@ -17,12 +17,16 @@ import 'package:lichess_mobile/src/widgets/list.dart';
 import 'package:lichess_mobile/src/widgets/platform_filled_button.dart';
 import 'package:material_ui/material_ui.dart';
 
+/// How much a share of puzzles solved must be above or below the share expected to be good or bad.
+const _successRateMargin = 0.05;
+
 /// The Drill Summary: what the Drill was, its results, rating change, solving time, Drill
 /// Performance and weakest themes, then its puzzles, each opened on the analysis board.
 class const DrillSummary(final Drill drill, {super.key}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final performance = drill.performance;
+    final colors = context.lichessColors;
     return ListView(
       padding: Styles.bodyPadding.add(MediaQuery.paddingOf(context)),
       children: [
@@ -31,17 +35,32 @@ class const DrillSummary(final Drill drill, {super.key}) extends ConsumerWidget 
         ListSection(
           margin: .zero,
           children: [
-            _SummaryTile(DrillStrings.successes, '${drill.successes}'),
-            _SummaryTile(DrillStrings.failures, '${drill.failures}'),
+            _SummaryTile(
+              DrillStrings.successes,
+              '${drill.successes}',
+              valueColor: drill.successes > 0 ? colors.good : null,
+            ),
+            _SummaryTile(
+              DrillStrings.failures,
+              '${drill.failures}',
+              valueColor: drill.failures > 0 ? colors.error : null,
+            ),
             _SummaryTile(
               DrillStrings.successRate,
               '${(drill.successRate * 100).round()} %',
+              valueColor: successRateColor(context, drill.successRate, drill.expectedSuccessRate),
               subtitle: switch (drill.expectedSuccessRate) {
                 final expected? => '${DrillStrings.expected} ${(expected * 100).round()} %',
                 null => null,
               },
             ),
-            ListTile(title: const Text(DrillStrings.rating), trailing: _RatingChange(drill)),
+            Opacity(
+              opacity: drill.isCasual ? 0.5 : 1.0,
+              child: ListTile(
+                title: const Text(DrillStrings.rating),
+                trailing: _RatingChange(drill),
+              ),
+            ),
             _SummaryTile(DrillStrings.totalTime, formatSolvingTime(drill.totalSolvingTime)),
             _SummaryTile(DrillStrings.averageTime, formatSolvingTime(drill.averageSolvingTime)),
             Opacity(
@@ -49,6 +68,7 @@ class const DrillSummary(final Drill drill, {super.key}) extends ConsumerWidget 
               child: _SummaryTile(
                 DrillStrings.performance,
                 performance != null ? '$performance' : '-',
+                valueColor: performance != null ? colors.primary : null,
                 subtitle: drill.isPerformanceReliable ? null : DrillStrings.unreliable,
               ),
             ),
@@ -77,20 +97,24 @@ class const DrillSummary(final Drill drill, {super.key}) extends ConsumerWidget 
   }
 }
 
-class const _SummaryTile(final String label, final String value, {final String? subtitle})
-    extends StatelessWidget {
+class const _SummaryTile(
+  final String label,
+  final String value, {
+  final String? subtitle,
+  final Color? valueColor,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
       title: Text(label),
       subtitle: subtitle != null ? Text(subtitle!) : null,
-      trailing: Text(value, style: TextTheme.of(context).titleMedium),
+      trailing: Text(value, style: TextTheme.of(context).titleMedium?.copyWith(color: valueColor)),
     );
   }
 }
 
-/// The rating before and after [drill], and its change, with the same centered arrow as the Drill
-/// History cards (the → character sits below the middle of the digits).
+/// The rating before and after [drill], and its change, green or red as in the Drill History cards,
+/// with the same centered arrow (the → character sits below the middle of the digits).
 class const _RatingChange(final Drill drill) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -103,12 +127,12 @@ class const _RatingChange(final Drill drill) extends StatelessWidget {
       children: [
         Text(drill.ratingBefore?.toString() ?? '?', style: style),
         const Icon(Icons.arrow_forward, size: 16),
-        Text(
-          after == null
-              ? DrillStrings.pending
-              : '$after${change != null ? ' (${formatRatingChange(change)})' : ''}',
-          style: style,
-        ),
+        Text(after?.toString() ?? DrillStrings.pending, style: style),
+        if (after != null && change != null)
+          Text(
+            '(${formatRatingChange(change)})',
+            style: style?.copyWith(color: signColor(context, change)),
+          ),
       ],
     );
   }
@@ -153,13 +177,7 @@ class const _DrillPuzzleResultTile(final DrillPuzzleResult result) extends Consu
                 : ratingDiff == null
                 ? DrillStrings.pending
                 : formatRatingChange(ratingDiff),
-            style: TextStyle(
-              color: ratingDiff == null || ratingDiff == 0
-                  ? null
-                  : ratingDiff > 0
-                  ? colors.good
-                  : colors.error,
-            ),
+            style: TextStyle(color: ratingDiff != null ? signColor(context, ratingDiff) : null),
           ),
           Text(formatSolvingTime(result.solvingTime), style: TextTheme.of(context).bodySmall),
         ],
@@ -187,6 +205,25 @@ String formatRatingChange(int value) => value > 0
     : value < 0
     ? '−${-value}'
     : '±0';
+
+/// Green or red when [successRate] is clearly above or below the share [expected], else `null` for
+/// the text color, as when the share expected is not known.
+Color? successRateColor(BuildContext context, double successRate, double? expected) {
+  if (expected == null) return null;
+  final colors = context.lichessColors;
+  return successRate >= expected + _successRateMargin
+      ? colors.good
+      : successRate <= expected - _successRateMargin
+      ? colors.error
+      : null;
+}
+
+/// Green for a gain, red for a loss, `null` for the text color when there is no change.
+Color? signColor(BuildContext context, int change) => change > 0
+    ? context.lichessColors.good
+    : change < 0
+    ? context.lichessColors.error
+    : null;
 
 /// Formats a solving time as minutes and seconds, such as 2:05.
 String formatSolvingTime(Duration duration) {
