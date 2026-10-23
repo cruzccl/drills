@@ -360,6 +360,48 @@ void main() {
     expect(server.difficulties.toSet(), {'easier'});
   });
 
+  testWidgets('the puzzle just solved is opened on the analysis board, then the Drill goes on', (
+    tester,
+  ) async {
+    await openHome(
+      tester,
+      signedIn: true,
+      defaultPreferences: {
+        SessionPreferencesStorage.key(PrefCategory.drill.storageKey, fakeAuthUser): jsonEncode(
+          const DrillConfig(nbPuzzles: 2).toJson(),
+        ),
+        PrefCategory.drillSettings.storageKey: jsonEncode(
+          const DrillPrefs(showClock: true).toJson(),
+        ),
+      },
+    );
+    await tester.tap(find.text('Empezar'));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 1500));
+    expect(find.byIcon(Icons.biotech), findsNothing, reason: 'not while the puzzle is solved');
+
+    await _failCurrentPuzzle(tester);
+    final timeAtResult = _clockSeconds(tester);
+    await tester.tap(find.byIcon(Icons.biotech));
+    await tester.pumpAndSettle();
+    expect(find.byType(AnalysisScreen), findsOneWidget);
+    expect(find.byIcon(Icons.crisis_alert), findsOneWidget, reason: 'the Drill analysis board');
+    await tester.pump(const Duration(seconds: 5));
+
+    await tester.pageBack();
+    // the next arrow still blinks: no pumpAndSettle
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byType(AnalysisScreen), findsNothing);
+    expect(find.byType(DrillScreen), findsOneWidget);
+    expect(find.text('1 / 2'), findsOneWidget);
+    expect(_clockSeconds(tester), timeAtResult, reason: 'the time stays at the result');
+    await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('2 / 2'), findsOneWidget);
+  });
+
   testWidgets("a Drill puzzle's analysis board shows the threat instead of the menu", (
     tester,
   ) async {
