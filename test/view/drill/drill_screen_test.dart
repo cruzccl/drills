@@ -17,6 +17,7 @@ import 'package:lichess_mobile/src/network/http.dart';
 import 'package:lichess_mobile/src/styles/styles.dart';
 import 'package:lichess_mobile/src/view/analysis/analysis_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_screen.dart';
+import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:lichess_mobile/src/view/engine/engine_button.dart';
 import 'package:lichess_mobile/src/view/puzzle/puzzle_session_widget.dart';
 import 'package:lichess_mobile/src/widgets/bottom_bar.dart';
@@ -55,11 +56,55 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('signed out, the home screen only offers to sign in', (tester) async {
+  testWidgets('signed out, plays an unrated Drill that counts on no account', (tester) async {
     await openHome(tester, signedIn: false);
 
-    expect(find.widgetWithText(FilledButton, 'Sign in'), findsOneWidget);
-    expect(find.text('Empezar'), findsNothing);
+    // the Drill setup, with a notice and the sign-in button, but no Drill History nor profile
+    expect(find.text('Empezar'), findsOneWidget);
+    expect(find.text('Calentar con Puzzle Storm'), findsOneWidget);
+    expect(find.text(DrillStrings.signedOutNotice), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Sign in'), findsOneWidget);
+    expect(find.byIcon(Icons.history), findsNothing);
+    expect(find.bySemanticsLabel(DrillStrings.profile), findsNothing);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, '5'));
+    await tester.tap(find.text('Empezar'));
+    await tester.pumpAndSettle();
+    expect(find.byType(DrillScreen), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 1500));
+    await playMove(tester, 'g4', 'h4', orientation: Side.black);
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+    await playMove(tester, 'b4', 'h4', orientation: Side.black);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
+    await tester.pump(const Duration(milliseconds: 100));
+    await _failCurrentPuzzle(tester);
+    await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.text('Terminar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+
+    // a casual Drill, without the player's rating
+    expect(_summaryValue('Aciertos'), '1');
+    expect(_summaryValue('Fallos'), '1');
+    expect(find.text('Puntuación'), findsNothing);
+    expect(find.textContaining('Esperado'), findsNothing);
+    await tester.scrollUntilVisible(find.text('sin puntuar').first, 200.0);
+    expect(find.text('sin puntuar'), findsNWidgets(2));
+    expect(find.text('pendiente'), findsNothing);
+
+    await tester.scrollUntilVisible(find.text('Volver'), 200.0);
+    await tester.tap(find.text('Volver'));
+    await tester.pumpAndSettle();
+
+    // no solution sent: Lichess records nothing, and nothing is kept to resume
+    expect(server.nbSolveRequests, 0);
+    expect(server.solutions, isEmpty);
+    expect(find.textContaining('Reanudar'), findsNothing);
   });
 
   testWidgets('plays a Drill showing only its progress, then its summary', (tester) async {

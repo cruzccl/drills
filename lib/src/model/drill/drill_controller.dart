@@ -128,7 +128,8 @@ class DrillController() extends Notifier<DrillState?> {
       Drill(
         config: config,
         startedAt: clock.now(),
-        ratingBefore: puzzleContext.glicko?.shownRating,
+        // Signed out, a Drill counts on no account: it has no rating.
+        ratingBefore: userId != null ? puzzleContext.glicko?.shownRating : null,
       ),
       puzzleContext,
     );
@@ -325,7 +326,7 @@ class DrillController() extends Notifier<DrillState?> {
               win: result == .win,
               // The rule of the puzzle controller, which sends the solution.
               rated:
-                  drillState.puzzleContext.userId != null &&
+                  drillState.hasAccount &&
                   !next.hintShown &&
                   ref.read(puzzlePreferencesProvider).rated,
               solvingTime: solvingTime,
@@ -333,7 +334,10 @@ class DrillController() extends Notifier<DrillState?> {
           ),
         ),
       );
-    } else if (drill.ratingBefore == null && drill.latestRating == null && next.glicko != null) {
+    } else if (drillState.hasAccount &&
+        drill.ratingBefore == null &&
+        drill.latestRating == null &&
+        next.glicko != null) {
       // The puzzle controller reads the player's rating when it starts, if the first puzzle
       // didn't come with it. It is the rating before the Drill unless a solution of the Drill was
       // sent first.
@@ -649,7 +653,7 @@ sealed class DrillConfig with _$DrillConfig implements Serializable {
 
 /// The Drill being played: the [Drill] and the puzzle being solved.
 @freezed
-sealed class DrillState with _$DrillState {
+sealed class const DrillState._() with _$DrillState {
   const factory({
     required Drill drill,
 
@@ -665,6 +669,10 @@ sealed class DrillState with _$DrillState {
     @Default(DrillSolvingTime()) DrillSolvingTime solvingTime,
     @Default(false) bool isOver,
   }) = _DrillState;
+
+  /// Whether the Drill counts on an account: played signed out, it is unrated, without a rating,
+  /// and none of its solutions are sent.
+  bool get hasAccount => puzzleContext.userId != null;
 }
 
 /// The time spent on a puzzle of a Drill, timed from when the player can move to its result, only
