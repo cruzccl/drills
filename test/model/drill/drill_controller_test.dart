@@ -51,18 +51,19 @@ void main() {
 
   tearDown(() => drillDatabase.close());
 
-  Future<ProviderContainer> makeDrillContainer({AuthUser authUser = fakeAuthUser}) => makeContainer(
-    authUser: authUser,
-    overrides: {
-      httpClientFactoryProvider: httpClientFactoryProvider.overrideWith(
-        (ref) => FakeHttpClientFactory(() => server.client),
-      ),
-      drillSendRetryDelayProvider: drillSendRetryDelayProvider.overrideWithValue(
-        const Duration(seconds: 1),
-      ),
-      drillDatabaseProvider: drillDatabaseProvider.overrideWith((ref) => drillDatabase),
-    },
-  );
+  Future<ProviderContainer> makeDrillContainer({AuthUser? authUser = fakeAuthUser}) =>
+      makeContainer(
+        authUser: authUser,
+        overrides: {
+          httpClientFactoryProvider: httpClientFactoryProvider.overrideWith(
+            (ref) => FakeHttpClientFactory(() => server.client),
+          ),
+          drillSendRetryDelayProvider: drillSendRetryDelayProvider.overrideWithValue(
+            const Duration(seconds: 1),
+          ),
+          drillDatabaseProvider: drillDatabaseProvider.overrideWith((ref) => drillDatabase),
+        },
+      );
 
   test('starting a Drill loads its first puzzle', () async {
     final container = await makeDrillContainer();
@@ -263,6 +264,24 @@ void main() {
     await _solveCurrentPuzzle(container, win: true, hint: true);
 
     expect(server.solutions.map((s) => s.rated), [true, false]);
+  });
+
+  test('signed out, a Drill is casual, without a rating, and sends no solution', () async {
+    final container = await makeDrillContainer(authUser: null);
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(const DrillConfig(nbPuzzles: 2));
+
+    await _solveCurrentPuzzle(container, win: true);
+    drillCtrl.continueDrill();
+    await _solveCurrentPuzzle(container, win: false);
+    drillCtrl.continueDrill();
+
+    final drill = container.read(drillControllerProvider)!.drill;
+    expect(drill.isCasual, isTrue);
+    expect(drill.ratingBefore, isNull);
+    expect(drill.expectedSuccessRate, isNull);
+    expect(drill.hasPendingRatingDiff, isFalse);
+    expect(server.nbSolveRequests, 0);
   });
 
   test("the Drill Summary has each puzzle's result and the rating before and after", () async {

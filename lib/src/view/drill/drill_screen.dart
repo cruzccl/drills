@@ -70,7 +70,7 @@ class const DrillScreen({super.key}) extends ConsumerWidget {
         ),
         body: switch (drill) {
           null => const SizedBox.shrink(),
-          DrillState(isOver: true) => DrillSummary(drill.drill),
+          DrillState(isOver: true) => DrillSummary(drill.drill, hasAccount: drill.hasAccount),
           _ => _DrillPuzzle(drill),
         },
       ),

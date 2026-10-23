@@ -3,8 +3,9 @@
 abstract class DrillStrings() {
   static const appName = 'Drills';
 
-  static const homeSignInPrompt =
-      'Inicia sesión con tu cuenta de Lichess para que tus Drills cuenten en ella.';
+  static const signedOutNotice =
+      'Sin sesión, los Drills no cuentan en ninguna cuenta de Lichess ni se guardan en el '
+      'historial. Inicia sesión para que cuenten en la tuya.';
   static const nbPuzzlesChoice = 'Número de problemas';
   static const theme = 'Tema';
   static const startDrill = 'Empezar';

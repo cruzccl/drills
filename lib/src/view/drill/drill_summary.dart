@@ -22,7 +22,10 @@ const _successRateMargin = 0.05;
 
 /// The Drill Summary: what the Drill was, its results, rating change, solving time, Drill
 /// Performance and weakest themes, then its puzzles, each opened on the analysis board.
-class const DrillSummary(final Drill drill, {super.key}) extends ConsumerWidget {
+///
+/// A Drill played signed out, without an account ([hasAccount] `false`), has no rating row.
+class const DrillSummary(final Drill drill, {final bool hasAccount = true, super.key})
+    extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final performance = drill.performance;
@@ -54,13 +57,14 @@ class const DrillSummary(final Drill drill, {super.key}) extends ConsumerWidget 
                 null => null,
               },
             ),
-            Opacity(
-              opacity: drill.isCasual ? 0.5 : 1.0,
-              child: ListTile(
-                title: const Text(DrillStrings.rating),
-                trailing: _RatingChange(drill),
+            if (hasAccount)
+              Opacity(
+                opacity: drill.isCasual ? 0.5 : 1.0,
+                child: ListTile(
+                  title: const Text(DrillStrings.rating),
+                  trailing: _RatingChange(drill),
+                ),
               ),
-            ),
             _SummaryTile(DrillStrings.totalTime, formatSolvingTime(drill.totalSolvingTime)),
             _SummaryTile(DrillStrings.averageTime, formatSolvingTime(drill.averageSolvingTime)),
             Opacity(
