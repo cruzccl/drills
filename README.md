@@ -23,6 +23,8 @@ summary of the results.
   puzzle in progress, timed only while the app is shown.
 - A Drill can be ended early, as a partial Drill. One left unfinished can be resumed at any time,
   even after the app was closed. Each Lichess account signed in on the device has its own.
+- Puzzle Storm, as in the official app, is one tap away on the home screen, to warm up before a
+  Drill. It counts neither on the puzzle rating nor in the Drill.
 - Past Drills are kept on the device in a Drill History, one per account, grouped by day, under a
   chart of their performance, rating or success rate; each one can be reviewed again or deleted.
 

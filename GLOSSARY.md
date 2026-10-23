@@ -23,6 +23,10 @@ The list of past Drills and their Drill Summaries, kept only on the device, one 
 The rating level a Drill was played at, from the average puzzle rating and the share of puzzles solved, as Lichess computes puzzle performance. Unreliable below 6 puzzles.
 _Avoid_: Rating, score
 
+**Warm-up**:
+A Puzzle Storm run started from the home screen before a Drill, exactly as in the official app; it is not part of the Drill and leaves no trace in its Drill Summary.
+_Avoid_: Drill
+
 **Puzzle Session**:
 The official app's rolling window of recent puzzle attempts, with no defined start or end; distinct from a Drill.
 _Avoid_: Drill

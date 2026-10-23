@@ -6,6 +6,7 @@ import 'package:lichess_mobile/src/model/drill/drill_controller.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_difficulty.dart';
 import 'package:lichess_mobile/src/model/settings/board_preferences.dart';
 import 'package:lichess_mobile/src/network/connectivity.dart';
+import 'package:lichess_mobile/src/styles/lichess_icons.dart';
 import 'package:lichess_mobile/src/styles/styles.dart';
 import 'package:lichess_mobile/src/utils/l10n_context.dart';
 import 'package:lichess_mobile/src/view/auth/sign_in_error.dart';
@@ -15,6 +16,7 @@ import 'package:lichess_mobile/src/view/drill/drill_history_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_settings_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
+import 'package:lichess_mobile/src/view/puzzle/storm_screen.dart';
 import 'package:lichess_mobile/src/widgets/adaptive_action_sheet.dart';
 import 'package:lichess_mobile/src/widgets/adaptive_choice_picker.dart';
 import 'package:lichess_mobile/src/widgets/buttons.dart';
@@ -217,6 +219,16 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
                     child: _isStarting
                         ? const ButtonLoadingIndicator()
                         : const Text(DrillStrings.startDrill),
+                  ),
+                  const SizedBox(height: 12.0),
+                  // A warm-up before the Drill: Puzzle Storm as in the official app, which counts
+                  // neither on the puzzle rating nor in the Drill.
+                  OutlinedButton.icon(
+                    icon: const Icon(LichessIcons.storm),
+                    label: const Text(DrillStrings.warmUpWithStorm),
+                    onPressed: isOnline
+                        ? () => Navigator.of(context).push(StormScreen.buildRoute())
+                        : null,
                   ),
                 ],
               ),

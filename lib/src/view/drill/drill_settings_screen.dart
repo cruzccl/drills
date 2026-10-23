@@ -84,7 +84,7 @@ class const DrillSettingsScreen({super.key}) extends ConsumerWidget {
             ],
           ),
           ListSection(
-            header: const SettingsSectionTitle(DrillStrings.settingsPuzzles),
+            header: const SettingsSectionTitle(DrillStrings.settingsDrills),
             hasLeading: false,
             children: [
               // Puzzles are only rated for a signed in user.
