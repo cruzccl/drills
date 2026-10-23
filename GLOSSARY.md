@@ -23,6 +23,10 @@ The list of past Drills and their Drill Summaries, kept only on the device, one 
 The rating level a Drill was played at, from the average puzzle rating and the share of puzzles solved, as Lichess computes puzzle performance. Unreliable below 6 puzzles.
 _Avoid_: Rating, score
 
+**Hint**:
+The from-square of the current solution move, shown in a Drill as the step before giving up: the first hint of a puzzle fails it, on Lichess too (see ADR 0002).
+_Avoid_: Clue, help
+
 **Warm-up**:
 A Puzzle Storm run started from the home screen before a Drill, exactly as in the official app; it is not part of the Drill and leaves no trace in its Drill Summary.
 _Avoid_: Drill

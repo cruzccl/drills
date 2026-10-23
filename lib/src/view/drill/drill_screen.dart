@@ -319,7 +319,7 @@ class const _DrillBottomBar(final DrillState drill) extends ConsumerStatefulWidg
 }
 
 class _DrillBottomBarState() extends ConsumerState<_DrillBottomBar> {
-  /// As in the official app, the hint and the solution are only offered after a while.
+  /// As in the official app, the hint and giving up are only offered after a while.
   static const _helpDelay = Duration(seconds: 4);
 
   Timer? _helpTimer;
@@ -360,19 +360,21 @@ class _DrillBottomBarState() extends ConsumerState<_DrillBottomBar> {
     return BottomBar(
       mainAxisAlignment: .spaceAround,
       children: [
-        if (!isViewing) ...[
-          BottomBarButton(
-            icon: Icons.lightbulb_outline,
-            label: context.l10n.getAHint,
-            highlighted: puzzleState.hintSquare != null,
-            onTap: canGetHelp ? puzzleCtrl.toggleHint : null,
-          ),
-          BottomBarButton(
-            icon: Icons.flag_outlined,
-            label: context.l10n.viewTheSolution,
-            onTap: canGetHelp ? puzzleCtrl.viewSolution : null,
-          ),
-        ],
+        // The hint is the step before giving up: the first one fails the puzzle, and once a hint
+        // is shown, the same button shows the solution.
+        if (!isViewing)
+          if (puzzleState.hintSquare == null)
+            BottomBarButton(
+              icon: Icons.lightbulb_outline,
+              label: context.l10n.getAHint,
+              onTap: canGetHelp ? puzzleCtrl.showHintAsFailure : null,
+            )
+          else
+            BottomBarButton(
+              icon: Icons.flag_outlined,
+              label: DrillStrings.giveUp,
+              onTap: canGetHelp ? puzzleCtrl.viewSolution : null,
+            ),
         // Only the puzzle just solved: zen mode hides the previous ones until the Drill Summary.
         if (isViewing)
           BottomBarButton(

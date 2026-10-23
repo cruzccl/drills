@@ -14,6 +14,7 @@ abstract class DrillStrings() {
   static const replaceUnfinishedDrillConfirmation =
       '¿Empezar un Drill nuevo? El que está sin terminar se dará por terminado.';
 
+  static const giveUp = 'Rendirse';
   static const previousMove = 'Anterior';
   static const endDrill = 'Terminar';
   static const endDrillConfirmation = '¿Terminar el Drill ahora?';

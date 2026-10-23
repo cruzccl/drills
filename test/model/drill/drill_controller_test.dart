@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:clock/clock.dart';
+import 'package:dartchess/dartchess.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -187,19 +188,81 @@ void main() {
     expect(drill.drill.failures, 1);
   });
 
-  test('a puzzle is unrated when a hint was used or rated puzzles are off', () async {
+  test('a hint fails the puzzle on Lichess, rated, even if it is then solved', () async {
+    final container = await makeDrillContainer();
+    await container.read(drillControllerProvider.notifier).start(_drill);
+
+    await _solveCurrentPuzzle(container, win: true, hint: true);
+
+    expect(server.solutions.map((s) => (win: s.win, rated: s.rated)), [(win: false, rated: true)]);
+    final result = container.read(drillControllerProvider)!.drill.results.single;
+    expect(result.win, isFalse);
+    expect(result.rated, isTrue);
+    expect(result.ratingDiff, -10);
+    expect(_puzzleState(container).result, PuzzleResult.lose);
+  });
+
+  test('later hints only show the hint, and a hint stays shown', () async {
+    final container = await makeDrillContainer();
+    await container.read(drillControllerProvider.notifier).start(_drill);
+
+    await _solveCurrentPuzzle(
+      container,
+      win: true,
+      waitForNext: false,
+      whilePlaying: () {
+        _puzzleCtrl(container).showHintAsFailure();
+        _puzzleCtrl(container).showHintAsFailure();
+        expect(_puzzleState(container).hintSquare, Square.g4);
+      },
+    );
+    await _waitFor(() => _puzzleState(container).nextContext != null);
+
+    expect(server.solutions, hasLength(1));
+  });
+
+  test('a hint after a wrong move only shows the hint', () async {
+    final container = await makeDrillContainer();
+    await container.read(drillControllerProvider.notifier).start(_drill);
+    final puzzleCtrl = _puzzleCtrl(container);
+    await _waitFor(() => _puzzleState(container).mode == .play);
+
+    await puzzleCtrl.onUserMove(Move.parse('g4g3')!);
+    await _waitFor(() => _puzzleState(container).nextContext != null);
+    puzzleCtrl.showHintAsFailure();
+
+    expect(_puzzleState(container).hintSquare, Square.g4);
+    expect(server.solutions.map((s) => s.win), [false]);
+    expect(container.read(drillControllerProvider)!.drill.results.single.win, isFalse);
+  });
+
+  test('no hint is given while the opponent is to move', () async {
+    final container = await makeDrillContainer();
+    await container.read(drillControllerProvider.notifier).start(_drill);
+    final puzzleCtrl = _puzzleCtrl(container);
+    await _waitFor(() => _puzzleState(container).mode == .play);
+
+    // the opponent replies 500 ms after the player's right move
+    final playing = puzzleCtrl.onUserMove(FakeDrillServer.playerMoves.first);
+    puzzleCtrl.showHintAsFailure();
+    await playing;
+
+    expect(_puzzleState(container).hintSquare, isNull);
+    expect(_puzzleState(container).result, isNull);
+    expect(container.read(drillControllerProvider)!.drill.results, isEmpty);
+  });
+
+  test('a puzzle is unrated when rated puzzles are off', () async {
     final container = await makeDrillContainer();
     final drillCtrl = container.read(drillControllerProvider.notifier);
     await drillCtrl.start(_drill);
 
-    await _solveCurrentPuzzle(container, win: true, hint: true);
-    drillCtrl.continueDrill();
     await _solveCurrentPuzzle(container, win: true);
     drillCtrl.continueDrill();
     await container.read(puzzlePreferencesProvider.notifier).setRated(false);
-    await _solveCurrentPuzzle(container, win: true);
+    await _solveCurrentPuzzle(container, win: true, hint: true);
 
-    expect(server.solutions.map((s) => s.rated), [false, true, false]);
+    expect(server.solutions.map((s) => s.rated), [true, false]);
   });
 
   test("the Drill Summary has each puzzle's result and the rating before and after", () async {
@@ -221,12 +284,12 @@ void main() {
     expect(drill.isOver, isTrue);
     expect(drill.drill.results.map((r) => r.puzzleRating), [1400, 1500, 1600, 1700]);
     expect(drill.drill.results.first.themes, ISet(const ['endgame', 'short', 'fork']));
-    expect(drill.drill.results.map((r) => r.win), [true, false, true, true]);
-    expect(drill.drill.results.map((r) => r.rated), [true, true, false, true]);
-    expect(drill.drill.results.map((r) => r.ratingDiff), [10, -10, null, 10]);
+    expect(drill.drill.results.map((r) => r.win), [true, false, false, true]);
+    expect(drill.drill.results.map((r) => r.rated), [true, true, true, true]);
+    expect(drill.drill.results.map((r) => r.ratingDiff), [10, -10, -10, 10]);
     expect(drill.drill.ratingBefore, 1500);
-    expect(drill.drill.ratingAfter, 1510);
-    expect(drill.drill.ratingChange, 10);
+    expect(drill.drill.ratingAfter, 1500);
+    expect(drill.drill.ratingChange, 0);
   });
 
   test('the rating before and after a Drill leave out its decimals, as on Lichess', () async {
@@ -975,11 +1038,16 @@ PuzzleState _puzzleState(ProviderContainer container) => container.read(
   puzzleControllerProvider(container.read(drillControllerProvider)!.puzzleContext),
 );
 
+PuzzleController _puzzleCtrl(ProviderContainer container) => container.read(
+  puzzleControllerProvider(container.read(drillControllerProvider)!.puzzleContext).notifier,
+);
+
 /// Solves the puzzle the Drill is on, waiting for its result to be sent to the server.
 ///
-/// It is won by playing the solution, or lost by viewing the solution. [whilePlaying] is called
-/// once the player can move, before the puzzle is solved. Without [waitForNext], when no puzzle is
-/// left to play, it only waits for the solution to be saved.
+/// It is won by playing the solution, or lost by viewing the solution. With [hint], a hint is asked
+/// for first, which fails it even if the solution is then played. [whilePlaying] is called once the
+/// player can move, before the puzzle is solved. Without [waitForNext], when no puzzle is left to
+/// play, it only waits for the solution to be saved.
 Future<void> _solveCurrentPuzzle(
   ProviderContainer container, {
   required bool win,
@@ -996,7 +1064,7 @@ Future<void> _solveCurrentPuzzle(
   // the opponent's move is played after 1 second
   await _waitFor(() => container.read(ctrlProvider).mode == .play);
   whilePlaying?.call();
-  if (hint) puzzleCtrl.toggleHint();
+  if (hint) puzzleCtrl.showHintAsFailure();
   if (win) {
     for (final move in FakeDrillServer.playerMoves) {
       await puzzleCtrl.onUserMove(move);

@@ -751,8 +751,8 @@ sealed class const Drill._() with _$Drill implements Serializable {
     return results.map((r) => 1 / (1 + math.pow(10, (r.puzzleRating - rating) / 400))).average;
   }
 
-  /// Whether no result counts for the player's rating: the Drill was played with rated puzzles
-  /// off, or with a hint for each puzzle.
+  /// Whether no result counts for the player's rating: the Drill was played with rated puzzles off,
+  /// or, in a Drill played before a hint failed the puzzle, with a hint for each puzzle.
   bool get isCasual => results.isNotEmpty && results.every((r) => !r.rated);
 
   /// The themes most frequent among the failed puzzles, most failed first, at most
