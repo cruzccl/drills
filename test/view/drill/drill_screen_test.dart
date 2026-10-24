@@ -89,10 +89,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // a casual Drill, without the player's rating
-    expect(_summaryValue('Aciertos'), '1');
-    expect(_summaryValue('Fallos'), '1');
-    expect(find.text('Puntuación'), findsNothing);
-    expect(find.textContaining('Esperado'), findsNothing);
+    expect(find.text('1 de 2 resueltos'), findsOneWidget);
+    expect(find.text('Puntos'), findsNothing);
+    expect(find.textContaining('espera'), findsNothing);
     await tester.scrollUntilVisible(find.text('sin puntuar').first, 200.0);
     expect(find.text('sin puntuar'), findsNWidgets(2));
     expect(find.text('pendiente'), findsNothing);
@@ -148,19 +147,19 @@ void main() {
     expect(find.byType(Chessboard), findsNothing);
     expect(server.solutions.map((s) => s.win), [true, false, false, false, false]);
     await tester.pumpAndSettle();
-    expect(find.text('5 problemas · Healthy mix · Normal'), findsOneWidget);
-    expect(_summaryValue('Aciertos'), '1');
-    expect(_summaryValue('Fallos'), '4');
-    expect(_summaryValue('Porcentaje de aciertos'), '20 %');
+    expect(_description(), startsWith('Healthy mix · 5 problemas · Normal · Hoy '));
+    expect(find.text('20 %'), findsOneWidget);
+    expect(find.text('1 de 5 resueltos'), findsOneWidget);
     // from the puzzles' 1500 and the player's 1500
-    expect(find.text('Esperado 50 %'), findsOneWidget);
-    expect(_summaryValue('Puntuación'), '1500 → 1470 (−30)');
+    expect(find.text('Peor de lo esperado (50 %)'), findsOneWidget);
     // 1500 average puzzle rating, 1 success out of 5
-    expect(_summaryValue('Rendimiento'), '1200');
-    expect(find.text('Poco fiable'), findsOneWidget);
-    expect(find.text('Endgame (4)'), findsOneWidget);
-    expect(find.text('Fork (4)'), findsOneWidget);
-    expect(find.text('Short (4)'), findsNothing, reason: 'a length theme');
+    expect(_summaryValue('Rendimiento'), '1200 Poco fiable');
+    expect(_summaryValue('Puntos'), '−30 1500 → 1470');
+    // the 4 puzzles failed, out of the 5 with these themes
+    await tester.scrollUntilVisible(find.text('Endgame'), 200.0);
+    expect(find.text('4 / 5', findRichText: true), findsNWidgets(2));
+    expect(find.text('Fork'), findsOneWidget);
+    expect(find.text('Short'), findsNothing, reason: 'a length theme');
 
     // the puzzles of the Drill, each opened on the analysis board
     await tester.scrollUntilVisible(find.text('+10').hitTestable(), 200.0);
@@ -247,8 +246,8 @@ void main() {
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
 
-    expect(find.text('5 problemas · Healthy mix · Normal · Incompleto'), findsOneWidget);
-    expect(_summaryValue('Fallos'), '1');
+    expect(_description(), endsWith(' · Incompleto'));
+    expect(find.text('0 de 1 resuelto'), findsOneWidget);
   });
 
   testWidgets('the Drill Summary shows the rating as pending until it is synced', (tester) async {
@@ -267,9 +266,9 @@ void main() {
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
 
-    expect(_summaryValue('Puntuación'), '1500 → pendiente');
-    expect(_summaryValue('Rendimiento'), '1000', reason: 'known without the server');
-    await tester.scrollUntilVisible(find.text('pendiente').last, 200.0);
+    expect(_summaryValue('Puntos'), '··· 1500 → ?');
+    expect(_summaryValue('Rendimiento'), '1000 Poco fiable', reason: 'known without the server');
+    await tester.scrollUntilVisible(find.text('pendiente'), 200.0);
 
     server.isOffline = false;
     // past the throttling of connectivity changes
@@ -278,9 +277,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('pendiente'), findsNothing);
-    expect(find.text('−10'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Puntuación'), -200.0);
-    expect(_summaryValue('Puntuación'), '1500 → 1490 (−10)');
+    // in the puzzle list and the rating change
+    expect(find.text('−10'), findsNWidgets(2));
+    await tester.scrollUntilVisible(find.text('Puntos'), -200.0);
+    expect(_summaryValue('Puntos'), '−10 1500 → 1490');
   });
 
   testWidgets('a Drill ended before any puzzle is solved goes back home', (tester) async {
@@ -490,8 +490,9 @@ void main() {
     await _failCurrentPuzzle(tester);
     await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('−10').hitTestable(), 200.0);
-    await tester.tap(find.text('−10'));
+    final puzzleRatingDiff = find.descendant(of: find.byType(ListTile), matching: find.text('−10'));
+    await tester.scrollUntilVisible(puzzleRatingDiff.hitTestable(), 200.0);
+    await tester.tap(puzzleRatingDiff);
     await tester.pumpAndSettle();
     expect(find.byType(AnalysisScreen), findsOneWidget);
 
@@ -516,6 +517,54 @@ void main() {
     await tester.tap(find.byType(EngineToggleButton));
     await tester.pumpAndSettle();
     expect(threatButton().onTap, isNull);
+
+    // the puzzle's bar of the solving time chart opens it too
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.byType(BarChart), -200.0);
+    await tester.tapAt(tester.getCenter(find.byType(BarChart)));
+    await tester.pumpAndSettle();
+    expect(find.byType(AnalysisScreen), findsOneWidget);
+  });
+
+  testWidgets('a weakest theme of the Drill Summary sets up a Drill', (tester) async {
+    await openHome(
+      tester,
+      signedIn: true,
+      defaultPreferences: {
+        SessionPreferencesStorage.key(PrefCategory.drill.storageKey, fakeAuthUser): jsonEncode(
+          const DrillConfig(nbPuzzles: 1).toJson(),
+        ),
+      },
+    );
+    await tester.tap(find.text('Empezar'));
+    await tester.pumpAndSettle();
+    await _failCurrentPuzzle(tester);
+    await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
+    await tester.pumpAndSettle();
+
+    // the puzzle's themes, but its length
+    expect(find.text('Temas más débiles'), findsOneWidget);
+    expect(find.text('Short'), findsNothing);
+    await tester.scrollUntilVisible(find.text('Fork'), 200.0);
+    await tester.tap(find.text('Fork'));
+    await tester.pumpAndSettle();
+
+    // back home, the theme chosen and the rest of the setup kept
+    expect(find.byType(DrillScreen), findsNothing);
+    expect(find.widgetWithText(ListTile, 'Fork'), findsOneWidget);
+    expect(find.text('1'), findsOneWidget);
+
+    // from a Drill of the Drill History too
+    await tester.tap(find.byIcon(Icons.history));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Healthy mix'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Endgame'), 200.0);
+    await tester.tap(find.text('Endgame'));
+    await tester.pumpAndSettle();
+    expect(find.text('Historial de Drills'), findsNothing);
+    expect(find.widgetWithText(ListTile, 'Endgame'), findsOneWidget);
   });
 
   testWidgets('the Drill History lists the past Drills, opened or deleted', (tester) async {
@@ -551,7 +600,7 @@ void main() {
     await tester.tap(find.text('Healthy mix'));
     await tester.pumpAndSettle();
     expect(find.text('Resumen del Drill'), findsOneWidget);
-    expect(_summaryValue('Fallos'), '1');
+    expect(find.text('0 de 1 resuelto'), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
 
@@ -618,16 +667,24 @@ int _clockSeconds(WidgetTester tester) {
 
 Color? _clockColor(WidgetTester tester) => tester.widget<Text>(_clock()).style?.color;
 
-/// The value shown next to a label of the Drill Summary, with its arrow icon written as →.
+/// What the Drill of the Drill Summary was, above its share of puzzles solved.
+String _description() => find
+    .textContaining('Healthy mix · ')
+    .evaluate()
+    .map((element) => (element.widget as Text).data!)
+    .single;
+
+/// The value and detail shown under a label of the Drill Summary, with its arrow icon written
+/// as →.
 String _summaryValue(String label) {
-  final tile = find.ancestor(of: find.text(label), matching: find.byType(ListTile));
-  final trailing = find.byWidget((tile.evaluate().single.widget as ListTile).trailing!);
+  final metric = find.ancestor(of: find.text(label), matching: find.byType(Column)).first;
   return find
       .descendant(
-        of: trailing,
-        matchRoot: true,
+        of: metric,
         matching: find.byWidgetPredicate(
-          (widget) => widget is Text || (widget is Icon && widget.icon == Icons.arrow_forward),
+          (widget) =>
+              (widget is Text && widget.data != label) ||
+              (widget is Icon && widget.icon == Icons.arrow_forward),
         ),
       )
       .evaluate()

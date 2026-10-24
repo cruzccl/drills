@@ -8,6 +8,7 @@ import 'package:lichess_mobile/src/constants.dart';
 import 'package:lichess_mobile/src/model/drill/drill_controller.dart';
 import 'package:lichess_mobile/src/model/drill/drill_preferences.dart';
 import 'package:lichess_mobile/src/model/drill/drill_puzzle_analysis.dart';
+import 'package:lichess_mobile/src/model/puzzle/puzzle_angle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_controller.dart';
 import 'package:lichess_mobile/src/model/settings/board_preferences.dart';
 import 'package:lichess_mobile/src/styles/styles.dart';
@@ -29,8 +30,11 @@ import 'package:material_ui/material_ui.dart';
 ///
 /// While the Drill runs, only its progress is shown (zen mode): nothing about the previous
 /// puzzles, nor the player's rating.
+///
+/// Its route returns the weakest theme of the Drill Summary the player tapped, to set up a Drill
+/// with.
 class const DrillScreen({super.key}) extends ConsumerWidget {
-  static Route<dynamic> buildRoute() {
+  static Route<PuzzleAngle> buildRoute() {
     return buildScreenRoute(screen: const DrillScreen());
   }
 

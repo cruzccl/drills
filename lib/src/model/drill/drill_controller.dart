@@ -769,11 +769,11 @@ sealed class const Drill._() with _$Drill implements Serializable {
   }
 
   /// The themes most frequent among the failed puzzles, most failed first, at most
-  /// [kMaxWeakestThemes] of them.
+  /// [kMaxWeakestThemes] of them, each with the number of the Drill's puzzles that have it.
   ///
   /// As on the Lichess puzzle dashboard, the themes describing a puzzle's length, the advantage
   /// it gives or its origin are left out: they say nothing about the tactics missed.
-  IList<({String theme, int failures})> get weakestThemes {
+  IList<({String theme, int failures, int puzzles})> get weakestThemes {
     final failuresByTheme = <String, int>{};
     for (final result in results.where((r) => !r.win)) {
       for (final theme in result.themes.where((t) => !_irrelevantThemes.contains(t))) {
@@ -783,7 +783,16 @@ sealed class const Drill._() with _$Drill implements Serializable {
     // A stable sort: equally failed themes stay in the order they were first failed.
     final themes = failuresByTheme.entries.toList()
       ..sortByCompare((e) => e.value, (a, b) => b.compareTo(a));
-    return themes.take(kMaxWeakestThemes).map((e) => (theme: e.key, failures: e.value)).toIList();
+    return themes
+        .take(kMaxWeakestThemes)
+        .map(
+          (e) => (
+            theme: e.key,
+            failures: e.value,
+            puzzles: results.where((r) => r.themes.contains(e.key)).length,
+          ),
+        )
+        .toIList();
   }
 
   /// The Drill with the rating changes of the solutions sent in [rounds] given to its rated
