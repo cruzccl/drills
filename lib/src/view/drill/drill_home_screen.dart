@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lichess_mobile/src/model/auth/auth_controller.dart';
 import 'package:lichess_mobile/src/model/common/id.dart';
 import 'package:lichess_mobile/src/model/drill/drill_controller.dart';
+import 'package:lichess_mobile/src/model/puzzle/puzzle_angle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_difficulty.dart';
 import 'package:lichess_mobile/src/model/settings/board_preferences.dart';
 import 'package:lichess_mobile/src/model/user/user_repository_providers.dart';
@@ -59,7 +60,7 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
     if (!mounted) return;
     setState(() => _isStarting = false);
     if (started) {
-      Navigator.of(context).push(DrillScreen.buildRoute());
+      await _openDrill();
     } else {
       showSnackBar(context, DrillStrings.couldNotStartDrill, type: SnackBarType.error);
     }
@@ -71,9 +72,28 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
     if (!mounted) return;
     setState(() => _isStarting = false);
     if (resumed) {
-      Navigator.of(context).push(DrillScreen.buildRoute());
+      await _openDrill();
     } else {
       showSnackBar(context, DrillStrings.couldNotStartDrill, type: SnackBarType.error);
+    }
+  }
+
+  /// Opens the Drill being played, whose summary's weakest themes set up the next Drill.
+  Future<void> _openDrill() => _setAngleFrom(Navigator.of(context).push(DrillScreen.buildRoute()));
+
+  /// Opens the Drill History, whose summaries' weakest themes set up the Drill.
+  Future<void> _openHistory() =>
+      _setAngleFrom(Navigator.of(context).push(DrillHistoryScreen.buildRoute()));
+
+  /// Opens the player's profile, whose dashboard themes set up the Drill.
+  Future<void> _openProfile(UserId userId) =>
+      _setAngleFrom(Navigator.of(context).push(DrillProfileScreen.buildRoute(userId)));
+
+  /// Chooses the theme a screen returns, if any.
+  Future<void> _setAngleFrom(Future<PuzzleAngle?> route) async {
+    final angle = await route;
+    if (angle != null && mounted) {
+      setState(() => _config = _config.copyWith(angle: angle));
     }
   }
 
@@ -85,14 +105,6 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
 
   Future<void> _chooseAngle() async {
     final angle = await Navigator.of(context).push(DrillAngleScreen.buildRoute(_config.angle));
-    if (angle != null && mounted) {
-      setState(() => _config = _config.copyWith(angle: angle));
-    }
-  }
-
-  /// Opens the player's profile, whose dashboard themes set up the Drill.
-  Future<void> _openProfile(UserId userId) async {
-    final angle = await Navigator.of(context).push(DrillProfileScreen.buildRoute(userId));
     if (angle != null && mounted) {
       setState(() => _config = _config.copyWith(angle: angle));
     }
@@ -116,7 +128,7 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
             SemanticIconButton(
               icon: const Icon(Icons.history),
               semanticsLabel: DrillStrings.history,
-              onPressed: () => Navigator.of(context).push(DrillHistoryScreen.buildRoute()),
+              onPressed: _openHistory,
             ),
           SemanticIconButton(
             icon: const Icon(Icons.settings_outlined),

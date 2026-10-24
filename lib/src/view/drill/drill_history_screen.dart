@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lichess_mobile/src/model/drill/drill_chart.dart';
 import 'package:lichess_mobile/src/model/drill/drill_history.dart';
+import 'package:lichess_mobile/src/model/puzzle/puzzle_angle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_difficulty.dart';
 import 'package:lichess_mobile/src/styles/styles.dart';
 import 'package:lichess_mobile/src/utils/navigation.dart';
@@ -31,8 +32,11 @@ const _loadMoreExtent = 600.0;
 ///
 /// A Drill is opened on its Drill Summary, and deleted with a long press. The Drill History of
 /// every account on the device is saved to a file, and imported back, from the app bar menu.
+///
+/// Its route returns the weakest theme of a Drill Summary the player tapped, to set up a Drill
+/// with.
 class const DrillHistoryScreen({super.key}) extends ConsumerWidget {
-  static Route<dynamic> buildRoute() {
+  static Route<PuzzleAngle> buildRoute() {
     return buildScreenRoute(screen: const DrillHistoryScreen());
   }
 
@@ -225,7 +229,11 @@ class const _DrillCard(final DrillHistoryEntry entry) extends ConsumerWidget {
       clipBehavior: .antiAlias,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16.0))),
       child: InkWell(
-        onTap: () => Navigator.of(context).push(_DrillSummaryScreen.buildRoute(entry.startedAt)),
+        onTap: () async {
+          final angle = await Navigator.of(context)
+              .push(_DrillSummaryScreen.buildRoute(entry.startedAt));
+          if (angle != null && context.mounted) Navigator.of(context).pop(angle);
+        },
         onLongPress: () => showConfirmDialog<void>(
           context,
           title: const Text(DrillStrings.deleteDrillConfirmation),
@@ -424,8 +432,10 @@ class const _Badge(final String text, {required final Color color, required fina
 }
 
 /// The Drill Summary of a past Drill, with its rating changes as they come.
+///
+/// Its route returns the weakest theme the player tapped.
 class const _DrillSummaryScreen(final DateTime startedAt) extends ConsumerWidget {
-  static Route<dynamic> buildRoute(DateTime startedAt) {
+  static Route<PuzzleAngle> buildRoute(DateTime startedAt) {
     return buildScreenRoute(screen: _DrillSummaryScreen(startedAt));
   }
 

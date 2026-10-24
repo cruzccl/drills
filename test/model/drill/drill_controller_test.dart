@@ -339,6 +339,7 @@ void main() {
     server.puzzleRatingOf = (index) => 1500 + index * 100;
     server.puzzleThemesOf = (index) => switch (index) {
       1 => const ['fork', 'short', 'middlegame', 'crushing'],
+      2 => const ['fork', 'skewer'],
       4 => const ['pin', 'fork', 'long', 'advantage'],
       _ => const ['skewer', 'mateIn2', 'mate'],
     };
@@ -356,11 +357,11 @@ void main() {
     // 1750 average puzzle rating, 4 successes out of 6
     expect(drill.drill.performance, 1917);
     expect(drill.drill.isPerformanceReliable, isTrue);
-    // length and advantage themes are left out
+    // length and advantage themes are left out; a theme counts the puzzles solved with it too
     expect(drill.drill.weakestThemes, [
-      (theme: 'fork', failures: 2),
-      (theme: 'middlegame', failures: 1),
-      (theme: 'pin', failures: 1),
+      (theme: 'fork', failures: 2, puzzles: 3),
+      (theme: 'middlegame', failures: 1, puzzles: 1),
+      (theme: 'pin', failures: 1, puzzles: 1),
     ]);
   });
 
