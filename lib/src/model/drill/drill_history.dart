@@ -289,7 +289,6 @@ final drillChartPointsProvider = FutureProvider.autoDispose<IList<DrillChartPoin
       'isPerformanceReliable',
       'successRate',
       'expectedSuccessRate',
-      'ratingAfter',
     ],
     where: 'userId = ? AND summary IS NOT NULL',
     whereArgs: [userId.value],
@@ -303,7 +302,6 @@ final drillChartPointsProvider = FutureProvider.autoDispose<IList<DrillChartPoin
         isPerformanceReliable: row['isPerformanceReliable'] == 1,
         successRate: (row['successRate'] as num?)?.toDouble() ?? 0,
         expectedSuccessRate: (row['expectedSuccessRate'] as num?)?.toDouble(),
-        ratingAfter: row['ratingAfter'] as int?,
       ),
   ].toIList();
 }, name: 'DrillChartPointsProvider');
@@ -315,9 +313,6 @@ typedef DrillChartPoint = ({
   bool isPerformanceReliable,
   double successRate,
   double? expectedSuccessRate,
-
-  /// The player's rating after the Drill, `null` if it didn't count or is still pending.
-  int? ratingAfter,
 });
 
 /// What the Drill History shows of a Drill: its configuration and results, without its puzzles.
@@ -383,7 +378,6 @@ Map<String, Object?> _columns(Drill drill) {
     'isPerformanceReliable': entry.isPerformanceReliable ? 1 : 0,
     'successRate': entry.successRate,
     'expectedSuccessRate': entry.expectedSuccessRate,
-    'ratingAfter': entry.ratingAfter,
   };
 }
 

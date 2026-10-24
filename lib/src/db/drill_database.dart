@@ -35,34 +35,43 @@ Future<Database> openDrillDatabase(
   return dbFactory.openDatabase(
     path,
     options: OpenDatabaseOptions(
-      version: 3,
+      version: 4,
       singleInstance: singleInstance,
-      onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE drill_history(
-            userId TEXT NOT NULL,
-            startedAt TEXT NOT NULL,
-            data TEXT NOT NULL,
-            $_summaryColumns,
-            PRIMARY KEY (userId, startedAt)
-          )
-          ''');
-      },
+      onCreate: (db, version) => _createDrillHistoryTable(db, 'drill_history'),
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
           // Filled in from `data` by the Drill History when it first reads them.
           for (final column in _summaryColumns.split(',')) {
             await db.execute('ALTER TABLE drill_history ADD COLUMN ${column.trim()}');
           }
-        } else if (oldVersion < 3) {
-          // The summaries were made when a Drill's rating change was the rating after less the
-          // rating before: made again from `data` by the Drill History when it first reads them.
-          await db.execute('UPDATE drill_history SET summary = NULL');
+        } else if (oldVersion < 4) {
+          // Made again without the `ratingAfter` column of the rating chart, which the SQLite of
+          // older Android versions can't drop. Only the Drills' `data` is kept: the summaries, made
+          // before version 3 when a Drill's rating change was the rating after less the rating
+          // before, are made again from it by the Drill History when it first reads them.
+          await _createDrillHistoryTable(db, 'drill_history_new');
+          await db.execute(
+            'INSERT INTO drill_history_new (userId, startedAt, data) '
+            'SELECT userId, startedAt, data FROM drill_history',
+          );
+          await db.execute('DROP TABLE drill_history');
+          await db.execute('ALTER TABLE drill_history_new RENAME TO drill_history');
         }
       },
     ),
   );
 }
+
+/// Creates the table of the Drill History, named [name].
+Future<void> _createDrillHistoryTable(DatabaseExecutor db, String name) => db.execute('''
+  CREATE TABLE $name(
+    userId TEXT NOT NULL,
+    startedAt TEXT NOT NULL,
+    data TEXT NOT NULL,
+    $_summaryColumns,
+    PRIMARY KEY (userId, startedAt)
+  )
+  ''');
 
 /// The columns of the Drill History made from a Drill's `data`, so that its list and chart are read
 /// without decoding every Drill: its summary in the list, as JSON, and its values in the chart.
@@ -72,5 +81,4 @@ const _summaryColumns = '''
   performance INTEGER,
   isPerformanceReliable INTEGER NOT NULL DEFAULT 0,
   successRate REAL,
-  expectedSuccessRate REAL,
-  ratingAfter INTEGER''';
+  expectedSuccessRate REAL''';

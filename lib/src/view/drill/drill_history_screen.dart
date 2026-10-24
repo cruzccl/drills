@@ -443,8 +443,8 @@ class const _DrillSummaryScreen(final DateTime startedAt) extends ConsumerWidget
   }
 }
 
-/// The chart of the Drill History, of the Drill Performance, rating or share of puzzles solved of
-/// the last Drills or all of them, as chosen.
+/// The chart of the Drill History, of the Drill Performance or share of puzzles solved of the last
+/// Drills or all of them, as chosen.
 class const _ChartCard() extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -467,7 +467,6 @@ class const _ChartCard() extends ConsumerWidget {
         }}'
       else
         '${DrillStrings.lastDrills} $nbShown ${DrillStrings.drillsUnit}',
-      if (prefs.metric == .rating) DrillStrings.afterRatedDrills,
     ].join(' · ');
 
     return Card(
@@ -481,7 +480,6 @@ class const _ChartCard() extends ConsumerWidget {
             PlatformSegmentedControl<DrillChartMetric>(
               segments: const [
                 (DrillChartMetric.performance, DrillStrings.performance),
-                (DrillChartMetric.rating, DrillStrings.rating),
                 (DrillChartMetric.successRate, DrillStrings.successes),
               ],
               selected: prefs.metric,
@@ -521,7 +519,7 @@ class const _ChartCard() extends ConsumerWidget {
                   ? Center(child: Text(DrillStrings.noChartData, style: subtitleStyle))
                   : prefs.metric == .successRate
                   ? _SuccessRateChart(values)
-                  : _LineChart(values, metric: prefs.metric),
+                  : _LineChart(values),
             ),
             if (values.isNotEmpty) ...[
               const SizedBox(height: 6.0),
@@ -592,16 +590,12 @@ class const _ChartHeadline(
   }
 }
 
-/// The chart of the Drill Performance or the rating: a line through the values, the performances
-/// of the Drills too short to be reliable hollow.
-class const _LineChart(
-  final IList<DrillChartValue> values, {
-  required final DrillChartMetric metric,
-}) extends StatelessWidget {
+/// The chart of the Drill Performance: a line through the values, the performances of the Drills
+/// too short to be reliable hollow.
+class const _LineChart(final IList<DrillChartValue> values) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final colors = context.lichessColors;
-    final color = metric == .performance ? colors.primary : colors.purple;
+    final color = context.lichessColors.primary;
     final cardColor =
         Theme.of(context).cardTheme.color ?? ColorScheme.of(context).surfaceContainerLow;
     final gridColor = ColorScheme.of(context).outlineVariant;

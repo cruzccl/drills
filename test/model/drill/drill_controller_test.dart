@@ -1052,6 +1052,8 @@ void main() {
     final entry = (await _history(container)).single;
     expect(entry.ratingChange, 10);
     expect(entry.performance, 1600);
+    final columns = await drillDatabase.rawQuery('PRAGMA table_info(drill_history)');
+    expect(columns.map((c) => c['name']), isNot(contains('ratingAfter')));
   });
 
   test("a Drill's expected share of puzzles solved is from its puzzles' ratings", () async {
@@ -1084,7 +1086,6 @@ void main() {
     expect(points.map((p) => p.performance), [1600, 1600]);
     expect(points.map((p) => p.successRate), [0.6, 0.6]);
     expect(points.map((p) => p.expectedSuccessRate), [0.5, 0.5]);
-    expect(points.map((p) => p.ratingAfter), [1510, 1510]);
     expect(points.map((p) => p.isPerformanceReliable), [false, false]);
   });
 
@@ -1115,7 +1116,7 @@ void main() {
     ]);
     expect(await elsewhere.read(drillHistoryDrillProvider(drill.startedAt).future), drill);
     final points = await elsewhere.read(drillChartPointsProvider.future);
-    expect(points.map((p) => p.ratingAfter), [1510, 1510]);
+    expect(points.map((p) => p.performance), [1600, 1600]);
   });
 
   test(
