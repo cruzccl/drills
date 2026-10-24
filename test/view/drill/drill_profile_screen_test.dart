@@ -19,6 +19,9 @@ void main() {
       .descendant(of: find.byType(DrillProfileScreen), matching: find.byType(Scrollable))
       .first;
 
+  // The screen on top, once the screens below it are offstage.
+  final topScrollable = find.byType(Scrollable).first;
+
   /// The number of requests made for each path.
   final requests = <String, int>{};
 
@@ -70,20 +73,11 @@ void main() {
     expect(find.text('${DrillStrings.highScore} · 29 ${DrillStrings.runs}'), findsOneWidget);
     expect(find.text('2041'), findsNothing, reason: 'no blitz rating');
 
-    await tester.scrollUntilVisible(
-      find.text(DrillStrings.puzzleRating),
-      200,
-      scrollable: profileScrollable,
-    );
-    expect(find.text(DrillStrings.highestRating), findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.text('Improvement areas'),
-      200,
-      scrollable: profileScrollable,
-    );
-    await tester.scrollUntilVisible(find.text('Strengths'), 200, scrollable: profileScrollable);
-    expect(find.text('Fork'), findsOneWidget);
+    // The details are behind the ratings, and only load once opened.
+    expect(find.text(DrillStrings.puzzleRating), findsNothing);
+    expect(find.text('Highscores'), findsNothing);
+    expect(requests['/api/puzzle/dashboard/30'], isNull);
+    expect(requests['/api/storm/dashboard/testuser'], isNull);
 
     await tester.scrollUntilVisible(find.text('Activity'), 200, scrollable: profileScrollable);
     await tester.scrollUntilVisible(
@@ -95,28 +89,37 @@ void main() {
     expect(find.textContaining('Played 3'), findsNothing, reason: 'no games in the activity');
   });
 
-  testWidgets('keeps every section loaded while scrolling up and down', (tester) async {
+  testWidgets('the puzzle rating opens the rating history and the puzzle dashboard', (
+    tester,
+  ) async {
     await openProfile(tester);
+    await tester.tap(find.text(DrillStrings.puzzles));
+    await tester.pumpAndSettle();
+
+    expect(find.text(DrillStrings.puzzleRating), findsOneWidget);
+    expect(find.text(DrillStrings.highestRating), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Improvement areas'), 200, scrollable: topScrollable);
+    await tester.scrollUntilVisible(find.text('Strengths'), 200, scrollable: topScrollable);
+    expect(find.text('Fork'), findsOneWidget);
 
     await tester.scrollUntilVisible(
-      find.textContaining('of Puzzle Storm'),
-      200,
-      scrollable: profileScrollable,
+      find.text(DrillStrings.puzzleRating),
+      -200,
+      scrollable: topScrollable,
     );
-    await tester.scrollUntilVisible(find.text('Test User'), -200, scrollable: profileScrollable);
-
     // A section reloaded on the way back would change height under the player's finger.
-    expect(requests['/api/storm/dashboard/testuser'], 1);
     expect(requests['/api/puzzle/dashboard/30'], 1);
     expect(requests['/api/user/testuser/rating-history'], 1);
   });
 
   testWidgets('a theme of the puzzle dashboard sets up the Drill', (tester) async {
     await openProfile(tester);
+    await tester.tap(find.text(DrillStrings.puzzles));
+    await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
       find.text('Mate in 3').hitTestable(),
-      profileScrollable,
+      topScrollable,
       const Offset(0, -100),
     );
     await tester.pumpAndSettle();
@@ -126,6 +129,22 @@ void main() {
     expect(find.byType(DrillProfileScreen), findsNothing);
     expect(find.byType(DrillHomeScreen), findsOneWidget);
     expect(find.text('Mate in 3'), findsOneWidget);
+  });
+
+  testWidgets('the Puzzle Storm rating opens the high scores and the best run of every day', (
+    tester,
+  ) async {
+    await openProfile(tester);
+    await tester.tap(find.text('Puzzle Storm'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Highscores'), findsOneWidget);
+    expect(find.text('All-time'), findsOneWidget);
+    expect(find.text('24'), findsOneWidget);
+    expect(find.text('Best run of day'), findsOneWidget);
+    // Every day Lichess gives, not only the last week.
+    await tester.scrollUntilVisible(find.textContaining('Oct 14'), 200, scrollable: topScrollable);
+    expect(find.text('1306'), findsOneWidget);
   });
 }
 
@@ -146,5 +165,5 @@ const _dashboardResponse = '''
 ''';
 
 const _stormResponse = '''
-{"high":{"day":15,"week":15,"month":15,"allTime":24},"days":[{"_id":"2026/10/23","score":15,"moves":40,"errors":5,"combo":14,"time":147,"highest":1306,"runs":1}]}
+{"high":{"day":15,"week":15,"month":15,"allTime":24},"days":[{"_id":"2026/10/23","score":15,"moves":40,"errors":5,"combo":14,"time":147,"highest":1306,"runs":1},{"_id":"2026/10/22","score":12,"moves":30,"errors":4,"combo":10,"time":150,"highest":1210,"runs":2},{"_id":"2026/10/21","score":11,"moves":30,"errors":4,"combo":10,"time":150,"highest":1200,"runs":1},{"_id":"2026/10/20","score":10,"moves":30,"errors":4,"combo":10,"time":150,"highest":1190,"runs":1},{"_id":"2026/10/19","score":9,"moves":30,"errors":4,"combo":10,"time":150,"highest":1180,"runs":1},{"_id":"2026/10/18","score":8,"moves":30,"errors":4,"combo":10,"time":150,"highest":1170,"runs":1},{"_id":"2026/10/17","score":7,"moves":30,"errors":4,"combo":10,"time":150,"highest":1160,"runs":1},{"_id":"2026/10/14","score":6,"moves":30,"errors":4,"combo":10,"time":150,"highest":1150,"runs":1}]}
 ''';

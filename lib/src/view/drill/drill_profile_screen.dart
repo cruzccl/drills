@@ -11,6 +11,7 @@ import 'package:lichess_mobile/src/model/user/user.dart';
 import 'package:lichess_mobile/src/model/user/user_repository.dart';
 import 'package:lichess_mobile/src/model/user/user_repository_providers.dart';
 import 'package:lichess_mobile/src/styles/icon_extensions.dart';
+import 'package:lichess_mobile/src/styles/lichess_colors.dart';
 import 'package:lichess_mobile/src/styles/lichess_icons.dart';
 import 'package:lichess_mobile/src/styles/styles.dart';
 import 'package:lichess_mobile/src/utils/l10n_context.dart';
@@ -36,7 +37,8 @@ final _activityProvider = FutureProvider.autoDispose.family<IList<UserActivity>,
   name: 'DrillProfileActivityProvider',
 );
 
-/// The player's Lichess profile, filtered to puzzles and Puzzle Storm.
+/// The player's Lichess profile, filtered to puzzles and Puzzle Storm: the profile card, the two
+/// ratings, which open the puzzle and Puzzle Storm details, and the activity.
 ///
 /// Its route returns the theme of the puzzle dashboard the player tapped, to set up a Drill with.
 class const DrillProfileScreen({required final UserId userId, super.key}) extends ConsumerWidget {
@@ -69,9 +71,6 @@ class const DrillProfileScreen({required final UserId userId, super.key}) extend
         AsyncData(:final value) => HapticRefreshIndicator(
           onRefresh: () => Future.wait([
             ref.refresh(userProvider(userId).future),
-            ref.refresh(userRatingHistoryProvider(userId).future),
-            ref.refresh(puzzleDashboardProvider(ref.read(daysProvider).days).future),
-            ref.refresh(stormDashboardProvider(userId).future),
             ref.refresh(_activityProvider(userId).future),
           ]),
           // The body's own context: the padding of the screen's isn't the one inside the scaffold.
@@ -87,9 +86,6 @@ class const DrillProfileScreen({required final UserId userId, super.key}) extend
                   // The official profile card, without the games played.
                   UserProfileWidget(user: value.copyWith(count: null, playTime: null)),
                   _RatingCards(user: value),
-                  _RatingHistorySection(userId: userId),
-                  const _DashboardSection(),
-                  _StormSection(userId: userId),
                   _ActivitySection(userId: userId),
                 ],
               ),
@@ -122,7 +118,7 @@ class const _Section({required final Widget title, required final List<Widget> c
   }
 }
 
-/// The puzzle and Puzzle Storm ratings, side by side.
+/// The puzzle and Puzzle Storm ratings, side by side, which open their details.
 class const _RatingCards({required final User user}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -139,6 +135,12 @@ class const _RatingCards({required final User user}) extends StatelessWidget {
             if (puzzle != null)
               Expanded(
                 child: _RatingCard(
+                  onTap: () async {
+                    final angle = await Navigator.of(context)
+                        .push(_PuzzlesScreen.buildRoute(user.id));
+                    // A theme of the puzzle dashboard goes on back to the Drill home.
+                    if (angle != null && context.mounted) Navigator.of(context).pop(angle);
+                  },
                   label: DrillStrings.puzzles,
                   icon: Perf.puzzle.icon,
                   rating: RatingWidget(
@@ -156,6 +158,7 @@ class const _RatingCards({required final User user}) extends StatelessWidget {
             if (storm != null)
               Expanded(
                 child: _RatingCard(
+                  onTap: () => Navigator.of(context).push(_StormScreen.buildRoute(user.id)),
                   label: 'Puzzle Storm',
                   icon: Perf.storm.icon,
                   rating: Text(
@@ -176,6 +179,7 @@ class const _RatingCards({required final User user}) extends StatelessWidget {
 }
 
 class const _RatingCard({
+  required final VoidCallback onTap,
   required final String label,
   required final IconData icon,
   required final Widget rating,
@@ -190,43 +194,126 @@ class const _RatingCard({
         : context.lichessColors.error;
     return Card(
       margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: .start,
-          spacing: 4.0,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(label, style: TextStyle(color: subtitleColor)),
-                ),
-                Icon(icon, size: 18, color: subtitleColor),
-              ],
-            ),
-            Row(
-              crossAxisAlignment: .baseline,
-              textBaseline: .alphabetic,
-              children: [
-                rating,
-                if (progression != 0) ...[
-                  const SizedBox(width: 6),
-                  Icon(
-                    progression > 0
-                        ? LichessIcons.arrow_full_upperright
-                        : LichessIcons.arrow_full_lowerright,
-                    color: progressionColor,
-                    size: 12,
+      clipBehavior: .antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: .start,
+            spacing: 4.0,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(label, style: TextStyle(color: subtitleColor)),
                   ),
-                  Text(
-                    progression.abs().toString(),
-                    style: TextStyle(color: progressionColor, fontSize: 13),
-                  ),
+                  Icon(icon, size: 18, color: subtitleColor),
                 ],
-              ],
-            ),
-            Text(subtitle, style: TextStyle(color: subtitleColor, fontSize: 12)),
-          ],
+              ),
+              Row(
+                crossAxisAlignment: .baseline,
+                textBaseline: .alphabetic,
+                children: [
+                  rating,
+                  if (progression != 0) ...[
+                    const SizedBox(width: 6),
+                    Icon(
+                      progression > 0
+                          ? LichessIcons.arrow_full_upperright
+                          : LichessIcons.arrow_full_lowerright,
+                      color: progressionColor,
+                      size: 12,
+                    ),
+                    Text(
+                      progression.abs().toString(),
+                      style: TextStyle(color: progressionColor, fontSize: 13),
+                    ),
+                  ],
+                ],
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(subtitle, style: TextStyle(color: subtitleColor, fontSize: 12)),
+                  ),
+                  Icon(Icons.chevron_right, size: 18, color: subtitleColor),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The puzzle details: the rating history and the puzzle dashboard.
+///
+/// Its route returns the theme of the puzzle dashboard the player tapped.
+class const _PuzzlesScreen({required final UserId userId}) extends ConsumerWidget {
+  static Route<PuzzleAngle> buildRoute(UserId userId) {
+    return buildScreenRoute(screen: _PuzzlesScreen(userId: userId));
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return _DetailsScaffold(
+      icon: Perf.puzzle.icon,
+      title: DrillStrings.puzzles,
+      onRefresh: () => Future.wait([
+        ref.refresh(userRatingHistoryProvider(userId).future),
+        ref.refresh(puzzleDashboardProvider(ref.read(daysProvider).days).future),
+      ]),
+      children: [
+        _RatingHistorySection(userId: userId),
+        const _DashboardSection(),
+      ],
+    );
+  }
+}
+
+/// The Puzzle Storm details, as in the official app: the high scores and the best run of each day.
+class const _StormScreen({required final UserId userId}) extends ConsumerWidget {
+  static Route<void> buildRoute(UserId userId) {
+    return buildScreenRoute(screen: _StormScreen(userId: userId));
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return _DetailsScaffold(
+      icon: Perf.storm.icon,
+      title: 'Puzzle Storm',
+      onRefresh: () => ref.refresh(stormDashboardProvider(userId).future),
+      children: [_StormSection(userId: userId)],
+    );
+  }
+}
+
+/// A screen of details opened from a rating of the profile: its sections in a refreshable list.
+class const _DetailsScaffold({
+  required final IconData icon,
+  required final String title,
+  required final Future<void> Function() onRefresh,
+  required final List<Widget> children,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return PlatformScaffold(
+      appBar: PlatformAppBar(
+        title: Row(mainAxisSize: .min, spacing: 8.0, children: [Icon(icon, size: 20), Text(title)]),
+      ),
+      body: HapticRefreshIndicator(
+        onRefresh: onRefresh,
+        // The body's own context: the padding of the screen's isn't the one inside the scaffold.
+        child: Builder(
+          // Not a lazy list: a section rebuilt on the way back would load its data again and grow
+          // under the player's finger, pushing the sections below it.
+          builder: (context) => SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 16.0).add(MediaQuery.paddingOf(context)),
+            child: Column(crossAxisAlignment: .stretch, children: children),
+          ),
         ),
       ),
     );
@@ -371,79 +458,97 @@ class const _ThemeRow({required final PuzzleDashboardData data, required final M
   }
 }
 
-/// The Puzzle Storm high scores, and the best run of each recent day.
+/// The Puzzle Storm high scores, and the best run of each day Lichess keeps.
 class const _StormSection({required final UserId userId}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboard = ref.watch(stormDashboardProvider(userId));
-    final title = Row(
-      spacing: 8.0,
-      children: [Icon(Perf.storm.icon, size: 20), const Text('Puzzle Storm')],
-    );
+    final title = Text(context.l10n.stormHighscores);
     return switch (dashboard) {
-      AsyncData(value: final dashboard?) => _Section(
-        title: title,
+      AsyncData(value: final dashboard?) => Column(
+        crossAxisAlignment: .stretch,
         children: [
-          StatCardRow([
-            StatCard(context.l10n.stormAllTime, value: '${dashboard.highScore.allTime}'),
-            StatCard(context.l10n.stormThisMonth, value: '${dashboard.highScore.month}'),
-            StatCard(context.l10n.stormThisWeek, value: '${dashboard.highScore.week}'),
-            StatCard(context.l10n.today, value: '${dashboard.highScore.day}'),
-          ]),
-          if (dashboard.dayHighscores.isNotEmpty)
-            Card(
-              margin: const EdgeInsets.only(top: 8.0),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Table(
-                  columnWidths: const {0: FlexColumnWidth(1.4)},
-                  children: [
-                    TableRow(
+          _Section(
+            title: title,
+            children: [
+              StatCardRow([
+                StatCard(
+                  context.l10n.stormAllTime,
+                  value: '${dashboard.highScore.allTime}',
+                  backgroundColor: LichessColors.brag.withValues(alpha: 0.5),
+                ),
+                StatCard(context.l10n.stormThisMonth, value: '${dashboard.highScore.month}'),
+                StatCard(context.l10n.stormThisWeek, value: '${dashboard.highScore.week}'),
+                StatCard(context.l10n.today, value: '${dashboard.highScore.day}'),
+              ]),
+            ],
+          ),
+          _Section(
+            title: Text(context.l10n.stormBestRunOfDay),
+            children: [
+              if (dashboard.dayHighscores.isEmpty)
+                Text(context.l10n.mobilePuzzleStormNothingToShow)
+              else
+                Card(
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    child: Table(
+                      columnWidths: const {0: FlexColumnWidth(1.4)},
                       children: [
-                        for (final (i, label) in [
-                          '',
-                          context.l10n.stormScore,
-                          context.l10n.stormTime,
-                          context.l10n.stormHighestSolved,
-                          context.l10n.stormRuns,
-                        ].indexed)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6.0),
-                            child: Text(
-                              label,
-                              textAlign: i == 0 ? .start : .end,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: textShade(context, Styles.subtitleOpacity),
+                        TableRow(
+                          children: [
+                            for (final (i, label) in [
+                              '',
+                              context.l10n.stormScore,
+                              context.l10n.stormTime,
+                              context.l10n.stormHighestSolved,
+                              context.l10n.stormRuns,
+                            ].indexed)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 6.0),
+                                child: Text(
+                                  label,
+                                  textAlign: i == 0 ? .start : .end,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: textShade(context, Styles.subtitleOpacity),
+                                  ),
+                                ),
                               ),
-                            ),
+                          ],
+                        ),
+                        for (final day in dashboard.dayHighscores)
+                          TableRow(
+                            children: [
+                              for (final (i, value) in [
+                                drillDayName(day.day, short: true),
+                                '${day.score}',
+                                '${day.time}s',
+                                '${day.highest}',
+                                '${day.runs}',
+                              ].indexed)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 6.0),
+                                  child: Text(
+                                    value,
+                                    textAlign: i == 0 ? .start : .end,
+                                    style: i == 1
+                                        ? TextStyle(
+                                            fontWeight: .bold,
+                                            color: context.lichessColors.brag,
+                                          )
+                                        : null,
+                                  ),
+                                ),
+                            ],
                           ),
                       ],
                     ),
-                    for (final day in dashboard.dayHighscores.take(7))
-                      TableRow(
-                        children: [
-                          for (final (i, value) in [
-                            drillDayName(day.day, short: true),
-                            '${day.score}',
-                            '${day.time}s',
-                            '${day.highest}',
-                            '${day.runs}',
-                          ].indexed)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 6.0),
-                              child: Text(
-                                value,
-                                textAlign: i == 0 ? .start : .end,
-                                style: i == 1 ? const TextStyle(fontWeight: .bold) : null,
-                              ),
-                            ),
-                        ],
-                      ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+            ],
+          ),
         ],
       ),
       AsyncError() => _Section(
