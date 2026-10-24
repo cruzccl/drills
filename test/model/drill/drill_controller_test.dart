@@ -316,6 +316,25 @@ void main() {
     expect(drill.ratingChange, -10);
   });
 
+  test("a Drill's rating change is its puzzles', whatever is played elsewhere meanwhile", () async {
+    final container = await makeDrillContainer();
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(const DrillConfig(nbPuzzles: 2));
+
+    await _solveCurrentPuzzle(container, win: true);
+    drillCtrl.continueDrill();
+    // puzzles solved in the official app, between two puzzles of the Drill
+    server.rating += 24;
+    await _solveCurrentPuzzle(container, win: true);
+    drillCtrl.continueDrill();
+
+    final drill = container.read(drillControllerProvider)!.drill;
+    expect(drill.ratingBefore, 1500);
+    expect(drill.ratingChange, 20);
+    await _waitFor(() => _loadedHistory(container)?.length == 1);
+    expect(_loadedHistory(container)!.single.ratingChange, 20);
+  });
+
   test('the Drill Summary has the Drill Performance and the weakest themes', () async {
     server.puzzleRatingOf = (index) => 1500 + index * 100;
     server.puzzleThemesOf = (index) => switch (index) {
@@ -991,6 +1010,48 @@ void main() {
     expect(entry.ratingChange, 10);
     final points = await container.read(drillChartPointsProvider.future);
     expect(points.single.performance, 1600);
+  });
+
+  test("the summaries kept before the rating change was the puzzles' are made again", () async {
+    final directory = await Directory.systemTemp.createTemp('drills_test');
+    addTearDown(() => directory.delete(recursive: true));
+    final path = join(directory.path, 'drills.db');
+    // 24 points won elsewhere during the Drill: its puzzles' rating changes add up to 10
+    final drill = _pastDrill(DateTime(2026, 10, 21, 22, 36)).copyWith(latestRating: 1534);
+    final v2 = await databaseFactoryFfi.openDatabase(
+      path,
+      options: OpenDatabaseOptions(
+        version: 2,
+        onCreate: (db, _) => db.execute(
+          'CREATE TABLE drill_history(userId TEXT NOT NULL, startedAt TEXT NOT NULL, '
+          'data TEXT NOT NULL, summary TEXT, ratingPending INTEGER NOT NULL DEFAULT 0, '
+          'performance INTEGER, isPerformanceReliable INTEGER NOT NULL DEFAULT 0, '
+          'successRate REAL, expectedSuccessRate REAL, ratingAfter INTEGER, '
+          'PRIMARY KEY (userId, startedAt))',
+        ),
+      ),
+    );
+    await v2.insert('drill_history', {
+      'userId': _userId.value,
+      'startedAt': drill.startedAt.toUtc().toIso8601String(),
+      'data': jsonEncode(drill.toJson()),
+      'summary': jsonEncode({
+        'config': drill.config.toJson(),
+        'startedAt': drill.startedAt.toIso8601String(),
+        'wins': [true, false, true, true, false],
+        'ratingBefore': 1500,
+        'ratingAfter': 1534,
+      }),
+    });
+    await v2.close();
+    await drillDatabase.close();
+    drillDatabase = await openDrillDatabase(databaseFactoryFfi, path);
+
+    final container = await makeDrillContainer();
+
+    final entry = (await _history(container)).single;
+    expect(entry.ratingChange, 10);
+    expect(entry.performance, 1600);
   });
 
   test("a Drill's expected share of puzzles solved is from its puzzles' ratings", () async {
