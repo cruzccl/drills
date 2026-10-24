@@ -253,20 +253,7 @@ void main() {
     expect(container.read(drillControllerProvider)!.drill.results, isEmpty);
   });
 
-  test('a puzzle is unrated when rated puzzles are off', () async {
-    final container = await makeDrillContainer();
-    final drillCtrl = container.read(drillControllerProvider.notifier);
-    await drillCtrl.start(_drill);
-
-    await _solveCurrentPuzzle(container, win: true);
-    drillCtrl.continueDrill();
-    await container.read(puzzlePreferencesProvider.notifier).setRated(false);
-    await _solveCurrentPuzzle(container, win: true, hint: true);
-
-    expect(server.solutions.map((s) => s.rated), [true, false]);
-  });
-
-  test('signed out, a Drill is casual, without a rating, and sends no solution', () async {
+  test('signed out, a Drill is unrated, without a rating, and sends no solution', () async {
     final container = await makeDrillContainer(authUser: null);
     final drillCtrl = container.read(drillControllerProvider.notifier);
     await drillCtrl.start(const DrillConfig(nbPuzzles: 2));
@@ -277,7 +264,7 @@ void main() {
     drillCtrl.continueDrill();
 
     final drill = container.read(drillControllerProvider)!.drill;
-    expect(drill.isCasual, isTrue);
+    expect(drill.results.map((r) => r.rated), [false, false]);
     expect(drill.ratingBefore, isNull);
     expect(drill.expectedSuccessRate, isNull);
     expect(drill.hasPendingRatingDiff, isFalse);
@@ -516,27 +503,6 @@ void main() {
 
     expect(server.solutions, hasLength(2));
     expect(container.read(drillControllerProvider)!.drill.ratingChange, 20);
-  });
-
-  test('the results of a casual Drill solved offline are sent when back online', () async {
-    final container = await makeDrillContainer();
-    await container.read(puzzlePreferencesProvider.notifier).setRated(false);
-    final drillCtrl = container.read(drillControllerProvider.notifier);
-    await drillCtrl.start(const DrillConfig(nbPuzzles: 2));
-
-    await _goOffline(container, server);
-    for (var i = 0; i < 2; i++) {
-      await _solveCurrentPuzzle(container, win: true);
-      drillCtrl.continueDrill();
-    }
-    expect(container.read(drillControllerProvider)!.isOver, isTrue);
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    expect(server.solutions, isEmpty);
-
-    await _goOnline(container, server);
-    await _waitFor(() => server.solutions.length == 2);
-
-    expect(server.solutions.map((s) => s.rated), [false, false]);
   });
 
   test('the results are sent when back online, even with no puzzle left to download', () async {
@@ -994,7 +960,7 @@ void main() {
     final container = await makeDrillContainer();
     final history = container.read(drillHistoryProvider.notifier);
     await history.add(_userId, _pastDrill(DateTime(2026, 10, 20)));
-    await history.add(_userId, _pastDrill(DateTime(2026, 10, 21), rated: false));
+    await history.add(_userId, _pastDrill(DateTime(2026, 10, 21)));
 
     final points = await container.read(drillChartPointsProvider.future);
 
@@ -1003,7 +969,7 @@ void main() {
     expect(points.map((p) => p.performance), [1600, 1600]);
     expect(points.map((p) => p.successRate), [0.6, 0.6]);
     expect(points.map((p) => p.expectedSuccessRate), [0.5, 0.5]);
-    expect(points.map((p) => p.ratingAfter), [1510, null], reason: 'a casual Drill');
+    expect(points.map((p) => p.ratingAfter), [1510, 1510]);
     expect(points.map((p) => p.isPerformanceReliable), [false, false]);
   });
 
@@ -1012,7 +978,7 @@ void main() {
     final history = container.read(drillHistoryProvider.notifier);
     final drill = _pastDrill(DateTime(2026, 10, 20, 9));
     await history.add(_userId, drill);
-    await history.add(_userId, _pastDrill(DateTime(2026, 10, 21, 9), rated: false));
+    await history.add(_userId, _pastDrill(DateTime(2026, 10, 21, 9)));
     final exported = await history.exportDrills();
     container.dispose();
     await drillDatabase.close();
@@ -1034,7 +1000,7 @@ void main() {
     ]);
     expect(await elsewhere.read(drillHistoryDrillProvider(drill.startedAt).future), drill);
     final points = await elsewhere.read(drillChartPointsProvider.future);
-    expect(points.map((p) => p.ratingAfter), [1510, null]);
+    expect(points.map((p) => p.ratingAfter), [1510, 1510]);
   });
 
   test(
@@ -1119,14 +1085,14 @@ Future<void> _playDrill(ProviderContainer container, {required int nbPuzzles}) a
 }
 
 /// An ended Drill of 5 puzzles at 1500 started at [startedAt] by a player at 1500, with 3
-/// successes: +10 for each, −10 for each failure, when [rated].
-Drill _pastDrill(DateTime startedAt, {bool rated = true}) {
+/// successes: +10 for each, −10 for each failure.
+Drill _pastDrill(DateTime startedAt) {
   const wins = [true, false, true, true, false];
   return Drill(
     config: const DrillConfig(nbPuzzles: 5),
     startedAt: startedAt,
     ratingBefore: 1500,
-    latestRating: rated ? 1510 : 1500,
+    latestRating: 1510,
     results: [
       for (final (i, win) in wins.indexed)
         DrillPuzzleResult(
@@ -1134,9 +1100,9 @@ Drill _pastDrill(DateTime startedAt, {bool rated = true}) {
           puzzleRating: 1500,
           themes: const ISetConst({}),
           win: win,
-          rated: rated,
+          rated: true,
           solvingTime: const Duration(seconds: 10),
-          ratingDiff: rated ? (win ? 10 : -10) : null,
+          ratingDiff: win ? 10 : -10,
         ),
     ].toIList(),
   );

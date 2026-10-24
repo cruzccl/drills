@@ -180,7 +180,7 @@ class const _DayHeader(final DateTime day, final List<DrillHistoryEntry> entries
     extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final changes = entries.map((e) => e.isCasual ? null : e.ratingChange).nonNulls;
+    final changes = entries.map((e) => e.ratingChange).nonNulls;
     final change = changes.isEmpty ? null : changes.sum;
     final nb = entries.length;
     return Padding(
@@ -311,26 +311,19 @@ class const _DrillCard(final DrillHistoryEntry entry) extends ConsumerWidget {
                     ),
                     _MetricTile(
                       label: DrillStrings.points,
-                      value: entry.isCasual
-                          ? '—'
-                          : ratingChange == null
-                          ? '···'
-                          : formatRatingChange(ratingChange),
-                      valueColor: entry.isCasual || ratingChange == null
+                      value: ratingChange == null ? '···' : formatRatingChange(ratingChange),
+                      valueColor: ratingChange == null
                           ? textShade(context, Styles.subtitleOpacity)
                           : signColor(context, ratingChange),
-                      opacity: entry.isCasual ? 0.55 : 1.0,
-                      detail: entry.isCasual
-                          ? Text(ratingBefore)
-                          : Row(
-                              mainAxisSize: .min,
-                              spacing: 3.0,
-                              children: [
-                                Text(ratingBefore),
-                                const Icon(Icons.arrow_forward, size: 12),
-                                Text(entry.ratingAfter?.toString() ?? '?'),
-                              ],
-                            ),
+                      detail: Row(
+                        mainAxisSize: .min,
+                        spacing: 3.0,
+                        children: [
+                          Text(ratingBefore),
+                          const Icon(Icons.arrow_forward, size: 12),
+                          Text(entry.ratingAfter?.toString() ?? '?'),
+                        ],
+                      ),
                     ),
                   ],
                 ),

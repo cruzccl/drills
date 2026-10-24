@@ -82,7 +82,6 @@ void main() {
 
     for (final label in [
       'Sign out',
-      'Rated',
       'Jump to next puzzle immediately',
       'Mostrar reloj',
       'Sound',
@@ -122,10 +121,6 @@ void main() {
     await openSettings(tester);
     final container = containerOf(tester);
 
-    expect(container.read(puzzlePreferencesProvider).rated, true);
-    await toggle(tester, 'Rated');
-    expect(container.read(puzzlePreferencesProvider).rated, false);
-
     expect(container.read(puzzlePreferencesProvider).autoNext, false);
     await toggle(tester, 'Jump to next puzzle immediately');
     expect(container.read(puzzlePreferencesProvider).autoNext, true);
@@ -150,8 +145,6 @@ void main() {
     expect(requests.where((r) => r.method == 'DELETE' && r.url.path == '/api/token'), hasLength(1));
     expect(find.text('Sign out'), findsNothing);
     expect(find.text('Sign in'), findsOneWidget);
-    // Rated puzzles only exist when signed in.
-    expect(find.text('Rated'), findsNothing);
   });
 
   testWidgets('signed out, signing in starts the browser flow', (tester) async {
@@ -169,7 +162,6 @@ void main() {
       },
     );
 
-    expect(find.text('Rated'), findsNothing);
     await tester.tap(find.text('Sign in'));
     await tester.pumpAndSettle();
 

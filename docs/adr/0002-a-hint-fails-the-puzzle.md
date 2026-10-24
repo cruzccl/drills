@@ -1,6 +1,6 @@
 # A hint fails the puzzle
 
-In the official app, a hint only makes the puzzle unrated: solving it afterwards is sent as `{win: true, rated: false}`, which Lichess still counts as solved (a round is created, the puzzle is burned, the activity and the puzzle dashboard count it as a success). In a Drill, asking for a hint is the step before giving up, so the first hint of a puzzle fails it and sends `{win: false, rated: true}` (`rated: false` with rated puzzles off, as any failure), exactly what viewing the solution on the website sends. The rule is Drills' own, but every result sent is one the official clients send too.
+In the official app, a hint only makes the puzzle unrated: solving it afterwards is sent as `{win: true, rated: false}`, which Lichess still counts as solved (a round is created, the puzzle is burned, the activity and the puzzle dashboard count it as a success). In a Drill, asking for a hint is the step before giving up, so the first hint of a puzzle fails it and sends `{win: false, rated: true}`, exactly what viewing the solution on the website sends. The rule is Drills' own, but every result sent is one the official clients send too.
 
 ## Consequences
 
