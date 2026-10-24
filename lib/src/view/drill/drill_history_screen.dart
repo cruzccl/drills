@@ -1,5 +1,9 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:collection/collection.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -12,8 +16,10 @@ import 'package:lichess_mobile/src/view/drill/drill_angle_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:lichess_mobile/src/view/drill/drill_summary.dart';
 import 'package:lichess_mobile/src/widgets/adaptive_action_sheet.dart';
+import 'package:lichess_mobile/src/widgets/feedback.dart';
 import 'package:lichess_mobile/src/widgets/platform.dart';
 import 'package:lichess_mobile/src/widgets/platform_choice_chip.dart';
+import 'package:lichess_mobile/src/widgets/platform_context_menu_button.dart';
 import 'package:lichess_mobile/src/widgets/platform_segmented_control.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -23,7 +29,8 @@ const _loadMoreExtent = 600.0;
 /// The Drill History: the past Drills, newest first and grouped by day, under a chart of their
 /// Drill Performance, rating or share of puzzles solved.
 ///
-/// A Drill is opened on its Drill Summary, and deleted with a long press.
+/// A Drill is opened on its Drill Summary, and deleted with a long press. The Drill History of
+/// every account on the device is saved to a file, and imported back, from the app bar menu.
 class const DrillHistoryScreen({super.key}) extends ConsumerWidget {
   static Route<dynamic> buildRoute() {
     return buildScreenRoute(screen: const DrillHistoryScreen());
@@ -33,7 +40,11 @@ class const DrillHistoryScreen({super.key}) extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final history = ref.watch(drillHistoryProvider);
     return PlatformScaffold(
-      appBar: const PlatformAppBar(title: Text(DrillStrings.historyTitle), largeTitle: true),
+      appBar: const PlatformAppBar(
+        title: Text(DrillStrings.historyTitle),
+        largeTitle: true,
+        actions: [_HistoryMenu()],
+      ),
       body: switch (history) {
         AsyncData(value: DrillHistoryState(:final entries)) when entries.isEmpty => const Center(
           child: Padding(padding: Styles.bodyPadding, child: Text(DrillStrings.emptyHistory)),
@@ -70,6 +81,88 @@ class const DrillHistoryScreen({super.key}) extends ConsumerWidget {
       },
     );
   }
+}
+
+/// A provider for picking a Drill History file to import. Can be overridden in tests.
+final pickDrillHistoryFileProvider = Provider<Future<PlatformFile?> Function()>((ref) {
+  return () => FilePicker.pickFile(type: .custom, allowedExtensions: ['json']);
+});
+
+/// A provider for saving a Drill History file where the player chooses, returning where it was
+/// saved, or `null` if they cancelled. Can be overridden in tests.
+final saveDrillHistoryFileProvider =
+    Provider<Future<Uri?> Function(String fileName, Uint8List bytes)>((ref) {
+      return (fileName, bytes) => FilePicker.saveFile(
+        fileName: fileName,
+        bytes: bytes,
+        mimeType: 'application/json',
+        type: .custom,
+        allowedExtensions: ['json'],
+      );
+    });
+
+/// The app bar menu of the Drill History: exporting it to a file, and importing one.
+class const _HistoryMenu() extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ContextMenuIconButton(
+      semanticsLabel: DrillStrings.historyMenu,
+      icon: const Icon(Icons.more_vert),
+      actions: [
+        ContextMenuAction(
+          icon: Icons.upload_outlined,
+          label: DrillStrings.exportHistory,
+          onPressed: () => _export(ref, SnackBarPresenter.of(context)),
+        ),
+        ContextMenuAction(
+          icon: Icons.download_outlined,
+          label: DrillStrings.importHistory,
+          onPressed: () => _import(context, ref),
+        ),
+      ],
+    );
+  }
+
+  /// Saves the Drill History file, named with the date, where the player chooses in the system
+  /// save dialog: on the device or in a cloud storage such as Drive.
+  Future<void> _export(WidgetRef ref, SnackBarPresenter snackBar) async {
+    try {
+      final json = await ref.read(drillHistoryProvider.notifier).exportDrills();
+      final name = 'drills-${DateFormat('yyyy-MM-dd').format(DateTime.now())}.json';
+      final uri = await ref.read(saveDrillHistoryFileProvider)(name, utf8.encode(json));
+      if (uri != null) snackBar.show(DrillStrings.historyExported);
+    } catch (_) {
+      snackBar.show(DrillStrings.couldNotExportHistory, type: .error);
+    }
+  }
+
+  /// Adds the Drills of a picked Drill History file, and says how many were added.
+  Future<void> _import(BuildContext context, WidgetRef ref) async {
+    final snackBar = SnackBarPresenter.of(context);
+    try {
+      final file = await ref.read(pickDrillHistoryFileProvider)();
+      if (file == null) return;
+      final json = await const Utf8Decoder().bind(file.readAsByteStream()).join();
+      final (:added, :existing) = await ref.read(drillHistoryProvider.notifier).importDrills(json);
+      snackBar.show(_importResultText(added: added, existing: existing));
+    } on FormatException {
+      snackBar.show(DrillStrings.invalidHistoryFile, type: .error);
+    } catch (_) {
+      snackBar.show(DrillStrings.couldNotImportHistory, type: .error);
+    }
+  }
+}
+
+/// What an import added to the Drill History, and what was already in it.
+String _importResultText({required int added, required int existing}) {
+  final addedText = switch (added) {
+    0 => DrillStrings.noDrillAdded,
+    1 => '1 ${DrillStrings.drillAdded}',
+    _ => '$added ${DrillStrings.drillsAdded}',
+  };
+  if (existing == 0) return '$addedText.';
+  return '$addedText; $existing '
+      '${existing == 1 ? DrillStrings.alreadyInHistory : DrillStrings.alreadyInHistoryPlural}.';
 }
 
 /// The Drills of [entries] grouped by the day they started, in order.

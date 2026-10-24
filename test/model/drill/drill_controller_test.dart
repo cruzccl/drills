@@ -1006,6 +1006,103 @@ void main() {
     expect(points.map((p) => p.ratingAfter), [1510, null], reason: 'a casual Drill');
     expect(points.map((p) => p.isPerformanceReliable), [false, false]);
   });
+
+  test('the exported Drill History is given back whole by importing it elsewhere', () async {
+    final container = await makeDrillContainer();
+    final history = container.read(drillHistoryProvider.notifier);
+    final drill = _pastDrill(DateTime(2026, 10, 20, 9));
+    await history.add(_userId, drill);
+    await history.add(_userId, _pastDrill(DateTime(2026, 10, 21, 9), rated: false));
+    final exported = await history.exportDrills();
+    container.dispose();
+    await drillDatabase.close();
+    drillDatabase = await openDrillDatabase(
+      databaseFactoryFfi,
+      inMemoryDatabasePath,
+      singleInstance: false,
+    );
+
+    final elsewhere = await makeDrillContainer();
+    expect(await _history(elsewhere), isEmpty);
+    final result = await elsewhere.read(drillHistoryProvider.notifier).importDrills(exported);
+
+    expect(result, (added: 2, existing: 0));
+    final imported = _loadedHistory(elsewhere)!;
+    expect(imported.map((d) => d.startedAt), [
+      DateTime(2026, 10, 21, 9),
+      DateTime(2026, 10, 20, 9),
+    ]);
+    expect(await elsewhere.read(drillHistoryDrillProvider(drill.startedAt).future), drill);
+    final points = await elsewhere.read(drillChartPointsProvider.future);
+    expect(points.map((p) => p.ratingAfter), [1510, null]);
+  });
+
+  test(
+    'importing a Drill already in the Drill History neither duplicates nor replaces it',
+    () async {
+      final container = await makeDrillContainer();
+      final history = container.read(drillHistoryProvider.notifier);
+      final drill = _pastDrill(DateTime(2026, 10, 20, 9));
+      await history.add(_userId, drill);
+      final exported = await history.exportDrills();
+      final changed = drill.copyWith(latestRating: 1600);
+      await history.replace(_userId, changed);
+
+      expect(await history.importDrills(exported), (added: 0, existing: 1));
+      expect(await history.importDrills(exported), (added: 0, existing: 1));
+
+      expect(_loadedHistory(container), hasLength(1));
+      expect(await container.read(drillHistoryDrillProvider(drill.startedAt).future), changed);
+    },
+  );
+
+  test("the Drills of another account are imported into that account's Drill History", () async {
+    final other = await makeDrillContainer(authUser: _otherAuthUser);
+    await other
+        .read(drillHistoryProvider.notifier)
+        .add(_otherAuthUser.user.id, _pastDrill(DateTime(2026, 10, 20, 9)));
+    final exported = await other.read(drillHistoryProvider.notifier).exportDrills();
+    other.dispose();
+    await drillDatabase.delete('drill_history');
+
+    final container = await makeDrillContainer();
+    final result = await container.read(drillHistoryProvider.notifier).importDrills(exported);
+
+    expect(result, (added: 1, existing: 0));
+    expect(await _history(container), isEmpty);
+    await container.read(authControllerProvider.notifier).signOut();
+    container.dispose();
+    final signedInAsOther = await makeDrillContainer(authUser: _otherAuthUser);
+    expect((await _history(signedInAsOther)).single.startedAt, DateTime(2026, 10, 20, 9));
+  });
+
+  test('a file that is not a Drill History file this version reads changes nothing', () async {
+    final container = await makeDrillContainer();
+    final history = container.read(drillHistoryProvider.notifier);
+    await history.add(_userId, _pastDrill(DateTime(2026, 10, 20, 9)));
+    final valid = jsonDecode(await history.exportDrills()) as Map<String, dynamic>;
+    final newDrill = _pastDrill(DateTime(2026, 10, 21, 9)).toJson();
+
+    for (final file in [
+      'not json',
+      '[]',
+      jsonEncode({...valid, 'version': 2}),
+      jsonEncode({
+        'version': 1,
+        'drills': [
+          {'userId': _userId.value, 'drill': newDrill},
+          {
+            'userId': _userId.value,
+            'drill': {'startedAt': 'never'},
+          },
+        ],
+      }),
+    ]) {
+      await expectLater(history.importDrills(file), throwsFormatException, reason: file);
+    }
+
+    expect((await _history(container)).map((d) => d.startedAt), [DateTime(2026, 10, 20, 9)]);
+  });
 }
 
 /// Plays a whole Drill of [nbPuzzles], all of them solved, and waits for it to be kept in the

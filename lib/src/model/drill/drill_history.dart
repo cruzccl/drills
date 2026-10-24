@@ -22,6 +22,14 @@ const _tableName = 'drill_history';
 /// The fewest Drills of the Drill History loaded at once, as the list is scrolled.
 const kDrillHistoryPageSize = 30;
 
+/// The version of the Drill History files written by [DrillHistory.exportDrills], the only one
+/// [DrillHistory.importDrills] reads.
+const kDrillHistoryFileVersion = 1;
+
+/// How many Drills [DrillHistory.importDrills] added, and how many were already in the Drill
+/// History.
+typedef DrillImportResult = ({int added, int existing});
+
 /// The Drill History of the signed in player: the summaries of their ended Drills, newest first,
 /// or none while signed out.
 ///
@@ -142,6 +150,62 @@ class DrillHistory() extends AsyncNotifier<DrillHistoryState> {
         );
       }
     });
+  }
+
+  /// Every Drill of every account on the device, as the JSON of a Drill History file, to keep
+  /// them elsewhere and give them back with [importDrills].
+  Future<String> exportDrills() async {
+    await _writes;
+    final db = await ref.read(drillDatabaseProvider.future);
+    final rows = await db.query(
+      _tableName,
+      columns: ['userId', 'data'],
+      orderBy: 'userId, startedAt',
+    );
+    return jsonEncode({
+      'version': kDrillHistoryFileVersion,
+      'drills': [
+        for (final row in rows)
+          {'userId': row['userId'], 'drill': jsonDecode(row['data']! as String)},
+      ],
+    });
+  }
+
+  /// Adds the Drills of a Drill History file made by [exportDrills] to the Drill Histories of
+  /// their accounts, but the ones already there, which are kept as they are.
+  ///
+  /// Throws a [FormatException] if [json] is not a Drill History file this version can read,
+  /// leaving the Drill Histories unchanged.
+  Future<DrillImportResult> importDrills(String json) async {
+    final drills = _parseDrillHistoryFile(json);
+    final database = ref.read(drillDatabaseProvider.future);
+    final result = _writes.then((_) async {
+      final db = await database;
+      final counts = await db.transaction((txn) async {
+        var added = 0;
+        for (final (userId, drill) in drills) {
+          final existing = await txn.query(
+            _tableName,
+            columns: ['startedAt'],
+            where: 'userId = ? AND startedAt = ?',
+            whereArgs: [userId.value, _key(drill.startedAt)],
+          );
+          if (existing.isNotEmpty) continue;
+          await txn.insert(_tableName, {
+            'userId': userId.value,
+            'startedAt': _key(drill.startedAt),
+            ..._columns(drill),
+          });
+          added++;
+        }
+        return (added: added, existing: drills.length - added);
+      });
+      final userId = ref.mounted ? ref.read(authControllerProvider)?.user.id : null;
+      if (userId != null) await _refresh(db, userId);
+      return counts;
+    });
+    _writes = result.then((_) {}, onError: (_) {});
+    return await result;
   }
 
   /// Runs [write] after the previous writes, then reloads the Drills loaded.
@@ -386,6 +450,36 @@ Future<(IList<DrillHistoryEntry>, bool)> _fetchPage(
       (await query('startedAt < ?', [rows.last['startedAt']], limit: 1)).isNotEmpty;
   final entries = [for (final row in rows) ?_decodeEntry(row['summary']! as String)].toIList();
   return (entries, hasMore);
+}
+
+/// The Drills of a Drill History file and their accounts, see [DrillHistory.exportDrills].
+///
+/// Throws a [FormatException] if [json] is not a Drill History file of this version.
+List<(UserId, Drill)> _parseDrillHistoryFile(String json) {
+  try {
+    final file = jsonDecode(json);
+    if (file case {'version': final int version, 'drills': final List<dynamic> drills}) {
+      if (version != kDrillHistoryFileVersion) {
+        throw FormatException('Unknown Drill History file version: $version');
+      }
+      return [
+        for (final entry in drills)
+          switch (entry) {
+            {'userId': final String userId, 'drill': final Map<String, dynamic> drill} => (
+              UserId(userId),
+              Drill.fromJson(drill),
+            ),
+            _ => throw const FormatException('Not a Drill of a Drill History file'),
+          },
+      ];
+    }
+    throw const FormatException('Not a Drill History file');
+  } on FormatException {
+    rethrow;
+  } catch (e) {
+    // A Drill that doesn't decode.
+    throw FormatException('Not a Drill History file: $e');
+  }
 }
 
 /// A Drill's key in its account's Drill History: when it started, which also sorts them.

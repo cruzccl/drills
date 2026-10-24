@@ -42,6 +42,19 @@ abstract class DrillStrings() {
   static const historyTitle = 'Historial de Drills';
   static const emptyHistory = 'Todavía no has terminado ningún Drill.';
   static const deleteDrillConfirmation = '¿Eliminar este Drill del historial?';
+  static const historyMenu = 'Más opciones';
+  static const exportHistory = 'Exportar';
+  static const importHistory = 'Importar';
+  static const historyExported = 'Historial exportado.';
+  static const couldNotExportHistory = 'No se ha podido exportar el historial.';
+  static const couldNotImportHistory = 'No se ha podido importar el historial.';
+  static const invalidHistoryFile = 'No es un archivo de historial de Drills válido.';
+  static const noDrillAdded = 'Ningún Drill añadido';
+  static const drillAdded = 'Drill añadido';
+  static const drillsAdded = 'Drills añadidos';
+  static const alreadyInHistory = 'ya estaba en el historial';
+  static const alreadyInHistoryPlural = 'ya estaban en el historial';
+
   static const today = 'Hoy';
   static const yesterday = 'Ayer';
   static const points = 'Puntos';

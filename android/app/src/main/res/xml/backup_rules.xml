@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Auto Backup on Android 11 and lower. Keep in sync with data_extraction_rules.xml. -->
 <full-backup-content>
   <include domain="sharedpref" path="."/>
-  <exclude domain="sharedpref" path="FlutterSecureStorage"/>
+  <!-- The OAuth token (flutter_secure_storage, namespace org.lichess.mobile.secure),
+       encrypted with a key of the device Keystore, which is not backed up. -->
+  <exclude domain="sharedpref" path="org.lichess.mobile.secure.xml"/>
+  <exclude domain="sharedpref" path="FlutterSecureKeyStorage:org.lichess.mobile.secure.xml"/>
+  <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration:org.lichess.mobile.secure.xml"/>
+  <!-- The Drill History, which Lichess does not keep. -->
+  <include domain="database" path="drills.db"/>
 </full-backup-content>
