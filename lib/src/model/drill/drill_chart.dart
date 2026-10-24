@@ -12,7 +12,6 @@ part 'drill_chart.g.dart';
 /// What the chart of the Drill History shows.
 enum DrillChartMetric() {
   performance,
-  rating,
   successRate,
 }
 
@@ -45,7 +44,7 @@ typedef DrillChartValue = ({
   /// When its Drill started, or when its week or month starts.
   DateTime date,
 
-  /// The Drill Performance or rating, or the share of puzzles solved from 0 to 1.
+  /// The Drill Performance, or the share of puzzles solved from 0 to 1.
   double value,
 
   /// Whether its Drill had enough puzzles for its performance to be reliable; always true for a
@@ -61,8 +60,7 @@ typedef DrillChartValue = ({
 ///
 /// All the Drills, when more than [kMaxDrillChartValues], are grouped: by week within
 /// [kMaxDrillChartWeeksSpan], else by month. A week or month gets the average performance and
-/// share of puzzles solved of its Drills, and the rating after its last Drill that counted. Drills
-/// without the value, such as one whose rating didn't count, are left out.
+/// share of puzzles solved of its Drills. Drills without the value are left out.
 ({IList<DrillChartValue> values, DrillChartGrouping grouping}) drillChartSeries(
   IList<DrillChartPoint> points, {
   required DrillChartMetric metric,
@@ -75,7 +73,6 @@ typedef DrillChartValue = ({
 
   double? valueOf(DrillChartPoint point) => switch (metric) {
     .performance => point.performance?.toDouble(),
-    .rating => point.ratingAfter?.toDouble(),
     .successRate => point.successRate,
   };
 
@@ -109,11 +106,7 @@ typedef DrillChartValue = ({
   final groups = groupBy(shown, (point) => groupStart(point.startedAt));
   final values = [
     for (final MapEntry(key: date, value: group) in groups.entries)
-      if (switch (metric) {
-            .rating => group.map((p) => p.ratingAfter).nonNulls.lastOrNull?.toDouble(),
-            _ => _average(group.map(valueOf).nonNulls),
-          }
-          case final value?)
+      if (_average(group.map(valueOf).nonNulls) case final value?)
         (
           date: date,
           value: value,
@@ -159,7 +152,10 @@ class DrillChartPreferences()
 @Freezed(fromJson: true, toJson: true)
 sealed class DrillChartPrefs with _$DrillChartPrefs implements Serializable {
   const factory({
-    @Default(DrillChartMetric.performance) DrillChartMetric metric,
+    // The rating chart was removed: a metric no longer known is the performance.
+    @JsonKey(unknownEnumValue: DrillChartMetric.performance)
+    @Default(DrillChartMetric.performance)
+    DrillChartMetric metric,
     @Default(DrillChartRange.last30) DrillChartRange range,
   }) = _DrillChartPrefs;
 

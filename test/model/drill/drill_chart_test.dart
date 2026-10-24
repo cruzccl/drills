@@ -43,24 +43,6 @@ void main() {
     expect(byMonth.values.first.value, 1401.5, reason: 'the 1st, 11th, 21st and 31st January');
   });
 
-  test("the rating chart leaves out the Drills that didn't count", () {
-    final points = _daily(5, ratingAfter: (i) => i.isEven ? 1500 + i : null);
-
-    final perDrill = drillChartSeries(points, metric: .rating, range: .last10);
-    expect(perDrill.values.map((v) => v.value), [1500, 1502, 1504]);
-
-    final byWeek = drillChartSeries(
-      _daily(70, ratingAfter: (i) => i % 7 == 3 ? null : 1500 + i),
-      metric: .rating,
-      range: .all,
-    );
-    expect(byWeek.grouping, DrillChartGrouping.week);
-    // Thursday 1 January to Sunday 4 January, whose Drill didn't count
-    expect(byWeek.values.first.date, DateTime(2025, 12, 29));
-    expect(byWeek.values.first.value, 1502, reason: 'after its last Drill that counted');
-    expect(byWeek.values[1].value, 1509, reason: 'the 10th, Sunday 11th not counting');
-  });
-
   test('the share of puzzles solved comes with the share expected', () {
     final points = _daily(3, expected: (i) => i == 1 ? null : 0.5);
 
@@ -68,6 +50,13 @@ void main() {
 
     expect(values.map((v) => v.value), [0.6, 0.6, 0.6]);
     expect(values.map((v) => v.expected), [0.5, null, 0.5]);
+  });
+
+  test('the rating chart chosen before it was removed is the performance chart', () {
+    final prefs = DrillChartPrefs.fromJson(const {'metric': 'rating', 'range': 'all'});
+
+    expect(prefs.metric, DrillChartMetric.performance);
+    expect(prefs.range, DrillChartRange.all, reason: 'the range is kept');
   });
 }
 
@@ -77,7 +66,6 @@ IList<DrillChartPoint> _daily(
   int nb, {
   DateTime? from,
   Duration every = const Duration(days: 1),
-  int? Function(int i)? ratingAfter,
   double? Function(int i)? expected,
 }) => [
   for (var i = 0; i < nb; i++)
@@ -87,6 +75,5 @@ IList<DrillChartPoint> _daily(
       isPerformanceReliable: true,
       successRate: 0.6,
       expectedSuccessRate: expected != null ? expected(i) : 0.5,
-      ratingAfter: ratingAfter != null ? ratingAfter(i) : 1500,
     ),
 ].toIList();

@@ -68,7 +68,6 @@ abstract class DrillStrings() {
   static const sinceLastMonth = 'sobre el mes anterior';
   static const byWeek = 'por semanas';
   static const byMonth = 'por meses';
-  static const afterRatedDrills = 'tras cada Drill puntuado';
   static const drillUnit = 'Drill';
   static const drillsUnit = 'Drills';
   static const lastDrills = 'Últimos';
