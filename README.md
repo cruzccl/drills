@@ -31,8 +31,9 @@ summary of the results.
 - Past Drills are kept on the device in a Drill History, one per account, grouped by day, under a
   chart of their performance or success rate; each one can be reviewed again or deleted.
 - Your Lichess profile, from your avatar on the home screen, shows only puzzles and Puzzle Storm:
-  ratings, puzzle rating history, puzzle dashboard, Storm high scores and daily activity. A theme
-  of the dashboard sets up the next Drill.
+  the two ratings and the daily activity. The puzzle rating opens the puzzle rating history and the
+  puzzle dashboard, whose themes set up the next Drill; the Puzzle Storm one opens the Storm high
+  scores and the best run of every day, as in the official app.
 
 See [GLOSSARY.md](./GLOSSARY.md) for the terms used in this fork and [docs/adr](./docs/adr) for
 the decisions behind it.
