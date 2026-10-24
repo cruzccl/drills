@@ -1,10 +1,12 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
 import 'package:lichess_mobile/l10n/l10n.dart';
 import 'package:lichess_mobile/src/app.dart';
+import 'package:lichess_mobile/src/model/puzzle/puzzle_preferences.dart';
 import 'package:lichess_mobile/src/model/settings/general_preferences.dart';
 import 'package:lichess_mobile/src/model/settings/preferences_storage.dart';
 import 'package:lichess_mobile/src/network/http.dart';
@@ -32,6 +34,24 @@ void main() {
     expect(find.byType(HomeTabScreen), findsNothing);
     expect(find.byType(NavigationBar), findsNothing);
   }, variant: kPlatformVariant);
+
+  testWidgets('Drills turns rated puzzles back on', (tester) async {
+    final app = await makeTestProviderScope(
+      tester,
+      child: const Application(),
+      defaultPreferences: {
+        SessionPreferencesStorage.key(PrefCategory.puzzle.storageKey, null): jsonEncode(
+          PuzzlePrefs.defaults().copyWith(rated: false).toJson(),
+        ),
+      },
+    );
+
+    await tester.pumpWidget(app);
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final container = ProviderScope.containerOf(tester.element(find.byType(MaterialApp)));
+    expect(container.read(puzzlePreferencesProvider).rated, isTrue);
+  });
 
   testWidgets('App loads the upstream tabs when asked to', (tester) async {
     final app = await makeTestProviderScope(tester, child: const Application(upstream: true));

@@ -58,13 +58,7 @@ class const DrillSummary(final Drill drill, {final bool hasAccount = true, super
               },
             ),
             if (hasAccount)
-              Opacity(
-                opacity: drill.isCasual ? 0.5 : 1.0,
-                child: ListTile(
-                  title: const Text(DrillStrings.rating),
-                  trailing: _RatingChange(drill),
-                ),
-              ),
+              ListTile(title: const Text(DrillStrings.rating), trailing: _RatingChange(drill)),
             _SummaryTile(DrillStrings.totalTime, formatSolvingTime(drill.totalSolvingTime)),
             _SummaryTile(DrillStrings.averageTime, formatSolvingTime(drill.averageSolvingTime)),
             Opacity(

@@ -325,7 +325,6 @@ sealed class const DrillHistoryEntry._() with _$DrillHistoryEntry {
 
     /// The player's rating once every result was synced, `null` until then.
     int? ratingAfter,
-    @Default(false) bool isCasual,
     int? performance,
 
     /// See [Drill.expectedSuccessRate].
@@ -341,7 +340,6 @@ sealed class const DrillHistoryEntry._() with _$DrillHistoryEntry {
     wins: drill.results.map((r) => r.win).toIList(),
     ratingBefore: drill.ratingBefore,
     ratingAfter: drill.ratingAfter,
-    isCasual: drill.isCasual,
     performance: drill.performance,
     expectedSuccessRate: drill.expectedSuccessRate,
     totalSolvingTime: drill.totalSolvingTime,
@@ -378,7 +376,7 @@ Map<String, Object?> _columns(Drill drill) {
     'isPerformanceReliable': entry.isPerformanceReliable ? 1 : 0,
     'successRate': entry.successRate,
     'expectedSuccessRate': entry.expectedSuccessRate,
-    'ratingAfter': entry.isCasual ? null : entry.ratingAfter,
+    'ratingAfter': entry.ratingAfter,
   };
 }
 

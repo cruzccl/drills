@@ -87,15 +87,6 @@ class const DrillSettingsScreen({super.key}) extends ConsumerWidget {
             header: const SettingsSectionTitle(DrillStrings.settingsDrills),
             hasLeading: false,
             children: [
-              // Puzzles are only rated for a signed in user.
-              if (authUser != null)
-                SwitchSettingTile(
-                  title: Text(context.l10n.rated),
-                  value: puzzlePrefs.rated,
-                  onChanged: (value) {
-                    ref.read(puzzlePreferencesProvider.notifier).setRated(value);
-                  },
-                ),
               SwitchSettingTile(
                 title: Text(context.l10n.puzzleJumpToNextPuzzleImmediately),
                 value: puzzlePrefs.autoNext,

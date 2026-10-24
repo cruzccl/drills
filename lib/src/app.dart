@@ -16,6 +16,7 @@ import 'package:lichess_mobile/src/model/analysis/analysis_preferences.dart';
 import 'package:lichess_mobile/src/model/broadcast/broadcast_preferences.dart';
 import 'package:lichess_mobile/src/model/common/preloaded_data.dart';
 import 'package:lichess_mobile/src/model/game/game_live_activity.dart';
+import 'package:lichess_mobile/src/model/puzzle/puzzle_preferences.dart';
 import 'package:lichess_mobile/src/model/settings/board_preferences.dart';
 import 'package:lichess_mobile/src/model/settings/general_preferences.dart';
 import 'package:lichess_mobile/src/model/study/study_preferences.dart';
@@ -170,6 +171,12 @@ class _AppState() extends ConsumerState<Application> {
       ref.read(sharedPgnServiceProvider).start();
       ref.read(broadcastServiceProvider).start();
       ref.read(recapServiceProvider).start();
+    } else {
+      // Drills are always rated: the setting is not offered, and the rated puzzles turned off with
+      // it before, for the account signed in, are turned on again.
+      ref.listenManual(puzzlePreferencesProvider.select((prefs) => prefs.rated), (_, rated) {
+        if (!rated) ref.read(puzzlePreferencesProvider.notifier).setRated(true);
+      }, fireImmediately: true);
     }
 
     if (Platform.isIOS) {
