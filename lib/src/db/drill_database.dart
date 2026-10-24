@@ -35,7 +35,7 @@ Future<Database> openDrillDatabase(
   return dbFactory.openDatabase(
     path,
     options: OpenDatabaseOptions(
-      version: 2,
+      version: 3,
       singleInstance: singleInstance,
       onCreate: (db, version) async {
         await db.execute('''
@@ -54,6 +54,10 @@ Future<Database> openDrillDatabase(
           for (final column in _summaryColumns.split(',')) {
             await db.execute('ALTER TABLE drill_history ADD COLUMN ${column.trim()}');
           }
+        } else if (oldVersion < 3) {
+          // The summaries were made when a Drill's rating change was the rating after less the
+          // rating before: made again from `data` by the Drill History when it first reads them.
+          await db.execute('UPDATE drill_history SET summary = NULL');
         }
       },
     ),

@@ -335,6 +335,9 @@ sealed class const DrillHistoryEntry._() with _$DrillHistoryEntry {
 
     /// The player's rating once every result was synced, `null` until then.
     int? ratingAfter,
+
+    /// See [Drill.ratingChange].
+    int? ratingChange,
     int? performance,
 
     /// See [Drill.expectedSuccessRate].
@@ -350,6 +353,7 @@ sealed class const DrillHistoryEntry._() with _$DrillHistoryEntry {
     wins: drill.results.map((r) => r.win).toIList(),
     ratingBefore: drill.ratingBefore,
     ratingAfter: drill.ratingAfter,
+    ratingChange: drill.ratingChange,
     performance: drill.performance,
     expectedSuccessRate: drill.expectedSuccessRate,
     totalSolvingTime: drill.totalSolvingTime,
@@ -366,13 +370,6 @@ sealed class const DrillHistoryEntry._() with _$DrillHistoryEntry {
   bool get isPartial => nbPlayed < config.nbPuzzles;
 
   bool get isPerformanceReliable => nbPlayed >= kMinReliableDrillPuzzles;
-
-  /// How much the Drill changed the player's rating, or `null` until it is known.
-  int? get ratingChange {
-    final before = ratingBefore;
-    final after = ratingAfter;
-    return before != null && after != null ? after - before : null;
-  }
 }
 
 /// The columns of a Drill's row made from it, see `drill_database.dart`.

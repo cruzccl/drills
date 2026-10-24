@@ -833,12 +833,12 @@ sealed class const Drill._() with _$Drill implements Serializable {
   /// The player's puzzle rating once every result is synced, or `null` until then.
   int? get ratingAfter => hasPendingRatingDiff ? null : latestRating ?? ratingBefore;
 
-  /// How much the Drill changed the player's rating, or `null` until it is known.
-  int? get ratingChange {
-    final before = ratingBefore;
-    final after = ratingAfter;
-    return before != null && after != null ? after - before : null;
-  }
+  /// How much the Drill changed the player's rating, or `null` until every result is synced.
+  ///
+  /// It is the sum of its puzzles' rating changes, not the rating after less the rating before:
+  /// the puzzles solved elsewhere while the Drill is played, such as in the official app, are
+  /// left out.
+  int? get ratingChange => hasPendingRatingDiff ? null : ratingDiffsTotal;
 }
 
 /// The outcome of a puzzle of a Drill.
