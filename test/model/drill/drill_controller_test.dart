@@ -484,6 +484,32 @@ void main() {
     expect(drill.drill.ratingChange, 0);
   });
 
+  test(
+    'a Drill started offline gets its rating before from the first sync of its results',
+    () async {
+      final container = await makeDrillContainer();
+      final drillCtrl = container.read(drillControllerProvider.notifier);
+      // puzzles queued, to start the Drill offline with
+      await drillCtrl.start(_drill);
+      drillCtrl.end();
+      // the requests fail, without the app noticing it is offline
+      server.isOffline = true;
+      await drillCtrl.start(const DrillConfig(nbPuzzles: 3));
+      await _solveCurrentPuzzle(container, win: true);
+      expect(container.read(drillControllerProvider)!.drill.ratingBefore, isNull);
+
+      server.isOffline = false;
+      drillCtrl.continueDrill();
+      await _solveCurrentPuzzle(container, win: true);
+
+      final drill = container.read(drillControllerProvider)!.drill;
+      expect(server.solutions, hasLength(2));
+      expect(drill.ratingBefore, FakeDrillServer.initialRating);
+      expect(drill.ratingAfter, 1520);
+      expect(drill.ratingChange, 20);
+    },
+  );
+
   test('the results are sent even if the app misses the connection coming back', () async {
     final container = await makeDrillContainer();
     final drillCtrl = container.read(drillControllerProvider.notifier);
@@ -801,6 +827,34 @@ void main() {
     final drill = await container.read(drillHistoryDrillProvider(history.single.startedAt).future);
     expect(drill!.results.map((r) => r.ratingDiff), [10, -10]);
     expect(history.single.ratingChange, 0);
+  });
+
+  test('the Drill History gets the rating before of Drills played offline when synced', () async {
+    final container = await makeDrillContainer();
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    // puzzles queued, to play the Drills offline with
+    await drillCtrl.start(_drill);
+    drillCtrl.end();
+    // the requests fail, without the app noticing it is offline
+    server.isOffline = true;
+    for (final win in [true, false]) {
+      await drillCtrl.start(const DrillConfig(nbPuzzles: 2));
+      for (var i = 0; i < 2; i++) {
+        await _solveCurrentPuzzle(container, win: win);
+        drillCtrl.continueDrill();
+      }
+    }
+    await _waitFor(() => _loadedHistory(container)?.length == 2);
+    expect(_loadedHistory(container)!.map((e) => e.ratingBefore), [null, null]);
+
+    server.isOffline = false;
+    // the solutions of both Drills are sent as the next one starts: +20, then -20
+    await drillCtrl.start(_drill);
+
+    final history = await _history(container);
+    expect(server.solutions, hasLength(4));
+    expect(history.map((e) => e.ratingBefore), [1520, FakeDrillServer.initialRating]);
+    expect(history.map((e) => e.ratingChange), [-20, 20]);
   });
 
   test('a Drill ended before any puzzle is solved is not kept', () async {

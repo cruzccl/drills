@@ -121,7 +121,7 @@ class DrillController() extends Notifier<DrillState?> {
       final replaced = ref.read(unfinishedDrillProvider);
       if (replaced != null && replaced.results.isNotEmpty) await history.add(userId, replaced);
       // Loading the puzzle synced the solutions left pending, maybe of the Drill replaced.
-      await history.recordRatingDiffs(userId, puzzleContext.rounds);
+      await history.recordRatingDiffs(userId, puzzleContext.rounds, puzzleContext.glicko);
     }
     await ref.read(lastDrillConfigProvider.notifier).save(config);
     _play(
@@ -346,13 +346,16 @@ class DrillController() extends Notifier<DrillState?> {
   }
 
   /// Records what a sync of the solutions with the server returned: the rating change of each
-  /// solution sent and the player's new rating.
+  /// solution sent and the player's new rating, and the rating the Drill started at if it was not
+  /// known.
   void _onSync({required IList<PuzzleRound>? rounds, required PuzzleGlicko? glicko}) {
     final drillState = state;
     if (drillState == null) return;
     final drill = drillState.drill;
     state = drillState.copyWith(
       drill: drill
+          // Signed out, a Drill counts on no account: it has no rating.
+          .withRatingBeforeFrom(rounds, drillState.hasAccount ? glicko : null)
           .withRatingDiffs(rounds)
           .copyWith(latestRating: glicko?.shownRating ?? drill.latestRating),
     );
@@ -361,7 +364,7 @@ class DrillController() extends Notifier<DrillState?> {
     if (userId != null) {
       ref
           .read(drillHistoryProvider.notifier)
-          .recordRatingDiffs(userId, rounds, except: drill.startedAt);
+          .recordRatingDiffs(userId, rounds, glicko, except: drill.startedAt);
     }
   }
 
@@ -444,7 +447,12 @@ class DrillController() extends Notifier<DrillState?> {
         if (userId != null) {
           ref
               .read(drillHistoryProvider.notifier)
-              .recordRatingDiffs(userId, synced.rounds, except: state?.drill.startedAt);
+              .recordRatingDiffs(
+                userId,
+                synced.rounds,
+                synced.glicko,
+                except: state?.drill.startedAt,
+              );
         }
       } else {
         _onSync(rounds: synced.rounds, glicko: synced.glicko);
@@ -706,7 +714,8 @@ sealed class const Drill._() with _$Drill implements Serializable {
     /// The outcome of each puzzle solved, in order.
     @Default(IListConst<DrillPuzzleResult>([])) IList<DrillPuzzleResult> results,
 
-    /// The player's puzzle rating when the Drill started, if known.
+    /// The player's puzzle rating when the Drill started, if known: read as it started or, if it
+    /// started offline, worked out from the first sync of its solutions.
     int? ratingBefore,
 
     /// The player's puzzle rating returned by the latest sync of the solutions with the server.
@@ -793,6 +802,26 @@ sealed class const Drill._() with _$Drill implements Serializable {
           )
           .toIList(),
     );
+  }
+
+  /// The Drill with the player's rating when it started worked out from a sync of the solutions
+  /// with the server, if it is not known and the sync is the first to give its rating changes.
+  ///
+  /// A Drill started offline has no rating when it starts. The player's [glicko] rating returned
+  /// counts the solutions sent in [rounds], which are in the order they were solved: less the
+  /// rating changes from the Drill's first solution on, it is the rating the Drill started at.
+  /// Without a solution of the Drill among them, the rating returned is the one it started at.
+  Drill withRatingBeforeFrom(IList<PuzzleRound>? rounds, PuzzleGlicko? glicko) {
+    if (ratingBefore != null || glicko == null || results.any((r) => r.ratingDiff != null)) {
+      return this;
+    }
+    final ids = results.map((r) => r.id).toSet();
+    final sent = rounds ?? const IListConst<PuzzleRound>([]);
+    final first = sent.indexWhere((round) => ids.contains(round.id));
+    final ratingChange = first == -1
+        ? 0
+        : sent.skip(first).fold(0, (total, round) => total + round.ratingDiff);
+    return copyWith(ratingBefore: glicko.shownRating - ratingChange);
   }
 
   /// The sum of the rating changes known.

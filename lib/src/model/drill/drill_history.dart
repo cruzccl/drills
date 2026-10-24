@@ -123,11 +123,17 @@ class DrillHistory() extends AsyncNotifier<DrillHistoryState> {
   }
 
   /// Records the rating changes of the solutions sent in [rounds] in the Drills of the account
-  /// [userId] that were left without them, but the Drill started at [except].
+  /// [userId] that were left without them, but the Drill started at [except], and the rating a
+  /// Drill started at from the player's [glicko] rating returned if it was not known.
   ///
   /// A Drill can be replaced while some of its solutions are still to send, such as one solved
   /// offline: they are sent with the next Drill's, which gets their rating changes.
-  Future<void> recordRatingDiffs(UserId userId, IList<PuzzleRound>? rounds, {DateTime? except}) {
+  Future<void> recordRatingDiffs(
+    UserId userId,
+    IList<PuzzleRound>? rounds,
+    PuzzleGlicko? glicko, {
+    DateTime? except,
+  }) {
     if (rounds == null || rounds.isEmpty) return Future.value();
     return _write(userId, (db) async {
       final rows = await db.query(
@@ -140,13 +146,17 @@ class DrillHistory() extends AsyncNotifier<DrillHistoryState> {
         if (drill == null || drill.startedAt == except) continue;
         final synced = drill.withRatingDiffs(rounds);
         if (synced == drill) continue;
+        final withRatingBefore = drill.withRatingBeforeFrom(rounds, glicko);
         // Its latest rating, from before these solutions were sent, misses their rating changes.
-        final latestRating = drill.latestRating ?? drill.ratingBefore;
+        final latestRating = withRatingBefore.latestRating ?? withRatingBefore.ratingBefore;
         final ratingChange = synced.ratingDiffsTotal - drill.ratingDiffsTotal;
         await _update(
           db,
           userId,
-          synced.copyWith(latestRating: latestRating != null ? latestRating + ratingChange : null),
+          synced.copyWith(
+            ratingBefore: withRatingBefore.ratingBefore,
+            latestRating: latestRating != null ? latestRating + ratingChange : null,
+          ),
         );
       }
     });
