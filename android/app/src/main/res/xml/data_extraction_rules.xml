@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Auto Backup and device transfer on Android 12 and higher. Keep in sync with
+     backup_rules.xml. -->
+<data-extraction-rules>
+  <cloud-backup>
+    <include domain="sharedpref" path="."/>
+    <!-- The OAuth token (flutter_secure_storage, namespace org.lichess.mobile.secure),
+         encrypted with a key of the device Keystore, which is not backed up. -->
+    <exclude domain="sharedpref" path="org.lichess.mobile.secure.xml"/>
+    <exclude domain="sharedpref" path="FlutterSecureKeyStorage:org.lichess.mobile.secure.xml"/>
+    <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration:org.lichess.mobile.secure.xml"/>
+    <!-- The Drill History, which Lichess does not keep. -->
+    <include domain="database" path="drills.db"/>
+  </cloud-backup>
+  <device-transfer>
+    <include domain="sharedpref" path="."/>
+    <!-- The OAuth token (flutter_secure_storage, namespace org.lichess.mobile.secure),
+         encrypted with a key of the device Keystore, which is not backed up. -->
+    <exclude domain="sharedpref" path="org.lichess.mobile.secure.xml"/>
+    <exclude domain="sharedpref" path="FlutterSecureKeyStorage:org.lichess.mobile.secure.xml"/>
+    <exclude domain="sharedpref" path="FlutterSecureStorageConfiguration:org.lichess.mobile.secure.xml"/>
+    <!-- The Drill History, which Lichess does not keep. -->
+    <include domain="database" path="drills.db"/>
+  </device-transfer>
+</data-extraction-rules>

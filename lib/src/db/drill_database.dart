@@ -10,8 +10,9 @@ const _kDrillDatabaseName = 'drills.db';
 /// A provider for the database of Drills.
 ///
 /// It is apart from the app database (`databaseProvider`), whose tables and versions are
-/// upstream's: the Drill History is kept on the device only, so it must survive upstream schema
-/// changes, and outlive the entries the app database deletes after a while.
+/// upstream's: Lichess doesn't keep the Drill History, so it must survive upstream schema changes,
+/// and outlive the entries the app database deletes after a while. Its file (`drills.db`) is in
+/// Android Auto Backup, see `backup_rules.xml` and `data_extraction_rules.xml`.
 final drillDatabaseProvider = FutureProvider<Database>((Ref ref) async {
   if (Platform.isLinux) {
     databaseFactory = databaseFactoryFfi;
