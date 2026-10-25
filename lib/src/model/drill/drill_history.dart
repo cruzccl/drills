@@ -283,13 +283,7 @@ final drillChartPointsProvider = FutureProvider.autoDispose<IList<DrillChartPoin
   final db = await ref.read(drillDatabaseProvider.future);
   final rows = await db.query(
     _tableName,
-    columns: [
-      'startedAt',
-      'performance',
-      'isPerformanceReliable',
-      'successRate',
-      'expectedSuccessRate',
-    ],
+    columns: ['startedAt', 'nbPlayed', 'performance', 'successRate', 'expectedSuccessRate'],
     where: 'userId = ? AND summary IS NOT NULL',
     whereArgs: [userId.value],
     orderBy: 'startedAt ASC',
@@ -298,8 +292,8 @@ final drillChartPointsProvider = FutureProvider.autoDispose<IList<DrillChartPoin
     for (final row in rows)
       (
         startedAt: DateTime.parse(row['startedAt']! as String).toLocal(),
+        nbPuzzles: row['nbPlayed']! as int,
         performance: row['performance'] as int?,
-        isPerformanceReliable: row['isPerformanceReliable'] == 1,
         successRate: (row['successRate'] as num?)?.toDouble() ?? 0,
         expectedSuccessRate: (row['expectedSuccessRate'] as num?)?.toDouble(),
       ),
@@ -309,8 +303,10 @@ final drillChartPointsProvider = FutureProvider.autoDispose<IList<DrillChartPoin
 /// The values of a Drill drawn in the chart of the Drill History.
 typedef DrillChartPoint = ({
   DateTime startedAt,
+
+  /// The number of puzzles played.
+  int nbPuzzles,
   int? performance,
-  bool isPerformanceReliable,
   double successRate,
   double? expectedSuccessRate,
 });
@@ -374,6 +370,7 @@ Map<String, Object?> _columns(Drill drill) {
     'data': jsonEncode(drill.toJson()),
     'summary': jsonEncode(entry.toJson()),
     'ratingPending': drill.hasPendingRatingDiff ? 1 : 0,
+    'nbPlayed': entry.nbPlayed,
     'performance': entry.performance,
     'isPerformanceReliable': entry.isPerformanceReliable ? 1 : 0,
     'successRate': entry.successRate,

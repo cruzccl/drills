@@ -1057,6 +1057,44 @@ void main() {
     expect(columns.map((c) => c['name']), isNot(contains('ratingAfter')));
   });
 
+  test('the Drills kept before the chart weighed them by puzzles get their number', () async {
+    final directory = await Directory.systemTemp.createTemp('drills_test');
+    addTearDown(() => directory.delete(recursive: true));
+    final path = join(directory.path, 'drills.db');
+    final drill = _pastDrill(DateTime(2026, 10, 21, 22, 36));
+    final v4 = await databaseFactoryFfi.openDatabase(
+      path,
+      options: OpenDatabaseOptions(
+        version: 4,
+        onCreate: (db, _) => db.execute(
+          'CREATE TABLE drill_history(userId TEXT NOT NULL, startedAt TEXT NOT NULL, '
+          'data TEXT NOT NULL, summary TEXT, ratingPending INTEGER NOT NULL DEFAULT 0, '
+          'performance INTEGER, isPerformanceReliable INTEGER NOT NULL DEFAULT 0, '
+          'successRate REAL, expectedSuccessRate REAL, PRIMARY KEY (userId, startedAt))',
+        ),
+      ),
+    );
+    await v4.insert('drill_history', {
+      'userId': _userId.value,
+      'startedAt': drill.startedAt.toUtc().toIso8601String(),
+      'data': jsonEncode(drill.toJson()),
+      'summary': jsonEncode(DrillHistoryEntry.of(drill).toJson()),
+      'performance': 1600,
+      'successRate': 0.6,
+      'expectedSuccessRate': 0.5,
+    });
+    await v4.close();
+    await drillDatabase.close();
+    drillDatabase = await openDrillDatabase(databaseFactoryFfi, path);
+
+    final container = await makeDrillContainer();
+
+    expect((await _history(container)).single.startedAt, drill.startedAt);
+    final points = await container.read(drillChartPointsProvider.future);
+    expect(points.single.nbPuzzles, 5);
+    expect(points.single.performance, 1600);
+  });
+
   test("a Drill's expected share of puzzles solved is from its puzzles' ratings", () async {
     server.puzzleRatingOf = (index) => index == 0 ? 1500 : 1900;
     final container = await makeDrillContainer();
@@ -1087,7 +1125,7 @@ void main() {
     expect(points.map((p) => p.performance), [1600, 1600]);
     expect(points.map((p) => p.successRate), [0.6, 0.6]);
     expect(points.map((p) => p.expectedSuccessRate), [0.5, 0.5]);
-    expect(points.map((p) => p.isPerformanceReliable), [false, false]);
+    expect(points.map((p) => p.nbPuzzles), [5, 5]);
   });
 
   test('the exported Drill History is given back whole by importing it elsewhere', () async {

@@ -66,17 +66,22 @@ abstract class DrillStrings() {
   static const points = 'Puntos';
   static const ofTotal = 'de';
   static const average = 'media';
-  static const allDrills = 'Todos';
+  static const allDays = 'Todo';
   static const noChartData = 'Sin datos';
-  static const sinceLastDrill = 'sobre el anterior';
+  static const expected = 'esperado';
   static const sinceLastWeek = 'sobre la semana anterior';
   static const sinceLastMonth = 'sobre el mes anterior';
+  static const sinceLastThreeMonths = 'sobre los 3 meses anteriores';
+  static const sinceLastYear = 'sobre el año anterior';
+  static const aboveExpected = 'Por encima de lo esperado';
+  static const withinExpected = 'Dentro de lo esperado';
+  static const belowExpected = 'Por debajo de lo esperado';
+  static const byDay = 'por días';
   static const byWeek = 'por semanas';
+  static const weekOf = 'Semana del';
   static const byMonth = 'por meses';
   static const drillUnit = 'Drill';
   static const drillsUnit = 'Drills';
-  static const lastDrills = 'Últimos';
-  static const allDrillsCount = 'Todos los Drills';
 
   static const profile = 'Mi perfil';
   static const puzzles = 'Problemas';

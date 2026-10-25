@@ -9,119 +9,196 @@ import 'package:lichess_mobile/src/model/settings/preferences_storage.dart';
 part 'drill_chart.freezed.dart';
 part 'drill_chart.g.dart';
 
-/// What the chart of the Drill History shows.
-enum DrillChartMetric() {
-  performance,
-  successRate,
-}
-
-/// Which Drills the chart of the Drill History shows: the last ones, or all of them.
+/// The days the charts of the Drill History show, up to today, as in the puzzle rating history of
+/// the profile.
 enum DrillChartRange(
-  /// How many of the last Drills are shown, or `null` for all of them.
-  final int? nbDrills,
+  /// How many days, today included, or `null` for the whole Drill History.
+  final int? nbDays,
 ) {
-  last10(10),
-  last30(30),
+  week(7),
+  month(30),
+  threeMonths(91),
+  year(365),
   all(null),
 }
 
-/// What each value of the chart of the Drill History stands for.
+/// What each value of the charts of the Drill History stands for.
 enum DrillChartGrouping() {
-  drill,
+  day,
   week,
   month,
 }
 
-/// The most Drills the chart shows one by one when it shows all of them: more are grouped by week
-/// or by month, so that the values don't pile up.
-const kMaxDrillChartValues = 60;
+/// The longest range grouped by day: a longer one is grouped by week.
+const kMaxDrillChartDaysSpan = 91;
 
-/// The longest time the chart groups by week: a longer Drill History is grouped by month.
-const kMaxDrillChartWeeksSpan = Duration(days: 548);
+/// The longest Drill History grouped by week when all of it is shown: a longer one is grouped by
+/// month.
+const kMaxDrillChartWeeksSpan = 548;
 
-/// A value of the chart of the Drill History.
+/// A value of the charts of the Drill History: the Drills of a day, week or month taken as one
+/// bigger Drill, each puzzle counting the same.
 typedef DrillChartValue = ({
-  /// When its Drill started, or when its week or month starts.
+  /// The first day of its day, week or month.
   DateTime date,
 
-  /// The Drill Performance, or the share of puzzles solved from 0 to 1.
-  double value,
+  /// Its place on the chart: the number of days, weeks or months since the chart's start.
+  int slot,
 
-  /// Whether its Drill had enough puzzles for its performance to be reliable; always true for a
-  /// week or a month.
-  bool isReliable,
+  /// The Drill Performance of its puzzles.
+  double performance,
 
-  /// The share of puzzles the player was expected to solve, for the share of puzzles solved.
+  /// The share of its puzzles solved, from 0 to 1.
+  double successRate,
+
+  /// The share of its puzzles the player was expected to solve, or `null` if a Drill doesn't have
+  /// it.
   double? expected,
+  int nbDrills,
+  int nbPuzzles,
 });
 
-/// The values the chart of the Drill History draws for [metric] and [range], from the Drills'
-/// [points], oldest first.
-///
-/// All the Drills, when more than [kMaxDrillChartValues], are grouped: by week within
-/// [kMaxDrillChartWeeksSpan], else by month. A week or month gets the average performance and
-/// share of puzzles solved of its Drills. Drills without the value are left out.
-({IList<DrillChartValue> values, DrillChartGrouping grouping}) drillChartSeries(
-  IList<DrillChartPoint> points, {
-  required DrillChartMetric metric,
-  required DrillChartRange range,
-}) {
-  final nbDrills = range.nbDrills;
-  final shown = nbDrills != null && points.length > nbDrills
-      ? points.sublist(points.length - nbDrills)
-      : points;
+/// The values of the charts of the Drill History for a range.
+class const DrillChartSeries({
+  /// The days, weeks or months played, oldest first.
+  required final IList<DrillChartValue> values,
+  required final DrillChartGrouping grouping,
 
-  double? valueOf(DrillChartPoint point) => switch (metric) {
-    .performance => point.performance?.toDouble(),
-    .successRate => point.successRate,
-  };
+  /// The first day of the chart's first day, week or month.
+  required final DateTime start,
 
-  final grouping = nbDrills != null || shown.length <= kMaxDrillChartValues
-      ? DrillChartGrouping.drill
-      : shown.last.startedAt.difference(shown.first.startedAt) <= kMaxDrillChartWeeksSpan
-      ? DrillChartGrouping.week
-      : DrillChartGrouping.month;
+  /// How many days, weeks or months the chart spans, from [start] to today's.
+  required final int nbSlots,
 
-  if (grouping == .drill) {
-    final values = [
-      for (final point in shown)
-        if (valueOf(point) case final value?)
-          (
-            date: point.startedAt,
-            value: value,
-            isReliable: point.isPerformanceReliable,
-            expected: metric == .successRate ? point.expectedSuccessRate : null,
-          ),
-    ].toIList();
-    return (values: values, grouping: grouping);
-  }
+  /// The Drills of the days of the range taken as one, or `null` if there are none: those of a
+  /// first week or month taken whole are left out.
+  required final DrillChartValue? total,
 
-  DateTime groupStart(DateTime date) {
-    final day = DateTime(date.year, date.month, date.day);
-    return grouping == .week
-        ? day.subtract(Duration(days: day.weekday - DateTime.monday))
-        : DateTime(date.year, date.month);
-  }
+  /// The Drills of as many days just before the range taken as one, or `null` if there are none or
+  /// the range is the whole Drill History.
+  required final DrillChartValue? previous,
+});
 
-  final groups = groupBy(shown, (point) => groupStart(point.startedAt));
-  final values = [
-    for (final MapEntry(key: date, value: group) in groups.entries)
-      if (_average(group.map(valueOf).nonNulls) case final value?)
-        (
-          date: date,
-          value: value,
-          isReliable: true,
-          expected: metric == .successRate
-              ? _average(group.map((p) => p.expectedSuccessRate).nonNulls)
-              : null,
-        ),
-  ].toIList();
-  return (values: values, grouping: grouping);
+/// The ranges [points] covers, as in the puzzle rating history of the profile: those that start
+/// after its first Drill, and the whole Drill History.
+IList<DrillChartRange> drillChartRanges(IList<DrillChartPoint> points, {required DateTime today}) {
+  final first = points.firstOrNull;
+  return DrillChartRange.values
+      .where(
+        (range) => switch (range.nbDays) {
+          final nbDays? =>
+            first != null && !_day(first.startedAt).isAfter(_daysBefore(_day(today), nbDays - 1)),
+          null => true,
+        },
+      )
+      .toIList();
 }
 
-double? _average(Iterable<double> values) => values.isEmpty ? null : values.average;
+/// The values the charts of the Drill History draw for the days of [range] up to [today], from
+/// the Drills' [points], oldest first.
+///
+/// A range of up to [kMaxDrillChartDaysSpan] days is grouped by day, a longer one by week, and
+/// the whole Drill History by month when it spans more than [kMaxDrillChartWeeksSpan] days. The
+/// first week or month is taken whole, so that it doesn't stand for only a few days. Each puzzle
+/// counts the same: a Drill of 30 puzzles weighs three times one of 10.
+///
+/// The averages of the range, and of as many days before to compare them with, are of its days
+/// only.
+DrillChartSeries drillChartSeries(
+  IList<DrillChartPoint> points, {
+  required DrillChartRange range,
+  required DateTime today,
+}) {
+  final lastDay = _day(today);
+  final firstDay = switch (range.nbDays) {
+    final nbDays? => _daysBefore(lastDay, nbDays - 1),
+    null => points.isEmpty ? lastDay : _day(points.first.startedAt),
+  };
+  final span = _daysBetween(firstDay, lastDay) + 1;
+  final grouping = span <= kMaxDrillChartDaysSpan
+      ? DrillChartGrouping.day
+      : range == .all && span > kMaxDrillChartWeeksSpan
+      ? DrillChartGrouping.month
+      : DrillChartGrouping.week;
 
-/// What the chart of the Drill History shows, remembered from the last time.
+  DateTime groupStart(DateTime date) {
+    final day = _day(date);
+    return switch (grouping) {
+      .day => day,
+      .week => _daysBefore(day, day.weekday - DateTime.monday),
+      .month => DateTime(day.year, day.month),
+    };
+  }
+
+  final start = groupStart(firstDay);
+  int slotOf(DateTime date) => switch (grouping) {
+    .day => _daysBetween(start, date),
+    .week => _daysBetween(start, date) ~/ 7,
+    .month => (date.year - start.year) * 12 + date.month - start.month,
+  };
+
+  Iterable<DrillChartPoint> between(DateTime first, DateTime last) =>
+      points.where((p) => !_day(p.startedAt).isBefore(first) && !_day(p.startedAt).isAfter(last));
+  final shown = between(start, lastDay);
+  final groups = groupBy(shown, (p) => groupStart(p.startedAt));
+  return DrillChartSeries(
+    values: [
+      for (final MapEntry(key: date, value: group) in groups.entries)
+        ?_pool(group, date: date, slot: slotOf(date)),
+    ].toIList(),
+    grouping: grouping,
+    start: start,
+    nbSlots: slotOf(groupStart(lastDay)) + 1,
+    total: _pool(between(firstDay, lastDay), date: firstDay, slot: 0),
+    previous: switch (range.nbDays) {
+      final nbDays? => _pool(
+        between(_daysBefore(firstDay, nbDays), _daysBefore(firstDay, 1)),
+        date: _daysBefore(firstDay, nbDays),
+        slot: 0,
+      ),
+      null => null,
+    },
+  );
+}
+
+/// [points] taken as one Drill, or `null` if they have no puzzles.
+DrillChartValue? _pool(
+  Iterable<DrillChartPoint> points, {
+  required DateTime date,
+  required int slot,
+}) {
+  final played = points.where((p) => p.nbPuzzles > 0 && p.performance != null).toList();
+  final nbPuzzles = played.map((p) => p.nbPuzzles).sum;
+  if (nbPuzzles == 0) return null;
+  double weighted(double Function(DrillChartPoint p) value) =>
+      played.map((p) => value(p) * p.nbPuzzles).sum / nbPuzzles;
+  // A Drill's performance is linear in its puzzles' average rating and share solved, so their
+  // weighted average is the performance of all the puzzles.
+  return (
+    date: date,
+    slot: slot,
+    performance: weighted((p) => p.performance!.toDouble()),
+    successRate: weighted((p) => p.successRate),
+    expected: played.every((p) => p.expectedSuccessRate != null)
+        ? weighted((p) => p.expectedSuccessRate!)
+        : null,
+    nbDrills: played.length,
+    nbPuzzles: nbPuzzles,
+  );
+}
+
+DateTime _day(DateTime date) => DateTime(date.year, date.month, date.day);
+
+DateTime _daysBefore(DateTime day, int nbDays) => DateTime(day.year, day.month, day.day - nbDays);
+
+/// The number of days from [from] to [to], whatever the daylight saving time changes between.
+int _daysBetween(DateTime from, DateTime to) => DateTime.utc(
+  to.year,
+  to.month,
+  to.day,
+).difference(DateTime.utc(from.year, from.month, from.day)).inDays;
+
+/// What the charts of the Drill History show, remembered from the last time.
 final drillChartPreferencesProvider = NotifierProvider<DrillChartPreferences, DrillChartPrefs>(
   DrillChartPreferences.new,
   name: 'DrillChartPreferencesProvider',
@@ -144,19 +221,17 @@ class DrillChartPreferences()
   @override
   DrillChartPrefs build() => fetch();
 
-  Future<void> setMetric(DrillChartMetric metric) => save(state.copyWith(metric: metric));
-
   Future<void> setRange(DrillChartRange range) => save(state.copyWith(range: range));
 }
 
 @Freezed(fromJson: true, toJson: true)
 sealed class DrillChartPrefs with _$DrillChartPrefs implements Serializable {
   const factory({
-    // The rating chart was removed: a metric no longer known is the performance.
-    @JsonKey(unknownEnumValue: DrillChartMetric.performance)
-    @Default(DrillChartMetric.performance)
-    DrillChartMetric metric,
-    @Default(DrillChartRange.last30) DrillChartRange range,
+    // The ranges of the last 10 or 30 Drills were replaced by ranges of days: one of them is the
+    // last month.
+    @JsonKey(unknownEnumValue: DrillChartRange.month)
+    @Default(DrillChartRange.month)
+    DrillChartRange range,
   }) = _DrillChartPrefs;
 
   factory fromJson(Map<String, dynamic> json) => _$DrillChartPrefsFromJson(json);
