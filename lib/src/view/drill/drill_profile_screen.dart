@@ -31,7 +31,6 @@ import 'package:lichess_mobile/src/widgets/feedback.dart';
 import 'package:lichess_mobile/src/widgets/haptic_refresh_indicator.dart';
 import 'package:lichess_mobile/src/widgets/list.dart';
 import 'package:lichess_mobile/src/widgets/platform.dart';
-import 'package:lichess_mobile/src/widgets/platform_choice_chip.dart';
 import 'package:lichess_mobile/src/widgets/rating.dart';
 import 'package:lichess_mobile/src/widgets/stat_card.dart';
 import 'package:lichess_mobile/src/widgets/user.dart';
@@ -318,11 +317,19 @@ class _StormScreenState() extends ConsumerState<_StormScreen> {
   }
 }
 
-/// The periods of the Puzzle Storm details, in days.
+/// The periods of the Puzzle Storm details, in days, labelled like those of the puzzle rating
+/// chart.
 enum _StormPeriod(final int days, final String label) {
-  month(30, DrillStrings.last30Days),
-  quarter(90, DrillStrings.last90Days),
-  year(365, DrillStrings.lastYear),
+  week(7, '1S'),
+  month(30, '1M'),
+  quarter(90, '3M'),
+  year(365, '1A');
+
+  /// The number of days between [day] and [today], if [day] is within this period.
+  int? daysAgo(DateTime day, DateTime today) {
+    final daysAgo = today.difference(DateUtils.dateOnly(day)).inDays;
+    return daysAgo >= 0 && daysAgo < days ? daysAgo : null;
+  }
 }
 
 final _stormDashboardProvider = FutureProvider.autoDispose.family<StormDashboard, (UserId, int)>(
@@ -535,6 +542,7 @@ class const _StormSection({
   @override
   Widget build(BuildContext context) {
     final title = Text(context.l10n.stormHighscores);
+    final today = DateUtils.dateOnly(DateTime.now());
     return switch (dashboard) {
       AsyncData(value: final dashboard) => Column(
         crossAxisAlignment: .stretch,
@@ -562,7 +570,8 @@ class const _StormSection({
               children: [
                 _StormChart(dashboard, period: period, onPeriodChanged: onPeriodChanged),
                 const SizedBox(height: 8.0),
-                if (dashboard.dayHighscores.isEmpty)
+                // Lichess gives the last days played, however old: only those of the period.
+                if (!dashboard.dayHighscores.any((d) => period.daysAgo(d.day, today) != null))
                   Text(context.l10n.mobilePuzzleStormNothingToShow)
                 else
                   Card(
@@ -595,30 +604,31 @@ class const _StormSection({
                             ],
                           ),
                           for (final day in dashboard.dayHighscores)
-                            TableRow(
-                              children: [
-                                for (final (i, value) in [
-                                  drillDayName(day.day, short: true),
-                                  '${day.score}',
-                                  '${day.time}s',
-                                  '${day.highest}',
-                                  '${day.runs}',
-                                ].indexed)
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 6.0),
-                                    child: Text(
-                                      value,
-                                      textAlign: i == 0 ? .start : .end,
-                                      style: i == 1
-                                          ? TextStyle(
-                                              fontWeight: .bold,
-                                              color: context.lichessColors.brag,
-                                            )
-                                          : null,
+                            if (period.daysAgo(day.day, today) != null)
+                              TableRow(
+                                children: [
+                                  for (final (i, value) in [
+                                    drillDayName(day.day, short: true),
+                                    '${day.score}',
+                                    '${day.time}s',
+                                    '${day.highest}',
+                                    '${day.runs}',
+                                  ].indexed)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 6.0),
+                                      child: Text(
+                                        value,
+                                        textAlign: i == 0 ? .start : .end,
+                                        style: i == 1
+                                            ? TextStyle(
+                                                fontWeight: .bold,
+                                                color: context.lichessColors.brag,
+                                              )
+                                            : null,
+                                      ),
                                     ),
-                                  ),
-                              ],
-                            ),
+                                ],
+                              ),
                         ],
                       ),
                     ),
@@ -649,10 +659,7 @@ class const _StormChart(
     final today = DateUtils.dateOnly(DateTime.now());
     // By the number of days before today, within the period.
     final byDaysAgo = {
-      for (final day in dashboard.dayHighscores)
-        if (today.difference(DateUtils.dateOnly(day.day)).inDays case final daysAgo
-            when daysAgo >= 0 && daysAgo < period.days)
-          daysAgo: day,
+      for (final day in dashboard.dayHighscores) ?period.daysAgo(day.day, today): day,
     };
     final played = byDaysAgo.values.sortedBy((d) => d.day);
     final last = played.lastOrNull;
@@ -675,45 +682,37 @@ class const _StormChart(
           crossAxisAlignment: .stretch,
           children: [
             Row(
+              mainAxisAlignment: .spaceEvenly,
               children: [
-                Expanded(
-                  child: last == null
-                      ? const SizedBox.shrink()
-                      : Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(
-                                text: '${last.score}',
-                                style: const TextStyle(fontSize: 28, fontWeight: .bold),
-                              ),
-                              if (change != null)
-                                TextSpan(
-                                  text:
-                                      '  ${formatRatingChange(change)} ${DrillStrings.sinceLastDay}',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: .w500,
-                                    color: signColor(context, change),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                ),
-                Wrap(
-                  spacing: 4.0,
+                for (final choice in _StormPeriod.values)
+                  ChartRangeButton(
+                    text: choice.label,
+                    onPressed: () => onPeriodChanged(choice),
+                    selected: period == choice,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8.0),
+            if (last != null)
+              Text.rich(
+                TextSpan(
                   children: [
-                    for (final choice in _StormPeriod.values)
-                      PlatformChoiceChip(
-                        label: Text(choice.label),
-                        selected: period == choice,
-                        showCheckmark: false,
-                        onSelected: (_) => onPeriodChanged(choice),
+                    TextSpan(
+                      text: '${last.score}',
+                      style: const TextStyle(fontSize: 28, fontWeight: .bold),
+                    ),
+                    if (change != null)
+                      TextSpan(
+                        text: '  ${formatRatingChange(change)} ${DrillStrings.sinceLastDay}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: .w500,
+                          color: signColor(context, change),
+                        ),
                       ),
                   ],
                 ),
-              ],
-            ),
+              ),
             Text(
               '${DrillStrings.stormChartCaption} · ${played.length} '
               '${played.length == 1 ? DrillStrings.dayUnit : DrillStrings.daysUnit}',

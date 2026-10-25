@@ -35,8 +35,8 @@ summary of the results.
 - Your Lichess profile, from your avatar on the home screen, shows only puzzles and Puzzle Storm:
   the two ratings and the daily activity. The puzzle rating opens the puzzle rating history and the
   puzzle dashboard, whose themes set up the next Drill; the Puzzle Storm one opens the Storm high
-  scores and the best run of every day, as in the official app, over the last 30 or 90 days or the
-  last year, with a chart of them.
+  scores and the best run of every day, as in the official app, over the last week, month, three
+  months or year, with a chart of them.
 
 See [GLOSSARY.md](./GLOSSARY.md) for the terms used in this fork and [docs/adr](./docs/adr) for
 the decisions behind it.

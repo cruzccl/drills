@@ -678,7 +678,8 @@ class const _GameListTile({
 /// The rating history chart of a perf, with its date ranges, for the Drills puzzle profile.
 typedef RatingHistoryChart = _EloChart;
 
-/// The date range buttons of the rating history chart, for the charts of the Drill History.
+/// The date range buttons of the rating history chart, for the charts of the Drill History and of
+/// Puzzle Storm.
 typedef ChartRangeButton = _RangeButton;
 
 class const _EloChart(final UserRatingHistoryPerf value) extends StatefulWidget {
@@ -951,10 +952,10 @@ enum DateRange() {
   allTime;
 
   String label(AppLocalizations _) => switch (this) {
-    DateRange.oneWeek => '1W',
+    DateRange.oneWeek => '1S',
     DateRange.oneMonth => '1M',
     DateRange.threeMonths => '3M',
-    DateRange.oneYear => '1Y',
-    DateRange.allTime => 'ALL',
+    DateRange.oneYear => '1A',
+    DateRange.allTime => 'TODO',
   };
 }

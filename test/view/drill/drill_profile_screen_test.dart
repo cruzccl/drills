@@ -196,9 +196,24 @@ void main() {
       find.text('${DrillStrings.stormChartCaption} · 8 ${DrillStrings.daysUnit}'),
       findsOneWidget,
     );
-    // Every day Lichess gives, not only the last week.
+    // Every day of the last month, not only the last week.
     await tester.scrollUntilVisible(find.text('1150'), 200, scrollable: topScrollable);
     expect(find.text('1306'), findsOneWidget);
+  });
+
+  testWidgets('the Puzzle Storm table shows only the days of the period chosen', (tester) async {
+    await openProfile(tester);
+    await tester.tap(find.text('Puzzle Storm'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('1150'), 200, scrollable: topScrollable);
+
+    await tester.scrollUntilVisible(find.text('1S'), -200, scrollable: topScrollable);
+    await tester.tap(find.text('1S'));
+    await tester.pumpAndSettle();
+    expect(stormDays, ['30', '7']);
+    // The day played 9 days ago is out of the last week, though Lichess gives it.
+    expect(find.text('1160'), findsOneWidget);
+    expect(find.text('1150'), findsNothing);
   });
 
   testWidgets('the Puzzle Storm chart loads the period chosen without moving the screen', (
@@ -209,7 +224,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(stormDays, ['30']);
 
-    await tester.tap(find.text(DrillStrings.last90Days));
+    await tester.tap(find.text('3M'));
     await tester.pump();
     // The last 30 days stay while the last 90 load.
     expect(find.byType(BarChart), findsOneWidget);
