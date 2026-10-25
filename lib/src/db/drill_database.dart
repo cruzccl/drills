@@ -35,7 +35,7 @@ Future<Database> openDrillDatabase(
   return dbFactory.openDatabase(
     path,
     options: OpenDatabaseOptions(
-      version: 4,
+      version: 5,
       singleInstance: singleInstance,
       onCreate: (db, version) => _createDrillHistoryTable(db, 'drill_history'),
       onUpgrade: (db, oldVersion, newVersion) async {
@@ -56,6 +56,13 @@ Future<Database> openDrillDatabase(
           );
           await db.execute('DROP TABLE drill_history');
           await db.execute('ALTER TABLE drill_history_new RENAME TO drill_history');
+        } else if (oldVersion < 5) {
+          // The number of puzzles of each Drill, which weighs it in the charts: the summaries are
+          // made again from `data`, with it, by the Drill History when it first reads them.
+          await db.execute(
+            'ALTER TABLE drill_history ADD COLUMN nbPlayed INTEGER NOT NULL DEFAULT 0',
+          );
+          await db.execute('UPDATE drill_history SET summary = NULL');
         }
       },
     ),
@@ -78,6 +85,7 @@ Future<void> _createDrillHistoryTable(DatabaseExecutor db, String name) => db.ex
 const _summaryColumns = '''
   summary TEXT,
   ratingPending INTEGER NOT NULL DEFAULT 0,
+  nbPlayed INTEGER NOT NULL DEFAULT 0,
   performance INTEGER,
   isPerformanceReliable INTEGER NOT NULL DEFAULT 0,
   successRate REAL,

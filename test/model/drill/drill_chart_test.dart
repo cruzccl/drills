@@ -3,77 +3,165 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lichess_mobile/src/model/drill/drill_chart.dart';
 import 'package:lichess_mobile/src/model/drill/drill_history.dart';
 
+/// Sunday 25 October 2026, in the evening.
+final _today = DateTime(2026, 10, 25, 21);
+
 void main() {
-  test('the last Drills are shown one by one', () {
-    final points = _daily(40);
+  test('a week is its last 7 days, today included, a value per day played', () {
+    // A Drill a day from 10 October, none on the 22nd
+    final points = _daily(from: DateTime(2026, 10, 10), skip: {DateTime(2026, 10, 22)});
 
-    final (:values, :grouping) = drillChartSeries(points, metric: .performance, range: .last10);
+    final series = drillChartSeries(points, range: .week, today: _today);
 
-    expect(grouping, DrillChartGrouping.drill);
-    expect(values.map((v) => v.value), [for (var i = 30; i < 40; i++) 1400.0 + i]);
-    expect(values.first.date, DateTime(2026, 1, 31));
+    expect(series.grouping, DrillChartGrouping.day);
+    expect(series.start, DateTime(2026, 10, 19));
+    expect(series.nbSlots, 7);
+    expect(series.values.map((v) => v.slot), [0, 1, 2, 4, 5, 6], reason: 'a gap on the 22nd');
+    expect(series.values.first.date, DateTime(2026, 10, 19));
+    expect(series.total!.nbDrills, 6);
   });
 
-  test('all the Drills are shown one by one while they are few', () {
-    final (:values, :grouping) = drillChartSeries(_daily(60), metric: .performance, range: .all);
+  test('a day is its Drills taken as one, each puzzle counting the same', () {
+    final points = [
+      _point(DateTime(2026, 10, 25, 18), nbPuzzles: 10, performance: 1500, successRate: 0.3),
+      _point(DateTime(2026, 10, 25, 22), nbPuzzles: 30, performance: 1900, successRate: 0.7),
+    ].toIList();
 
-    expect(grouping, DrillChartGrouping.drill);
-    expect(values, hasLength(60));
+    final day = drillChartSeries(points, range: .all, today: _today).values.single;
+
+    expect(day.nbDrills, 2);
+    expect(day.nbPuzzles, 40);
+    expect(day.performance, 1800, reason: '(10 × 1500 + 30 × 1900) / 40');
+    expect(day.successRate, closeTo(0.6, 1e-9), reason: '24 solved out of 40');
+    expect(day.expected, closeTo(0.5, 1e-9));
   });
 
-  test('all the Drills are grouped by week, then by month over a long time', () {
-    // Monday 5 January 2026, then a Drill a day: 3 weeks of 7 and 4 more
-    final (:values, :grouping) = drillChartSeries(
-      _daily(61, from: DateTime(2026, 1, 5)),
-      metric: .performance,
-      range: .all,
+  test('a day has no share expected when one of its Drills has none', () {
+    final points = [
+      _point(DateTime(2026, 10, 25, 18)),
+      _point(DateTime(2026, 10, 25, 22), expected: null),
+    ].toIList();
+
+    final day = drillChartSeries(points, range: .all, today: _today).values.single;
+
+    expect(day.expected, isNull);
+    expect(day.successRate, 0.6, reason: 'still of both Drills');
+  });
+
+  test('the Drills without puzzles are left out', () {
+    final points = [
+      _point(DateTime(2026, 10, 24), nbPuzzles: 0, performance: null),
+      _point(DateTime(2026, 10, 25)),
+    ].toIList();
+
+    final series = drillChartSeries(points, range: .all, today: _today);
+
+    expect(series.values.map((v) => v.date), [DateTime(2026, 10, 25)]);
+    expect(series.total!.nbDrills, 1);
+  });
+
+  test('the averages are of the days of the range, compared with as many days before', () {
+    final points = [
+      _point(DateTime(2026, 10, 11), performance: 1500),
+      _point(DateTime(2026, 10, 12), performance: 1700),
+      _point(DateTime(2026, 10, 18), nbPuzzles: 10, performance: 1600, successRate: 0.4),
+      _point(DateTime(2026, 10, 19), nbPuzzles: 10, performance: 1800, successRate: 0.8),
+      _point(DateTime(2026, 10, 25), nbPuzzles: 30, performance: 2000, successRate: 0.7),
+    ].toIList();
+
+    final week = drillChartSeries(points, range: .week, today: _today);
+
+    // From 19 to 25 October
+    expect(week.total!.nbDrills, 2);
+    expect(week.total!.performance, 1950, reason: '(10 × 1800 + 30 × 2000) / 40');
+    expect(week.total!.successRate, closeTo(0.725, 1e-9));
+    // From 12 to 18 October
+    expect(week.previous!.nbDrills, 2);
+    expect(week.previous!.performance, closeTo(1666.67, 0.01));
+
+    final year = drillChartSeries(
+      _daily(from: DateTime(2025, 6, 1)),
+      range: .year,
+      today: _today,
     );
+    expect(year.total!.nbDrills, 365, reason: 'not the days before of its first week');
+    expect(year.previous!.nbDrills, 147, reason: 'from 1 June to 25 October 2025');
 
-    expect(grouping, DrillChartGrouping.week);
-    expect(values, hasLength(9));
-    expect(values.first.date, DateTime(2026, 1, 5));
-    expect(values.first.value, 1403, reason: 'the average of its 7 Drills');
-    expect(values.last.date, DateTime(2026, 3, 2));
-    expect(values.last.value, 1458, reason: 'its 5 Drills, from Monday to Friday');
-
-    final longTime = _daily(61, every: const Duration(days: 10));
-    final byMonth = drillChartSeries(longTime, metric: .performance, range: .all);
-    expect(byMonth.grouping, DrillChartGrouping.month);
-    expect(byMonth.values.first.date, DateTime(2026));
-    expect(byMonth.values.first.value, 1401.5, reason: 'the 1st, 11th, 21st and 31st January');
+    expect(drillChartSeries(points, range: .all, today: _today).previous, isNull);
+    final noneBefore = drillChartSeries(points.sublist(3), range: .week, today: _today);
+    expect(noneBefore.previous, isNull);
   });
 
-  test('the share of puzzles solved comes with the share expected', () {
-    final points = _daily(3, expected: (i) => i == 1 ? null : 0.5);
+  test('a year is grouped by week, its first week taken whole', () {
+    final points = _daily(from: DateTime(2025, 6, 1));
 
-    final (:values, grouping: _) = drillChartSeries(points, metric: .successRate, range: .last30);
+    final series = drillChartSeries(points, range: .year, today: _today);
 
-    expect(values.map((v) => v.value), [0.6, 0.6, 0.6]);
-    expect(values.map((v) => v.expected), [0.5, null, 0.5]);
+    expect(series.grouping, DrillChartGrouping.week);
+    // The year starts on Sunday 26 October 2025: its week from Monday 20 October
+    expect(series.start, DateTime(2025, 10, 20));
+    expect(series.values.first.nbDrills, 7);
+    expect(series.values.last.date, DateTime(2026, 10, 19));
+    expect(series.values.last.slot, series.nbSlots - 1);
   });
 
-  test('the rating chart chosen before it was removed is the performance chart', () {
-    final prefs = DrillChartPrefs.fromJson(const {'metric': 'rating', 'range': 'all'});
+  test('the whole Drill History is grouped by day, week or month by how long it is', () {
+    DrillChartGrouping groupingFrom(DateTime from) => drillChartSeries(
+      _daily(from: from),
+      range: .all,
+      today: _today,
+    ).grouping;
 
-    expect(prefs.metric, DrillChartMetric.performance);
-    expect(prefs.range, DrillChartRange.all, reason: 'the range is kept');
+    expect(groupingFrom(DateTime(2026, 7, 27)), DrillChartGrouping.day, reason: '91 days');
+    expect(groupingFrom(DateTime(2026, 7, 26)), DrillChartGrouping.week);
+    expect(groupingFrom(DateTime(2025, 4, 26)), DrillChartGrouping.week, reason: '548 days');
+    expect(groupingFrom(DateTime(2025, 4, 25)), DrillChartGrouping.month);
+
+    final byMonth = drillChartSeries(
+      _daily(from: DateTime(2025, 4, 25)),
+      range: .all,
+      today: _today,
+    );
+    expect(byMonth.start, DateTime(2025, 4));
+    expect(byMonth.nbSlots, 19);
+    expect(byMonth.values.first.nbDrills, 6, reason: 'from 25 to 30 April');
+  });
+
+  test('only the ranges the Drill History covers are offered, and all of it', () {
+    IList<DrillChartRange> rangesFrom(DateTime from) =>
+        drillChartRanges(_daily(from: from), today: _today);
+
+    expect(rangesFrom(DateTime(2026, 10, 20)), [DrillChartRange.all]);
+    expect(rangesFrom(DateTime(2026, 10, 19)), [DrillChartRange.week, DrillChartRange.all]);
+    expect(rangesFrom(DateTime(2025, 10, 26)), DrillChartRange.values);
+    expect(drillChartRanges(const IListConst([]), today: _today), [DrillChartRange.all]);
+  });
+
+  test('a range of the last Drills chosen before is the last month', () {
+    expect(DrillChartPrefs.fromJson(const {'range': 'last10'}).range, DrillChartRange.month);
+    expect(
+      DrillChartPrefs.fromJson(const {'metric': 'successRate', 'range': 'all'}).range,
+      DrillChartRange.all,
+    );
   });
 }
 
-/// [nb] Drills, one every [every] from [from]: the i-th at 1400 + i performance, with 60 % of its
-/// puzzles solved.
-IList<DrillChartPoint> _daily(
-  int nb, {
-  DateTime? from,
-  Duration every = const Duration(days: 1),
-  double? Function(int i)? expected,
-}) => [
-  for (var i = 0; i < nb; i++)
-    (
-      startedAt: (from ?? DateTime(2026)).add(every * i),
-      performance: 1400 + i,
-      isPerformanceReliable: true,
-      successRate: 0.6,
-      expectedSuccessRate: expected != null ? expected(i) : 0.5,
-    ),
+/// A Drill a day, in the evening, from [from] to [_today], except on the days of [skip].
+IList<DrillChartPoint> _daily({required DateTime from, Set<DateTime> skip = const {}}) => [
+  for (var day = from; !day.isAfter(_today); day = DateTime(day.year, day.month, day.day + 1))
+    if (!skip.contains(day)) _point(DateTime(day.year, day.month, day.day, 20)),
 ].toIList();
+
+DrillChartPoint _point(
+  DateTime startedAt, {
+  int nbPuzzles = 20,
+  int? performance = 1600,
+  double successRate = 0.6,
+  double? expected = 0.5,
+}) => (
+  startedAt: startedAt,
+  nbPuzzles: nbPuzzles,
+  performance: performance,
+  successRate: successRate,
+  expectedSuccessRate: expected,
+);

@@ -678,6 +678,9 @@ class const _GameListTile({
 /// The rating history chart of a perf, with its date ranges, for the Drills puzzle profile.
 typedef RatingHistoryChart = _EloChart;
 
+/// The date range buttons of the rating history chart, for the charts of the Drill History.
+typedef ChartRangeButton = _RangeButton;
+
 class const _EloChart(final UserRatingHistoryPerf value) extends StatefulWidget {
   @override
   State<_EloChart> createState() => _EloChartState();

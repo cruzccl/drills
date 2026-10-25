@@ -610,16 +610,17 @@ void main() {
     await _playOnePuzzleDrill(tester);
     await tester.tap(find.byIcon(Icons.history));
     await tester.pumpAndSettle();
+    // both charts, over the only day played: the whole Drill History is the only range
+    expect(find.byType(LineChart), findsOneWidget);
+    expect(find.byType(BarChart), findsOneWidget);
+    expect(find.text('2 Drills, 2 problemas · por días'), findsOneWidget);
+    expect(find.text('Todo'), findsOneWidget);
+    expect(find.text('1M'), findsNothing);
+    // the Drills, below the charts
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -400));
+    await tester.pumpAndSettle();
     expect(find.text('Healthy mix'), findsNWidgets(2));
     expect(find.text('2 Drills · '), findsOneWidget);
-    expect(find.byType(LineChart), findsOneWidget);
-    expect(find.text('Últimos 2 Drills'), findsOneWidget);
-    await tester.tap(find.text('Aciertos'));
-    await tester.pumpAndSettle();
-    expect(find.byType(BarChart), findsOneWidget);
-    await tester.tap(find.text('Todos'));
-    await tester.pumpAndSettle();
-    expect(find.text('Todos los Drills (2)'), findsOneWidget);
 
     for (var i = 0; i < 2; i++) {
       await tester.longPress(find.text('Healthy mix').first);

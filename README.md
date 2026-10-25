@@ -28,8 +28,10 @@ summary of the results.
   even after the app was closed. Each Lichess account signed in on the device has its own.
 - Puzzle Storm, as in the official app, is one tap away on the home screen, to warm up before a
   Drill. It counts neither on the puzzle rating nor in the Drill.
-- Past Drills are kept on the device in a Drill History, one per account, grouped by day, under a
-  chart of their performance or success rate; each one can be reviewed again or deleted.
+- Past Drills are kept on the device in a Drill History, one per account, grouped by day, under
+  charts of their performance and success rate over the last week, month, 3 months, year or all
+  of them, by day played (by week over longer ranges), with their averages; each Drill can be
+  reviewed again or deleted.
 - Your Lichess profile, from your avatar on the home screen, shows only puzzles and Puzzle Storm:
   the two ratings and the daily activity. The puzzle rating opens the puzzle rating history and the
   puzzle dashboard, whose themes set up the next Drill; the Puzzle Storm one opens the Storm high
