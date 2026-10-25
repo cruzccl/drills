@@ -357,12 +357,24 @@ class const _RatingHistorySection({required final UserId userId}) extends Consum
   }
 }
 
-/// The puzzle dashboard: global results over a number of days, then the improvement areas and
-/// strengths, whose themes set up a Drill.
-class const _DashboardSection() extends ConsumerWidget {
+/// The puzzle dashboard: global results over a number of days and their radar by theme, then the
+/// improvement areas and strengths, whose themes set up a Drill.
+class const _DashboardSection() extends ConsumerStatefulWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final dashboard = ref.watch(puzzleDashboardProvider(ref.watch(daysProvider).days));
+  ConsumerState<_DashboardSection> createState() => _DashboardSectionState();
+}
+
+class _DashboardSectionState() extends ConsumerState<_DashboardSection> {
+  /// The last dashboard loaded, shown dimmed while the one of other days loads: the section
+  /// keeps its height instead of collapsing, which would scroll the screen back to its top.
+  AsyncData<PuzzleDashboard?>? _lastLoaded;
+
+  @override
+  Widget build(BuildContext context) {
+    final requested = ref.watch(puzzleDashboardProvider(ref.watch(daysProvider).days));
+    if (requested case AsyncData() && final loaded) _lastLoaded = loaded;
+    final isLoading = requested is AsyncLoading && _lastLoaded != null;
+    final dashboard = isLoading ? _lastLoaded! : requested;
     final title = Row(
       children: [
         Expanded(
@@ -387,28 +399,42 @@ class const _DashboardSection() extends ConsumerWidget {
       AsyncData(value: final dashboard?) when dashboard.global.nb > 0 => _Section(
         title: title,
         children: [
-          StatCardRow([
-            StatCard(context.l10n.performance, value: '${dashboard.global.performance}'),
-            StatCard(
-              context.l10n
-                  .puzzleNbPlayed(dashboard.global.nb)
-                  .replaceAll(RegExp(r'\d+'), '')
-                  .trim()
-                  .capitalize(),
-              value: dashboard.global.nb.toString().localizeNumbers(),
+          AnimatedOpacity(
+            opacity: isLoading ? 0.5 : 1.0,
+            duration: const Duration(milliseconds: 150),
+            child: Column(
+              crossAxisAlignment: .stretch,
+              children: [
+                StatCardRow([
+                  StatCard(context.l10n.performance, value: '${dashboard.global.performance}'),
+                  StatCard(
+                    context.l10n
+                        .puzzleNbPlayed(dashboard.global.nb)
+                        .replaceAll(RegExp(r'\d+'), '')
+                        .trim()
+                        .capitalize(),
+                    value: dashboard.global.nb.toString().localizeNumbers(),
+                  ),
+                  StatCard(
+                    context.l10n.puzzleSolved.capitalize(),
+                    value: '${(dashboard.global.firstWins / dashboard.global.nb * 100).round()}%',
+                  ),
+                ]),
+                // The official app's radar of the themes, without its button to replay the failed puzzles.
+                if (dashboard.themes.take(9).sortedBy((e) => e.theme.name).toList()
+                    case final chartData when chartData.length >= 3)
+                  Card(margin: const EdgeInsets.only(top: 8.0), child: PuzzleChart(chartData)),
+                for (final metric in [Metric.improvementArea, Metric.strength])
+                  if (metric.sort(dashboard.themes, dashboard) case final themes
+                      when themes.isNotEmpty)
+                    ListSection(
+                      margin: const EdgeInsets.only(top: 16.0),
+                      header: Text(metric.title(context.l10n)),
+                      children: [for (final data in themes) _ThemeRow(data: data, metric: metric)],
+                    ),
+              ],
             ),
-            StatCard(
-              context.l10n.puzzleSolved.capitalize(),
-              value: '${(dashboard.global.firstWins / dashboard.global.nb * 100).round()}%',
-            ),
-          ]),
-          for (final metric in [Metric.improvementArea, Metric.strength])
-            if (metric.sort(dashboard.themes, dashboard) case final themes when themes.isNotEmpty)
-              ListSection(
-                margin: const EdgeInsets.only(top: 16.0),
-                header: Text(metric.title(context.l10n)),
-                children: [for (final data in themes) _ThemeRow(data: data, metric: metric)],
-              ),
+          ),
         ],
       ),
       AsyncError() => _Section(

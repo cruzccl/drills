@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -7,6 +8,7 @@ import 'package:lichess_mobile/src/network/http.dart';
 import 'package:lichess_mobile/src/view/drill/drill_home_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_profile_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
+import 'package:lichess_mobile/src/view/puzzle/dashboard_screen.dart';
 import 'package:lichess_mobile/src/widgets/user.dart';
 
 import '../../model/auth/fake_auth_storage.dart';
@@ -42,6 +44,11 @@ void main() {
                 '/api/user/testuser/rating-history' => http.Response(_ratingHistoryResponse, 200),
                 '/api/user/testuser/activity' => http.Response(_activityResponse, 200),
                 '/api/puzzle/dashboard/30' => http.Response(_dashboardResponse, 200),
+                // Slow, to see the dashboard of the other days loading.
+                '/api/puzzle/dashboard/7' => await Future.delayed(
+                  const Duration(milliseconds: 500),
+                  () => http.Response(_dashboardResponse, 200),
+                ),
                 '/api/storm/dashboard/testuser' => http.Response(_stormResponse, 200),
                 _ => http.Response('', 404),
               };
@@ -98,6 +105,8 @@ void main() {
 
     expect(find.text(DrillStrings.puzzleRating), findsOneWidget);
     expect(find.text(DrillStrings.highestRating), findsOneWidget);
+    await tester.scrollUntilVisible(find.byType(PuzzleChart), 200, scrollable: topScrollable);
+    expect(find.textContaining('to replay'), findsNothing);
     await tester.scrollUntilVisible(find.text('Improvement areas'), 200, scrollable: topScrollable);
     await tester.scrollUntilVisible(find.text('Strengths'), 200, scrollable: topScrollable);
     expect(find.text('Fork'), findsOneWidget);
@@ -110,6 +119,30 @@ void main() {
     // A section reloaded on the way back would change height under the player's finger.
     expect(requests['/api/puzzle/dashboard/30'], 1);
     expect(requests['/api/user/testuser/rating-history'], 1);
+  });
+
+  testWidgets('the puzzle dashboard of other days loads without moving the screen', (tester) async {
+    await openProfile(tester);
+    await tester.tap(find.text(DrillStrings.puzzles));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.byType(PuzzleChart), 200, scrollable: topScrollable);
+    final offset = tester.state<ScrollableState>(topScrollable).position.pixels;
+
+    ProviderScope.containerOf(tester.element(find.byType(PuzzleChart)))
+            .read(daysProvider.notifier)
+            .state =
+        Days.week;
+    await tester.pump();
+
+    // The dashboard of the last 30 days stays while the one of the last week loads: the screen
+    // doesn't go back to its top. It may only move by the line its narrower days selector frees.
+    expect(find.byType(PuzzleChart), findsOneWidget);
+    expect(tester.state<ScrollableState>(topScrollable).position.pixels, closeTo(offset, 30));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    expect(requests['/api/puzzle/dashboard/7'], 1);
+    expect(find.byType(PuzzleChart), findsOneWidget);
+    expect(tester.state<ScrollableState>(topScrollable).position.pixels, closeTo(offset, 30));
   });
 
   testWidgets('a theme of the puzzle dashboard sets up the Drill', (tester) async {
@@ -161,7 +194,7 @@ const _activityResponse = '''
 ''';
 
 const _dashboardResponse = '''
-{"days":30,"global":{"nb":100,"firstWins":60,"replayWins":0,"puzzleRatingAvg":1700,"performance":1700},"themes":{"mateIn3":{"theme":"Mate in 3","results":{"nb":20,"firstWins":8,"replayWins":0,"puzzleRatingAvg":1700,"performance":1500}},"fork":{"theme":"Fork","results":{"nb":30,"firstWins":27,"replayWins":0,"puzzleRatingAvg":1700,"performance":1900}}}}
+{"days":30,"global":{"nb":100,"firstWins":60,"replayWins":0,"puzzleRatingAvg":1700,"performance":1700},"themes":{"mateIn3":{"theme":"Mate in 3","results":{"nb":20,"firstWins":8,"replayWins":0,"puzzleRatingAvg":1700,"performance":1500}},"fork":{"theme":"Fork","results":{"nb":30,"firstWins":27,"replayWins":0,"puzzleRatingAvg":1700,"performance":1900}},"pin":{"theme":"Pin","results":{"nb":10,"firstWins":6,"replayWins":0,"puzzleRatingAvg":1700,"performance":1650}}}}
 ''';
 
 const _stormResponse = '''
