@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lichess_mobile/src/model/auth/auth_controller.dart';
 import 'package:lichess_mobile/src/model/common/id.dart';
@@ -7,6 +8,8 @@ import 'package:lichess_mobile/src/model/common/perf.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_angle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_providers.dart';
+import 'package:lichess_mobile/src/model/puzzle/puzzle_repository.dart';
+import 'package:lichess_mobile/src/model/puzzle/storm.dart';
 import 'package:lichess_mobile/src/model/user/user.dart';
 import 'package:lichess_mobile/src/model/user/user_repository.dart';
 import 'package:lichess_mobile/src/model/user/user_repository_providers.dart';
@@ -19,6 +22,7 @@ import 'package:lichess_mobile/src/utils/navigation.dart';
 import 'package:lichess_mobile/src/utils/string.dart';
 import 'package:lichess_mobile/src/view/drill/drill_history_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
+import 'package:lichess_mobile/src/view/drill/drill_summary.dart';
 import 'package:lichess_mobile/src/view/puzzle/dashboard_screen.dart';
 import 'package:lichess_mobile/src/view/user/perf_stats_screen.dart';
 import 'package:lichess_mobile/src/view/user/user_activity.dart';
@@ -27,6 +31,7 @@ import 'package:lichess_mobile/src/widgets/feedback.dart';
 import 'package:lichess_mobile/src/widgets/haptic_refresh_indicator.dart';
 import 'package:lichess_mobile/src/widgets/list.dart';
 import 'package:lichess_mobile/src/widgets/platform.dart';
+import 'package:lichess_mobile/src/widgets/platform_choice_chip.dart';
 import 'package:lichess_mobile/src/widgets/rating.dart';
 import 'package:lichess_mobile/src/widgets/stat_card.dart';
 import 'package:lichess_mobile/src/widgets/user.dart';
@@ -273,22 +278,57 @@ class const _PuzzlesScreen({required final UserId userId}) extends ConsumerWidge
   }
 }
 
-/// The Puzzle Storm details, as in the official app: the high scores and the best run of each day.
-class const _StormScreen({required final UserId userId}) extends ConsumerWidget {
+/// The Puzzle Storm details, as in the official app: the high scores, then a chart and a table of
+/// the best run of each day of a period.
+class const _StormScreen({required final UserId userId}) extends ConsumerStatefulWidget {
   static Route<void> buildRoute(UserId userId) {
     return buildScreenRoute(screen: _StormScreen(userId: userId));
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_StormScreen> createState() => _StormScreenState();
+}
+
+class _StormScreenState() extends ConsumerState<_StormScreen> {
+  _StormPeriod _period = .month;
+
+  /// The last dashboard loaded, shown dimmed while the one of another period loads: the screen
+  /// keeps its height instead of collapsing, which would scroll it back to its top.
+  AsyncData<StormDashboard>? _lastLoaded;
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = _stormDashboardProvider((widget.userId, _period.days));
+    final requested = ref.watch(provider);
+    if (requested case AsyncData() && final loaded) _lastLoaded = loaded;
+    final isLoading = requested is AsyncLoading && _lastLoaded != null;
     return _DetailsScaffold(
       icon: Perf.storm.icon,
       title: 'Puzzle Storm',
-      onRefresh: () => ref.refresh(stormDashboardProvider(userId).future),
-      children: [_StormSection(userId: userId)],
+      onRefresh: () => ref.refresh(provider.future),
+      children: [
+        _StormSection(
+          dashboard: isLoading ? _lastLoaded! : requested,
+          isLoading: isLoading,
+          period: _period,
+          onPeriodChanged: (period) => setState(() => _period = period),
+        ),
+      ],
     );
   }
 }
+
+/// The periods of the Puzzle Storm details, in days.
+enum _StormPeriod(final int days, final String label) {
+  month(30, DrillStrings.last30Days),
+  quarter(90, DrillStrings.last90Days),
+  year(365, DrillStrings.lastYear),
+}
+
+final _stormDashboardProvider = FutureProvider.autoDispose.family<StormDashboard, (UserId, int)>(
+  (ref, args) => ref.read(puzzleRepositoryProvider).stormDashboard(args.$1, days: args.$2),
+  name: 'DrillProfileStormDashboardProvider',
+);
 
 /// A screen of details opened from a rating of the profile: its sections in a refreshable list.
 class const _DetailsScaffold({
@@ -484,14 +524,19 @@ class const _ThemeRow({required final PuzzleDashboardData data, required final M
   }
 }
 
-/// The Puzzle Storm high scores, and the best run of each day Lichess keeps.
-class const _StormSection({required final UserId userId}) extends ConsumerWidget {
+/// The Puzzle Storm high scores, then the chart and the table of the best run of each day of the
+/// period, dimmed while [isLoading] the dashboard of another period.
+class const _StormSection({
+  required final AsyncValue<StormDashboard> dashboard,
+  required final bool isLoading,
+  required final _StormPeriod period,
+  required final ValueChanged<_StormPeriod> onPeriodChanged,
+}) extends StatelessWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final dashboard = ref.watch(stormDashboardProvider(userId));
+  Widget build(BuildContext context) {
     final title = Text(context.l10n.stormHighscores);
     return switch (dashboard) {
-      AsyncData(value: final dashboard?) => Column(
+      AsyncData(value: final dashboard) => Column(
         crossAxisAlignment: .stretch,
         children: [
           _Section(
@@ -509,71 +554,77 @@ class const _StormSection({required final UserId userId}) extends ConsumerWidget
               ]),
             ],
           ),
-          _Section(
-            title: Text(context.l10n.stormBestRunOfDay),
-            children: [
-              if (dashboard.dayHighscores.isEmpty)
-                Text(context.l10n.mobilePuzzleStormNothingToShow)
-              else
-                Card(
-                  margin: EdgeInsets.zero,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                    child: Table(
-                      columnWidths: const {0: FlexColumnWidth(1.4)},
-                      children: [
-                        TableRow(
-                          children: [
-                            for (final (i, label) in [
-                              '',
-                              context.l10n.stormScore,
-                              context.l10n.stormTime,
-                              context.l10n.stormHighestSolved,
-                              context.l10n.stormRuns,
-                            ].indexed)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 6.0),
-                                child: Text(
-                                  label,
-                                  textAlign: i == 0 ? .start : .end,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: textShade(context, Styles.subtitleOpacity),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        for (final day in dashboard.dayHighscores)
+          AnimatedOpacity(
+            opacity: isLoading ? 0.5 : 1.0,
+            duration: const Duration(milliseconds: 150),
+            child: _Section(
+              title: Text(context.l10n.stormBestRunOfDay),
+              children: [
+                _StormChart(dashboard, period: period, onPeriodChanged: onPeriodChanged),
+                const SizedBox(height: 8.0),
+                if (dashboard.dayHighscores.isEmpty)
+                  Text(context.l10n.mobilePuzzleStormNothingToShow)
+                else
+                  Card(
+                    margin: EdgeInsets.zero,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                      child: Table(
+                        columnWidths: const {0: FlexColumnWidth(1.4)},
+                        children: [
                           TableRow(
                             children: [
-                              for (final (i, value) in [
-                                drillDayName(day.day, short: true),
-                                '${day.score}',
-                                '${day.time}s',
-                                '${day.highest}',
-                                '${day.runs}',
+                              for (final (i, label) in [
+                                '',
+                                context.l10n.stormScore,
+                                context.l10n.stormTime,
+                                context.l10n.stormHighestSolved,
+                                context.l10n.stormRuns,
                               ].indexed)
                                 Padding(
                                   padding: const EdgeInsets.symmetric(vertical: 6.0),
                                   child: Text(
-                                    value,
+                                    label,
                                     textAlign: i == 0 ? .start : .end,
-                                    style: i == 1
-                                        ? TextStyle(
-                                            fontWeight: .bold,
-                                            color: context.lichessColors.brag,
-                                          )
-                                        : null,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: textShade(context, Styles.subtitleOpacity),
+                                    ),
                                   ),
                                 ),
                             ],
                           ),
-                      ],
+                          for (final day in dashboard.dayHighscores)
+                            TableRow(
+                              children: [
+                                for (final (i, value) in [
+                                  drillDayName(day.day, short: true),
+                                  '${day.score}',
+                                  '${day.time}s',
+                                  '${day.highest}',
+                                  '${day.runs}',
+                                ].indexed)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 6.0),
+                                    child: Text(
+                                      value,
+                                      textAlign: i == 0 ? .start : .end,
+                                      style: i == 1
+                                          ? TextStyle(
+                                              fontWeight: .bold,
+                                              color: context.lichessColors.brag,
+                                            )
+                                          : null,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -583,6 +634,194 @@ class const _StormSection({required final UserId userId}) extends ConsumerWidget
       ),
       _ => const SizedBox.shrink(),
     };
+  }
+}
+
+/// The chart of the best run of each day of the period: a bar per day played, the best of the
+/// period brighter, under a line at the all-time high score.
+class const _StormChart(
+  final StormDashboard dashboard, {
+  required final _StormPeriod period,
+  required final ValueChanged<_StormPeriod> onPeriodChanged,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final today = DateUtils.dateOnly(DateTime.now());
+    // By the number of days before today, within the period.
+    final byDaysAgo = {
+      for (final day in dashboard.dayHighscores)
+        if (today.difference(DateUtils.dateOnly(day.day)).inDays case final daysAgo
+            when daysAgo >= 0 && daysAgo < period.days)
+          daysAgo: day,
+    };
+    final played = byDaysAgo.values.sortedBy((d) => d.day);
+    final last = played.lastOrNull;
+    final previous = played.length > 1 ? played[played.length - 2] : null;
+    final change = last != null && previous != null ? last.score - previous.score : null;
+    final bestOfPeriod = played.map((d) => d.score).maxOrNull;
+    final allTime = dashboard.highScore.allTime;
+    final brag = context.lichessColors.brag;
+    final subtitleStyle = TextStyle(
+      fontSize: 12,
+      color: textShade(context, Styles.subtitleOpacity),
+    );
+
+    return Card(
+      margin: .zero,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16.0))),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: .stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: last == null
+                      ? const SizedBox.shrink()
+                      : Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: '${last.score}',
+                                style: const TextStyle(fontSize: 28, fontWeight: .bold),
+                              ),
+                              if (change != null)
+                                TextSpan(
+                                  text:
+                                      '  ${formatRatingChange(change)} ${DrillStrings.sinceLastDay}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: .w500,
+                                    color: signColor(context, change),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                ),
+                Wrap(
+                  spacing: 4.0,
+                  children: [
+                    for (final choice in _StormPeriod.values)
+                      PlatformChoiceChip(
+                        label: Text(choice.label),
+                        selected: period == choice,
+                        showCheckmark: false,
+                        onSelected: (_) => onPeriodChanged(choice),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+            Text(
+              '${DrillStrings.stormChartCaption} · ${played.length} '
+              '${played.length == 1 ? DrillStrings.dayUnit : DrillStrings.daysUnit}',
+              style: subtitleStyle,
+            ),
+            const SizedBox(height: 12.0),
+            SizedBox(
+              height: 120.0,
+              child: played.isEmpty
+                  ? Center(child: Text(DrillStrings.noChartData, style: subtitleStyle))
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        final barWidth = (constraints.maxWidth / period.days * 0.7).clamp(0.5, 9.0);
+                        final gridColor = ColorScheme.of(context).outlineVariant;
+                        return BarChart(
+                          BarChartData(
+                            minY: 0,
+                            maxY: ((allTime + 2) / 10).ceilToDouble() * 10,
+                            alignment: .spaceAround,
+                            // A group per day of the period, oldest first: the days not played
+                            // leave a gap.
+                            barGroups: [
+                              for (var i = 0; i < period.days; i++)
+                                BarChartGroupData(
+                                  x: i,
+                                  barRods: [
+                                    BarChartRodData(
+                                      toY: (byDaysAgo[period.days - 1 - i]?.score ?? 0).toDouble(),
+                                      width: barWidth,
+                                      color: byDaysAgo[period.days - 1 - i]?.score == bestOfPeriod
+                                          ? brag
+                                          : brag.withValues(alpha: 0.55),
+                                      borderRadius: BorderRadius.all(
+                                        Radius.circular(barWidth > 5 ? 2.0 : 0.5),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                            extraLinesData: ExtraLinesData(
+                              horizontalLines: [
+                                HorizontalLine(
+                                  y: allTime.toDouble(),
+                                  color: brag,
+                                  strokeWidth: 1,
+                                  dashArray: const [5, 4],
+                                  label: HorizontalLineLabel(
+                                    show: true,
+                                    alignment: Alignment.topRight,
+                                    padding: const EdgeInsets.only(bottom: 2.0),
+                                    style: TextStyle(fontSize: 10, color: brag),
+                                    labelResolver: (_) => '${DrillStrings.highScore} $allTime',
+                                  ),
+                                ),
+                              ],
+                            ),
+                            borderData: FlBorderData(
+                              show: true,
+                              border: Border(bottom: BorderSide(color: gridColor)),
+                            ),
+                            gridData: const FlGridData(show: false),
+                            titlesData: const FlTitlesData(show: false),
+                            barTouchData: BarTouchData(
+                              touchTooltipData: BarTouchTooltipData(
+                                getTooltipColor: (_) => ColorScheme.of(context).inverseSurface,
+                                fitInsideHorizontally: true,
+                                fitInsideVertically: true,
+                                getTooltipItem: (group, _, _, _) {
+                                  final day = byDaysAgo[period.days - 1 - group.x];
+                                  if (day == null) return null;
+                                  final onInverse = ColorScheme.of(context).onInverseSurface;
+                                  return BarTooltipItem(
+                                    '${day.score}\n',
+                                    TextStyle(fontWeight: .bold, color: onInverse),
+                                    children: [
+                                      TextSpan(
+                                        text: drillDayName(day.day, short: true),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: .normal,
+                                          color: onInverse,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            const SizedBox(height: 6.0),
+            Row(
+              mainAxisAlignment: .spaceBetween,
+              children: [
+                Text(
+                  drillDayName(today.subtract(Duration(days: period.days - 1)), short: true),
+                  style: subtitleStyle,
+                ),
+                Text(drillDayName(today, short: true), style: subtitleStyle),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

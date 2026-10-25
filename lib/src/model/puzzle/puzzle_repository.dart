@@ -149,9 +149,14 @@ class PuzzleRepository(final LichessClient client) {
     );
   }
 
-  Future<StormDashboard> stormDashboard(UserId userId) {
+  /// The Puzzle Storm dashboard of [userId], with the best run of each of the last [days] days
+  /// (30 when null, up to 365).
+  Future<StormDashboard> stormDashboard(UserId userId, {int? days}) {
     return client.readJson(
-      Uri(path: '/api/storm/dashboard/$userId'),
+      Uri(
+        path: '/api/storm/dashboard/$userId',
+        queryParameters: days != null ? {'days': '$days'} : null,
+      ),
       mapper: _stormDashboardFromJson,
     );
   }
