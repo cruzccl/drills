@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,7 +30,13 @@ void main() {
   /// The number of requests made for each path.
   final requests = <String, int>{};
 
-  setUp(requests.clear);
+  /// The number of days asked for each Puzzle Storm dashboard.
+  final stormDays = <String?>[];
+
+  setUp(() {
+    requests.clear();
+    stormDays.clear();
+  });
 
   Future<void> openProfile(WidgetTester tester) async {
     final app = await makeTestProviderScope(
@@ -39,6 +48,9 @@ void main() {
           (ref) => FakeHttpClientFactory(
             () => MockClient((request) async {
               requests.update(request.url.path, (nb) => nb + 1, ifAbsent: () => 1);
+              if (request.url.path == '/api/storm/dashboard/testuser') {
+                stormDays.add(request.url.queryParameters['days']);
+              }
               return switch (request.url.path) {
                 '/api/user/testuser' => http.Response(_userResponse, 200),
                 '/api/user/testuser/rating-history' => http.Response(_ratingHistoryResponse, 200),
@@ -49,7 +61,7 @@ void main() {
                   const Duration(milliseconds: 500),
                   () => http.Response(_dashboardResponse, 200),
                 ),
-                '/api/storm/dashboard/testuser' => http.Response(_stormResponse, 200),
+                '/api/storm/dashboard/testuser' => http.Response(_stormResponse(), 200),
                 _ => http.Response('', 404),
               };
             }),
@@ -175,9 +187,35 @@ void main() {
     expect(find.text('All-time'), findsOneWidget);
     expect(find.text('24'), findsOneWidget);
     expect(find.text('Best run of day'), findsOneWidget);
+    expect(find.byType(BarChart), findsOneWidget);
+    expect(
+      find.textContaining('+3 ${DrillStrings.sinceLastDay}', findRichText: true),
+      findsOneWidget,
+    );
+    expect(
+      find.text('${DrillStrings.stormChartCaption} · 8 ${DrillStrings.daysUnit}'),
+      findsOneWidget,
+    );
     // Every day Lichess gives, not only the last week.
-    await tester.scrollUntilVisible(find.textContaining('Oct 14'), 200, scrollable: topScrollable);
+    await tester.scrollUntilVisible(find.text('1150'), 200, scrollable: topScrollable);
     expect(find.text('1306'), findsOneWidget);
+  });
+
+  testWidgets('the Puzzle Storm chart loads the period chosen without moving the screen', (
+    tester,
+  ) async {
+    await openProfile(tester);
+    await tester.tap(find.text('Puzzle Storm'));
+    await tester.pumpAndSettle();
+    expect(stormDays, ['30']);
+
+    await tester.tap(find.text(DrillStrings.last90Days));
+    await tester.pump();
+    // The last 30 days stay while the last 90 load.
+    expect(find.byType(BarChart), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(stormDays, ['30', '90']);
+    expect(find.byType(BarChart), findsOneWidget);
   });
 }
 
@@ -197,6 +235,38 @@ const _dashboardResponse = '''
 {"days":30,"global":{"nb":100,"firstWins":60,"replayWins":0,"puzzleRatingAvg":1700,"performance":1700},"themes":{"mateIn3":{"theme":"Mate in 3","results":{"nb":20,"firstWins":8,"replayWins":0,"puzzleRatingAvg":1700,"performance":1500}},"fork":{"theme":"Fork","results":{"nb":30,"firstWins":27,"replayWins":0,"puzzleRatingAvg":1700,"performance":1900}},"pin":{"theme":"Pin","results":{"nb":10,"firstWins":6,"replayWins":0,"puzzleRatingAvg":1700,"performance":1650}}}}
 ''';
 
-const _stormResponse = '''
-{"high":{"day":15,"week":15,"month":15,"allTime":24},"days":[{"_id":"2026/10/23","score":15,"moves":40,"errors":5,"combo":14,"time":147,"highest":1306,"runs":1},{"_id":"2026/10/22","score":12,"moves":30,"errors":4,"combo":10,"time":150,"highest":1210,"runs":2},{"_id":"2026/10/21","score":11,"moves":30,"errors":4,"combo":10,"time":150,"highest":1200,"runs":1},{"_id":"2026/10/20","score":10,"moves":30,"errors":4,"combo":10,"time":150,"highest":1190,"runs":1},{"_id":"2026/10/19","score":9,"moves":30,"errors":4,"combo":10,"time":150,"highest":1180,"runs":1},{"_id":"2026/10/18","score":8,"moves":30,"errors":4,"combo":10,"time":150,"highest":1170,"runs":1},{"_id":"2026/10/17","score":7,"moves":30,"errors":4,"combo":10,"time":150,"highest":1160,"runs":1},{"_id":"2026/10/14","score":6,"moves":30,"errors":4,"combo":10,"time":150,"highest":1150,"runs":1}]}
-''';
+/// The Puzzle Storm dashboard, with days played relative to today so that they fall within the
+/// periods of the chart.
+String _stormResponse() {
+  final today = DateTime.now();
+  String day(int daysAgo) {
+    final date = today.subtract(Duration(days: daysAgo));
+    return '${date.year}/${date.month}/${date.day}';
+  }
+
+  return jsonEncode({
+    'high': {'day': 15, 'week': 15, 'month': 15, 'allTime': 24},
+    'days': [
+      for (final (daysAgo, score, highest, runs) in [
+        (0, 15, 1306, 1),
+        (1, 12, 1210, 2),
+        (2, 11, 1200, 1),
+        (3, 10, 1190, 1),
+        (4, 9, 1180, 1),
+        (5, 8, 1170, 1),
+        (6, 7, 1160, 1),
+        (9, 6, 1150, 1),
+      ])
+        {
+          '_id': day(daysAgo),
+          'score': score,
+          'moves': 30,
+          'errors': 4,
+          'combo': 10,
+          'time': 150,
+          'highest': highest,
+          'runs': runs,
+        },
+    ],
+  });
+}
