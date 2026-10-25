@@ -173,8 +173,8 @@ List<(DateTime, List<DrillHistoryEntry>)> _groupByDay(IList<DrillHistoryEntry> e
     (day, dayEntries),
 ];
 
-/// A day of the Drill History: its date, how many Drills were played and how much they changed the
-/// player's rating.
+/// A day of the Drill History: its date, how many Drills and puzzles were played and how much they
+/// changed the player's rating.
 class const _DayHeader(final DateTime day, final List<DrillHistoryEntry> entries)
     extends StatelessWidget {
   @override
@@ -182,6 +182,7 @@ class const _DayHeader(final DateTime day, final List<DrillHistoryEntry> entries
     final changes = entries.map((e) => e.ratingChange).nonNulls;
     final change = changes.isEmpty ? null : changes.sum;
     final nb = entries.length;
+    final nbPuzzles = entries.map((e) => e.nbPlayed).sum;
     return Padding(
       padding: const EdgeInsets.only(left: 4.0, right: 4.0, bottom: 10.0),
       child: Row(
@@ -190,7 +191,8 @@ class const _DayHeader(final DateTime day, final List<DrillHistoryEntry> entries
         children: [
           Expanded(child: Text(drillDayName(day), style: Styles.sectionTitle)),
           Text(
-            '$nb ${nb == 1 ? DrillStrings.drillUnit : DrillStrings.drillsUnit}'
+            '$nb ${nb == 1 ? DrillStrings.drillUnit : DrillStrings.drillsUnit} · '
+            '$nbPuzzles ${nbPuzzles == 1 ? DrillStrings.puzzleUnit : DrillStrings.puzzlesUnit}'
             '${change != null ? ' · ' : ''}',
             style: TextStyle(fontSize: 13, color: textShade(context, Styles.subtitleOpacity)),
           ),
