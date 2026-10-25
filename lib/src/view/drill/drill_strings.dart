@@ -96,9 +96,6 @@ abstract class DrillStrings() {
   static const sinceLastDay = 'sobre el día anterior';
   static const dayUnit = 'día';
   static const daysUnit = 'días';
-  static const last30Days = '30 d';
-  static const last90Days = '90 d';
-  static const lastYear = '1 año';
 
   static const settingsAccount = 'Cuenta';
   static const settingsDrills = 'Drills';

@@ -893,7 +893,8 @@ String drillDayName(DateTime date, {bool short = false}) {
   return name.isEmpty ? name : name[0].toUpperCase() + name.substring(1);
 }
 
-/// A date range button of a Drill History chart, as the ones of the rating history chart had.
+/// A date range button of the charts of the Drill History and of Puzzle Storm, as the ones of the
+/// rating history chart had.
 class const ChartRangeButton({
   required final String text,
   required final VoidCallback onPressed,

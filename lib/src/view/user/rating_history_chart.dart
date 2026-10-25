@@ -433,10 +433,10 @@ enum DateRange() {
   allTime;
 
   String label(AppLocalizations _) => switch (this) {
-    DateRange.oneWeek => '1W',
+    DateRange.oneWeek => '1S',
     DateRange.oneMonth => '1M',
     DateRange.threeMonths => '3M',
-    DateRange.oneYear => '1Y',
-    DateRange.allTime => 'ALL',
+    DateRange.oneYear => '1A',
+    DateRange.allTime => 'TODO',
   };
 }
