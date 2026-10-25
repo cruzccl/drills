@@ -707,7 +707,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(LineChart), findsNothing);
     expect(find.text('Healthy mix'), findsNWidgets(2));
-    expect(find.text('2 Drills · '), findsOneWidget);
+    expect(find.text('2 Drills · 2 problemas · '), findsOneWidget);
 
     for (var i = 0; i < 2; i++) {
       await tester.longPress(find.text('Healthy mix').first);
