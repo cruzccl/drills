@@ -137,6 +137,48 @@ void main() {
     expect(drillChartRanges(const IListConst([]), today: _today), [DrillChartRange.all]);
   });
 
+  test('the current streak counts the days in a row up to today', () {
+    final points = _daily(from: DateTime(2026, 10, 1), skip: {DateTime(2026, 10, 19)});
+
+    final streak = drillStreak(points, today: _today);
+
+    expect(streak.current, 6, reason: 'from the 20th to today');
+    expect(streak.best, 18, reason: 'from the 1st to the 18th');
+    expect(streak.playedToday, isTrue);
+  });
+
+  test('the current streak goes on until a whole day passes without a Drill', () {
+    final points = _daily(from: DateTime(2026, 10, 20), skip: {DateTime(2026, 10, 25)});
+
+    expect(drillStreak(points, today: _today), (current: 5, best: 5, playedToday: false));
+    expect(drillStreak(points, today: DateTime(2026, 10, 26, 9)), (
+      current: 0,
+      best: 5,
+      playedToday: false,
+    ), reason: 'no Drill yesterday');
+    expect(drillStreak(const IListConst([]), today: _today), (
+      current: 0,
+      best: 0,
+      playedToday: false,
+    ));
+  });
+
+  test('a Drill without any puzzle played is not a day of a streak', () {
+    final points = [_point(DateTime(2026, 10, 24, 20)), _point(_today, nbPuzzles: 0)].toIList();
+
+    expect(drillStreak(points, today: _today), (current: 1, best: 1, playedToday: false));
+    expect(drillPuzzlesByDay(points), {DateTime(2026, 10, 24): 20}.lock);
+  });
+
+  test('the puzzles of a day are those of all its Drills', () {
+    final points = [
+      _point(DateTime(2026, 10, 25, 8), nbPuzzles: 10),
+      _point(DateTime(2026, 10, 25, 23, 30), nbPuzzles: 5),
+    ].toIList();
+
+    expect(drillPuzzlesByDay(points), {DateTime(2026, 10, 25): 15}.lock);
+  });
+
   test('a range of the last Drills chosen before is the last month', () {
     expect(DrillChartPrefs.fromJson(const {'range': 'last10'}).range, DrillChartRange.month);
     expect(

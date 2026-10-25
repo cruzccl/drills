@@ -4,10 +4,8 @@ import 'dart:typed_data';
 import 'package:collection/collection.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:lichess_mobile/src/model/drill/drill_chart.dart';
 import 'package:lichess_mobile/src/model/drill/drill_history.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_angle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_difficulty.dart';
@@ -16,7 +14,6 @@ import 'package:lichess_mobile/src/utils/navigation.dart';
 import 'package:lichess_mobile/src/view/drill/drill_angle_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:lichess_mobile/src/view/drill/drill_summary.dart';
-import 'package:lichess_mobile/src/view/user/perf_stats_screen.dart';
 import 'package:lichess_mobile/src/widgets/adaptive_action_sheet.dart';
 import 'package:lichess_mobile/src/widgets/feedback.dart';
 import 'package:lichess_mobile/src/widgets/platform.dart';
@@ -26,8 +23,8 @@ import 'package:material_ui/material_ui.dart';
 /// How far from the end of the list the next page of older Drills is loaded.
 const _loadMoreExtent = 600.0;
 
-/// The Drill History: the past Drills, newest first and grouped by day, under the charts of their
-/// Drill Performance and share of puzzles solved.
+/// The Drill History: the past Drills, newest first and grouped by day. Their charts are on the
+/// Drill Progress screen.
 ///
 /// A Drill is opened on its Drill Summary, and deleted with a long press. The Drill History of
 /// every account on the device is saved to a file, and imported back, from the app bar menu.
@@ -65,7 +62,6 @@ class const DrillHistoryScreen({super.key}) extends ConsumerWidget {
               builder: (context) => ListView(
                 padding: Styles.bodyPadding.add(MediaQuery.paddingOf(context)),
                 children: [
-                  if (entries.length > 1) ...[const _ChartCard(), const SizedBox(height: 24.0)],
                   for (final (day, dayEntries) in _groupByDay(entries)) ...[
                     _DayHeader(day, dayEntries),
                     for (final entry in dayEntries) ...[
@@ -215,7 +211,6 @@ class const _DrillCard(final DrillHistoryEntry entry) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.lichessColors;
-    final colorScheme = ColorScheme.of(context);
     final subtitleStyle = TextStyle(
       fontSize: 13,
       color: textShade(context, Styles.subtitleOpacity),
@@ -230,7 +225,7 @@ class const _DrillCard(final DrillHistoryEntry entry) extends ConsumerWidget {
       child: InkWell(
         onTap: () async {
           final angle = await Navigator.of(context)
-              .push(_DrillSummaryScreen.buildRoute(entry.startedAt));
+              .push(DrillHistorySummaryScreen.buildRoute(entry.startedAt));
           if (angle != null && context.mounted) Navigator.of(context).pop(angle);
         },
         onLongPress: () => showConfirmDialog<void>(
@@ -274,18 +269,7 @@ class const _DrillCard(final DrillHistoryEntry entry) extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 6.0),
-                  for (final level in PuzzleDifficulty.values)
-                    Container(
-                      width: 6.0,
-                      height: 6.0,
-                      margin: const EdgeInsets.only(right: 2.0),
-                      decoration: BoxDecoration(
-                        shape: .circle,
-                        color: level.index <= config.difficulty.index
-                            ? colors.primary
-                            : colorScheme.outlineVariant,
-                      ),
-                    ),
+                  DrillDifficultyDots(config.difficulty),
                 ],
               ),
               const SizedBox(height: 12.0),
@@ -336,29 +320,63 @@ class const _DrillCard(final DrillHistoryEntry entry) extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 12.0),
-              Row(
-                spacing: 3.0,
-                children: [
-                  for (var i = 0; i < config.nbPuzzles; i++)
-                    Expanded(
-                      child: Container(
-                        height: 6.0,
-                        decoration: BoxDecoration(
-                          borderRadius: const BorderRadius.all(Radius.circular(3.0)),
-                          color: i >= entry.nbPlayed
-                              ? colorScheme.outlineVariant
-                              : entry.wins[i]
-                              ? colors.good
-                              : colors.error,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+              DrillResultsBar(entry),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The level of a difficulty among all of them, as dots: those up to it lit.
+class const DrillDifficultyDots(final PuzzleDifficulty difficulty) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: .min,
+      spacing: 2.0,
+      children: [
+        for (final level in PuzzleDifficulty.values)
+          Container(
+            width: 6.0,
+            height: 6.0,
+            decoration: BoxDecoration(
+              shape: .circle,
+              color: level.index <= difficulty.index
+                  ? context.lichessColors.primary
+                  : ColorScheme.of(context).outlineVariant,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// The result of each puzzle of a Drill, in order, its puzzles not played left grey.
+class const DrillResultsBar(final DrillHistoryEntry entry, {final double height = 6.0})
+    extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.lichessColors;
+    return Row(
+      spacing: 3.0,
+      children: [
+        for (var i = 0; i < entry.config.nbPuzzles; i++)
+          Expanded(
+            child: Container(
+              height: height,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.all(Radius.circular(height / 2)),
+                color: i >= entry.nbPlayed
+                    ? ColorScheme.of(context).outlineVariant
+                    : entry.wins[i]
+                    ? colors.good
+                    : colors.error,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -433,9 +451,9 @@ class const _Badge(final String text, {required final Color color, required fina
 /// The Drill Summary of a past Drill, with its rating changes as they come.
 ///
 /// Its route returns the weakest theme the player tapped.
-class const _DrillSummaryScreen(final DateTime startedAt) extends ConsumerWidget {
+class const DrillHistorySummaryScreen(final DateTime startedAt) extends ConsumerWidget {
   static Route<PuzzleAngle> buildRoute(DateTime startedAt) {
-    return buildScreenRoute(screen: _DrillSummaryScreen(startedAt));
+    return buildScreenRoute(screen: DrillHistorySummaryScreen(startedAt));
   }
 
   @override
@@ -451,434 +469,6 @@ class const _DrillSummaryScreen(final DateTime startedAt) extends ConsumerWidget
     );
   }
 }
-
-/// The width kept left of the charts for the values of their axis, the same for both so that
-/// their days line up.
-const _axisWidth = 36.0;
-
-/// The charts of the Drill History over the days of a range, as the puzzle rating history of the
-/// profile: the Drill Performance above, the share of puzzles solved below, by day, week or month.
-class const _ChartCard() extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final points = ref.watch(drillChartPointsProvider).value ?? const IListConst([]);
-    final today = DateTime.now();
-    final ranges = drillChartRanges(points, today: today);
-    final chosen = ref.watch(drillChartPreferencesProvider.select((prefs) => prefs.range));
-    // A range longer than the Drill History isn't offered: the whole of it is shown instead.
-    final range = ranges.contains(chosen) ? chosen : DrillChartRange.all;
-    final series = drillChartSeries(points, range: range, today: today);
-    final total = series.total;
-    final subtitleStyle = TextStyle(
-      fontSize: 12,
-      color: textShade(context, Styles.subtitleOpacity),
-    );
-    const titleStyle = TextStyle(fontSize: 14, fontWeight: .w600);
-
-    return Card(
-      margin: .zero,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16.0))),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: .stretch,
-          children: [
-            Row(
-              mainAxisAlignment: .spaceEvenly,
-              children: [
-                for (final choice in ranges)
-                  ChartRangeButton(
-                    text: switch (choice) {
-                      .week => '1S',
-                      .month => '1M',
-                      .threeMonths => '3M',
-                      .year => '1A',
-                      .all => DrillStrings.allDays,
-                    },
-                    selected: choice == range,
-                    onPressed: () =>
-                        ref.read(drillChartPreferencesProvider.notifier).setRange(choice),
-                  ),
-              ],
-            ),
-            if (total == null)
-              SizedBox(
-                height: 120.0,
-                child: Center(child: Text(DrillStrings.noChartData, style: subtitleStyle)),
-              )
-            else ...[
-              const SizedBox(height: 4.0),
-              Text(
-                '${total.nbDrills} '
-                '${total.nbDrills == 1 ? DrillStrings.drillUnit : DrillStrings.drillsUnit}, '
-                '${total.nbPuzzles} '
-                '${total.nbPuzzles == 1 ? DrillStrings.puzzleUnit : DrillStrings.puzzlesUnit} · '
-                '${switch (series.grouping) {
-                  .day => DrillStrings.byDay,
-                  .week => DrillStrings.byWeek,
-                  .month => DrillStrings.byMonth,
-                }}',
-                style: subtitleStyle,
-              ),
-              const SizedBox(height: 12.0),
-              const Text(DrillStrings.performance, style: titleStyle),
-              _PerformanceHeadline(series, range: range),
-              const SizedBox(height: 8.0),
-              SizedBox(height: 150.0, child: _PerformanceChart(series)),
-              _DateAxis(series),
-              const SizedBox(height: 16.0),
-              const Text(DrillStrings.successes, style: titleStyle),
-              _SuccessRateHeadline(series),
-              const SizedBox(height: 8.0),
-              SizedBox(height: 110.0, child: _SuccessRateChart(series)),
-              _DateAxis(series),
-              const SizedBox(height: 8.0),
-              Wrap(
-                spacing: 16.0,
-                runSpacing: 4.0,
-                children: [
-                  for (final (color, label) in [
-                    (context.lichessColors.good, DrillStrings.aboveExpected),
-                    (ColorScheme.of(context).onSurface, DrillStrings.withinExpected),
-                    (context.lichessColors.error, DrillStrings.belowExpected),
-                  ])
-                    Row(
-                      mainAxisSize: .min,
-                      spacing: 6.0,
-                      children: [
-                        SizedBox.square(
-                          dimension: 10.0,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: color,
-                              borderRadius: const BorderRadius.all(Radius.circular(2.0)),
-                            ),
-                          ),
-                        ),
-                        Text(label, style: subtitleStyle),
-                      ],
-                    ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The Drill Performance of the days of the range, and its change on as many days before.
-class const _PerformanceHeadline(
-  final DrillChartSeries series, {
-  required final DrillChartRange range,
-}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final performance = series.total!.performance.round();
-    final change = switch (series.previous) {
-      final previous? => performance - previous.performance.round(),
-      null => null,
-    };
-    final since = switch (range) {
-      .week => DrillStrings.sinceLastWeek,
-      .month => DrillStrings.sinceLastMonth,
-      .threeMonths => DrillStrings.sinceLastThreeMonths,
-      .year => DrillStrings.sinceLastYear,
-      .all => '',
-    };
-    return _ChartHeadline(
-      value: '$performance',
-      comparison: change == null ? '' : '${formatRatingChange(change)} $since',
-      comparisonColor: change != null ? signColor(context, change) : null,
-    );
-  }
-}
-
-/// The share of puzzles solved of the days of the range, colored by how it compares with the
-/// share expected, next to it.
-class const _SuccessRateHeadline(final DrillChartSeries series) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final total = series.total!;
-    return _ChartHeadline(
-      value: '${_percent(total.successRate)} %',
-      valueColor: successRateColor(context, total.successRate, total.expected),
-      comparison: switch (total.expected) {
-        final expected? => '${DrillStrings.expected} ${_percent(expected)} %',
-        null => '',
-      },
-      comparisonColor: textShade(context, Styles.subtitleOpacity),
-    );
-  }
-}
-
-int _percent(double share) => (share * 100).round();
-
-class const _ChartHeadline({
-  required final String value,
-  final Color? valueColor,
-  required final String comparison,
-  final Color? comparisonColor,
-}) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Text.rich(
-      TextSpan(
-        children: [
-          TextSpan(
-            text: value,
-            style: TextStyle(fontSize: 28, fontWeight: .bold, color: valueColor),
-          ),
-          if (comparison.isNotEmpty)
-            TextSpan(
-              text: '  $comparison',
-              style: TextStyle(fontSize: 14, fontWeight: .w500, color: comparisonColor),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The chart of the Drill Performance, as the puzzle rating history of the profile: a line
-/// through the days, weeks or months played, each in the middle of its place on the chart.
-class const _PerformanceChart(final DrillChartSeries series) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final values = series.values;
-    final color = Styles.chartColor(context);
-    final borderColor = ColorScheme.of(context).onSurface.withValues(alpha: 0.5);
-    final lowest = values.map((v) => v.performance).min;
-    final highest = values.map((v) => v.performance).max;
-    final step = highest - lowest > 300 ? 100.0 : 50.0;
-    return LineChart(
-      LineChartData(
-        minX: 0,
-        maxX: series.nbSlots.toDouble(),
-        minY: ((lowest - 10) / step).floorToDouble() * step,
-        maxY: ((highest + 10) / step).ceilToDouble() * step,
-        lineBarsData: [
-          LineChartBarData(
-            spots: [for (final v in values) FlSpot(v.slot + 0.5, v.performance)],
-            color: color,
-            barWidth: 1.5,
-            dotData: FlDotData(show: values.length == 1),
-            belowBarData: BarAreaData(show: true, color: color.withValues(alpha: 0.3)),
-          ),
-        ],
-        borderData: _chartBorder(borderColor),
-        gridData: FlGridData(
-          drawVerticalLine: false,
-          horizontalInterval: step,
-          getDrawingHorizontalLine: (_) => FlLine(color: borderColor, strokeWidth: 0.5),
-        ),
-        titlesData: _chartTitles(context, interval: step, label: (y) => '${y.round()}'),
-        lineTouchData: LineTouchData(
-          touchSpotThreshold: double.infinity,
-          touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (_) => ColorScheme.of(context).inverseSurface,
-            fitInsideHorizontally: true,
-            fitInsideVertically: true,
-            getTooltipItems: (spots) => [
-              for (final spot in spots)
-                if (values[spot.spotIndex] case final value)
-                  LineTooltipItem(
-                    '${value.performance.round()}\n',
-                    _tooltipStyle(context),
-                    children: [
-                      _tooltipDetail(
-                        context,
-                        '${_valueName(value, series.grouping)}\n${value.nbDrills} '
-                        '${value.nbDrills == 1 ? DrillStrings.drillUnit : DrillStrings.drillsUnit}'
-                        ', ${value.nbPuzzles} ${DrillStrings.puzzlesUnit}',
-                      ),
-                    ],
-                  ),
-            ],
-          ),
-          getTouchedSpotIndicator: (_, indexes) => [
-            for (final _ in indexes)
-              TouchedSpotIndicatorData(
-                FlLine(color: color, strokeWidth: 2),
-                FlDotData(
-                  getDotPainter: (_, _, _, _) => FlDotCirclePainter(radius: 5, color: color),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The chart of the share of puzzles solved: a bar per day, week or month played, colored by how
-/// it compares with the share expected, under the days of the chart above.
-class const _SuccessRateChart(final DrillChartSeries series) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final bySlot = {for (final v in series.values) v.slot: v};
-    final borderColor = ColorScheme.of(context).onSurface.withValues(alpha: 0.5);
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final slotWidth = (constraints.maxWidth - _axisWidth) / series.nbSlots;
-        final barWidth = (slotWidth * 0.7).clamp(1.0, 18.0);
-        return BarChart(
-          BarChartData(
-            minY: 0,
-            maxY: 100,
-            alignment: .spaceAround,
-            // A group per day, week or month of the chart, oldest first, all as wide: those not
-            // played leave a gap, and the others are below their value in the chart above.
-            barGroups: [
-              for (var slot = 0; slot < series.nbSlots; slot++)
-                BarChartGroupData(
-                  x: slot,
-                  barRods: [
-                    BarChartRodData(
-                      toY: (bySlot[slot]?.successRate ?? 0) * 100,
-                      width: barWidth,
-                      color: switch (bySlot[slot]) {
-                        final v? =>
-                          successRateColor(context, v.successRate, v.expected) ??
-                              ColorScheme.of(context).onSurface,
-                        null => Colors.transparent,
-                      },
-                      borderRadius: BorderRadius.all(Radius.circular(barWidth > 6 ? 3.0 : 1.0)),
-                    ),
-                  ],
-                ),
-            ],
-            borderData: _chartBorder(borderColor),
-            gridData: FlGridData(
-              drawVerticalLine: false,
-              horizontalInterval: 25,
-              getDrawingHorizontalLine: (_) => FlLine(color: borderColor, strokeWidth: 0.5),
-            ),
-            titlesData: _chartTitles(context, interval: 25, label: (y) => '${y.round()} %'),
-            barTouchData: BarTouchData(
-              touchTooltipData: BarTouchTooltipData(
-                getTooltipColor: (_) => ColorScheme.of(context).inverseSurface,
-                fitInsideHorizontally: true,
-                fitInsideVertically: true,
-                getTooltipItem: (group, _, _, _) {
-                  final value = bySlot[group.x];
-                  if (value == null) return null;
-                  final solved = (value.successRate * value.nbPuzzles).round();
-                  return BarTooltipItem(
-                    '${_percent(value.successRate)} %\n',
-                    _tooltipStyle(context),
-                    children: [
-                      _tooltipDetail(
-                        context,
-                        '${_valueName(value, series.grouping)}\n'
-                        '$solved ${DrillStrings.ofTotal} ${value.nbPuzzles}'
-                        '${value.expected != null ? ', ${DrillStrings.expected} ${_percent(value.expected!)} %' : ''}',
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-FlBorderData _chartBorder(Color color) => FlBorderData(
-  show: true,
-  border: Border(
-    bottom: BorderSide(color: color),
-    left: BorderSide(color: color),
-  ),
-);
-
-/// The values of the vertical axis on the left, in [_axisWidth], every [interval].
-FlTitlesData _chartTitles(
-  BuildContext context, {
-  required double interval,
-  required String Function(double y) label,
-}) => FlTitlesData(
-  topTitles: const AxisTitles(),
-  rightTitles: const AxisTitles(),
-  bottomTitles: const AxisTitles(),
-  leftTitles: AxisTitles(
-    sideTitles: SideTitles(
-      showTitles: true,
-      reservedSize: _axisWidth,
-      interval: interval,
-      getTitlesWidget: (y, meta) => SideTitleWidget(
-        meta: meta,
-        child: Text(label(y), style: TextStyle(color: textShade(context, 0.6), fontSize: 10)),
-      ),
-    ),
-  ),
-);
-
-/// The dates below a chart, a third and two thirds of the way along it.
-class const _DateAxis(final DrillChartSeries series) extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final start = series.start;
-    final format = series.grouping == .day && series.nbSlots <= 31
-        ? DateFormat.MMMd()
-        : DateFormat.yMMM();
-    final style = TextStyle(color: textShade(context, 0.6), fontSize: 10);
-    return SizedBox(
-      height: 18.0,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth - _axisWidth;
-          return Stack(
-            children: [
-              for (final third in [1, 2])
-                if ((series.nbSlots * third / 3).floor() case final slot)
-                  Positioned(
-                    left: _axisWidth + width * third / 3 - 40.0,
-                    width: 80.0,
-                    bottom: 0,
-                    child: Text(
-                      format.format(switch (series.grouping) {
-                        .day => DateTime(start.year, start.month, start.day + slot),
-                        .week => DateTime(start.year, start.month, start.day + 7 * slot),
-                        .month => DateTime(start.year, start.month + slot),
-                      }),
-                      textAlign: .center,
-                      style: style,
-                    ),
-                  ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// The name of the day, week or month of [value].
-String _valueName(DrillChartValue value, DrillChartGrouping grouping) => switch (grouping) {
-  .day => drillDayName(value.date, short: true),
-  .week =>
-    '${DrillStrings.weekOf} ${(value.date.year == DateTime.now().year ? DateFormat.MMMd() : DateFormat.yMMMd()).format(value.date)}',
-  .month => () {
-    final name = DateFormat.yMMMM().format(value.date);
-    return name.isEmpty ? name : name[0].toUpperCase() + name.substring(1);
-  }(),
-};
-
-TextStyle _tooltipStyle(BuildContext context) =>
-    TextStyle(fontWeight: .bold, color: ColorScheme.of(context).onInverseSurface);
-
-TextSpan _tooltipDetail(BuildContext context, String text) => TextSpan(
-  text: text,
-  style: TextStyle(
-    fontSize: 11,
-    fontWeight: .normal,
-    color: ColorScheme.of(context).onInverseSurface,
-  ),
-);
 
 /// The name of the day of [date]: today, yesterday, or its date, with the year if it is not this
 /// year's, and with the day of the week unless [short].

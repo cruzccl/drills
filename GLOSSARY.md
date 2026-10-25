@@ -28,6 +28,10 @@ _Avoid_: Rating, score
 The from-square of the current solution move, shown in a Drill as the step before giving up: the first hint of a puzzle fails it, on Lichess too (see ADR 0002).
 _Avoid_: Clue, help
 
+**Streak**:
+The days in a row up to today on which the player played a Drill, a puzzle at least, counted from their Drill History. A day without a Drill yet doesn't end it until it is over.
+_Avoid_: Run, series
+
 **Warm-up**:
 A Puzzle Storm run started from the home screen before a Drill, exactly as in the official app; it is not part of the Drill and leaves no trace in its Drill Summary.
 _Avoid_: Drill

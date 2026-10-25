@@ -644,6 +644,40 @@ final _irrelevantThemes = {
     key.name,
 };
 
+/// A theme often failed in some Drills: how many of their puzzles that have it were failed, and how
+/// many have it.
+typedef DrillWeakTheme = ({String theme, int failures, int puzzles});
+
+/// The themes most frequent among the failed puzzles of [results], most failed first, at most
+/// [max] of them, each with the number of puzzles of [results] that have it.
+///
+/// As on the Lichess puzzle dashboard, the themes describing a puzzle's length, the advantage it
+/// gives or its origin are left out: they say nothing about the tactics missed.
+IList<DrillWeakTheme> weakestThemesOf(
+  Iterable<DrillPuzzleResult> results, {
+  int max = kMaxWeakestThemes,
+}) {
+  final failuresByTheme = <String, int>{};
+  for (final result in results.where((r) => !r.win)) {
+    for (final theme in result.themes.where((t) => !_irrelevantThemes.contains(t))) {
+      failuresByTheme[theme] = (failuresByTheme[theme] ?? 0) + 1;
+    }
+  }
+  // A stable sort: equally failed themes stay in the order they were first failed.
+  final themes = failuresByTheme.entries.toList()
+    ..sortByCompare((e) => e.value, (a, b) => b.compareTo(a));
+  return themes
+      .take(max)
+      .map(
+        (e) => (
+          theme: e.key,
+          failures: e.value,
+          puzzles: results.where((r) => r.themes.contains(e.key)).length,
+        ),
+      )
+      .toIList();
+}
+
 /// How a Drill is configured when it starts.
 @Freezed(fromJson: true, toJson: true)
 sealed class DrillConfig with _$DrillConfig implements Serializable {
@@ -768,32 +802,8 @@ sealed class const Drill._() with _$Drill implements Serializable {
     return results.map((r) => 1 / (1 + math.pow(10, (r.puzzleRating - rating) / 400))).average;
   }
 
-  /// The themes most frequent among the failed puzzles, most failed first, at most
-  /// [kMaxWeakestThemes] of them, each with the number of the Drill's puzzles that have it.
-  ///
-  /// As on the Lichess puzzle dashboard, the themes describing a puzzle's length, the advantage
-  /// it gives or its origin are left out: they say nothing about the tactics missed.
-  IList<({String theme, int failures, int puzzles})> get weakestThemes {
-    final failuresByTheme = <String, int>{};
-    for (final result in results.where((r) => !r.win)) {
-      for (final theme in result.themes.where((t) => !_irrelevantThemes.contains(t))) {
-        failuresByTheme[theme] = (failuresByTheme[theme] ?? 0) + 1;
-      }
-    }
-    // A stable sort: equally failed themes stay in the order they were first failed.
-    final themes = failuresByTheme.entries.toList()
-      ..sortByCompare((e) => e.value, (a, b) => b.compareTo(a));
-    return themes
-        .take(kMaxWeakestThemes)
-        .map(
-          (e) => (
-            theme: e.key,
-            failures: e.value,
-            puzzles: results.where((r) => r.themes.contains(e.key)).length,
-          ),
-        )
-        .toIList();
-  }
+  /// The themes most frequent among the failed puzzles, see [weakestThemesOf].
+  IList<DrillWeakTheme> get weakestThemes => weakestThemesOf(results);
 
   /// The Drill with the rating changes of the solutions sent in [rounds] given to its rated
   /// results still without one.
