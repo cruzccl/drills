@@ -67,7 +67,7 @@ void main() {
     expect(find.byIcon(Icons.history), findsNothing);
     expect(find.bySemanticsLabel(DrillStrings.profile), findsNothing);
 
-    await tester.tap(find.widgetWithText(ChoiceChip, '5'));
+    await _chooseNbPuzzles(tester, 5);
     await tester.tap(find.text('Empezar'));
     await tester.pumpAndSettle();
     expect(find.byType(DrillScreen), findsOneWidget);
@@ -109,7 +109,7 @@ void main() {
   testWidgets('plays a Drill showing only its progress, then its summary', (tester) async {
     await openHome(tester, signedIn: true);
 
-    await tester.tap(find.widgetWithText(ChoiceChip, '5'));
+    await _chooseNbPuzzles(tester, 5);
     await tester.tap(find.text('Empezar'));
     // load the puzzles and open the Drill
     await tester.pumpAndSettle();
@@ -232,7 +232,7 @@ void main() {
 
   testWidgets('a Drill ended early shows its summary, marked as partial', (tester) async {
     await openHome(tester, signedIn: true);
-    await tester.tap(find.widgetWithText(ChoiceChip, '5'));
+    await _chooseNbPuzzles(tester, 5);
     await tester.tap(find.text('Empezar'));
     await tester.pumpAndSettle();
 
@@ -252,7 +252,7 @@ void main() {
 
   testWidgets('the Drill Summary shows the rating as pending until it is synced', (tester) async {
     await openHome(tester, signedIn: true);
-    await tester.tap(find.widgetWithText(ChoiceChip, '5'));
+    await _chooseNbPuzzles(tester, 5);
     await tester.tap(find.text('Empezar'));
     await tester.pumpAndSettle();
 
@@ -300,7 +300,7 @@ void main() {
 
   testWidgets('the home screen offers to resume an unfinished Drill', (tester) async {
     await openHome(tester, signedIn: true);
-    await tester.tap(find.widgetWithText(ChoiceChip, '5'));
+    await _chooseNbPuzzles(tester, 5);
     await tester.tap(find.text('Empezar'));
     await tester.pumpAndSettle();
     await _failCurrentPuzzle(tester);
@@ -332,14 +332,20 @@ void main() {
     tester,
   ) async {
     await openHome(tester, signedIn: true);
-    expect(_isChipSelected(tester, '10'), isTrue, reason: 'the default number of puzzles');
-    expect(find.text('Healthy mix'), findsOneWidget);
-    expect(find.text('Normal'), findsOneWidget);
+    expect(_setting('Problemas'), ['10'], reason: 'the default number of puzzles');
+    expect(_setting('Tema'), ['Healthy mix']);
+    expect(_setting('Dificultad'), ['Normal']);
 
+    await tester.tap(find.text('Problemas'));
+    await tester.pumpAndSettle();
+    expect(_isChipSelected(tester, '10'), isTrue);
     await tester.tap(find.widgetWithText(ChoiceChip, '12'));
     await tester.pump();
     expect(_isChipSelected(tester, '12'), isTrue);
     expect(_isChipSelected(tester, '10'), isFalse);
+    await tester.tap(find.text('Hecho'));
+    await tester.pumpAndSettle();
+    expect(_setting('Problemas'), ['12', '10'], reason: 'the last number struck through');
 
     await tester.tap(find.text('Tema'));
     await tester.pumpAndSettle();
@@ -347,19 +353,55 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Fork'));
     await tester.pumpAndSettle();
-    expect(find.text('Fork'), findsOneWidget);
+    expect(_setting('Tema'), ['Fork']);
 
-    await tester.tap(find.text('Difficulty level'));
+    await tester.tap(find.text('Dificultad'));
     await tester.pumpAndSettle();
+    expect(find.text('Difficulty level'), findsOneWidget);
     await tester.tap(find.text('Hardest'));
+    await tester.pump();
+    await tester.tap(find.text('Hecho'));
     await tester.pumpAndSettle();
-    expect(find.text('Hardest'), findsOneWidget);
+    expect(_setting('Dificultad'), ['Hardest']);
 
     await tester.tap(find.text('Empezar'));
     await tester.pumpAndSettle();
     expect(find.text('1 / 12'), findsOneWidget);
     expect(server.angles.toSet(), {'fork'});
     expect(server.difficulties.toSet(), {'hardest'});
+  });
+
+  testWidgets('the setup of the last Drill is set back in one tap', (tester) async {
+    await openHome(tester, signedIn: true);
+    expect(find.text('Como el último'), findsNothing);
+
+    await _chooseNbPuzzles(tester, 25);
+    await tester.tap(find.text('Dificultad'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Easiest'));
+    await tester.tap(find.text('Hecho'));
+    await tester.pumpAndSettle();
+    expect(_setting('Problemas'), ['25', '10']);
+
+    await tester.tap(find.text('Como el último'));
+    await tester.pumpAndSettle();
+    expect(_setting('Problemas'), ['10']);
+    expect(_setting('Dificultad'), ['Normal']);
+    expect(find.text('Como el último'), findsNothing);
+  });
+
+  testWidgets('a sheet closed without being done keeps the setup', (tester) async {
+    await openHome(tester, signedIn: true);
+
+    await tester.tap(find.text('Problemas'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip(DrillStrings.onePuzzleMore));
+    await tester.pump();
+    expect(_inSheet(find.text('11')), findsOneWidget);
+    await tester.tapAt(const Offset(20, 20));
+    await tester.pumpAndSettle();
+
+    expect(_setting('Problemas'), ['10']);
   });
 
   testWidgets('a Drill can be set up on an opening', (tester) async {
@@ -383,6 +425,8 @@ void main() {
 
   testWidgets('the number of puzzles is set with a slider, from 1 to 50', (tester) async {
     await openHome(tester, signedIn: true);
+    await tester.tap(find.text('Problemas'));
+    await tester.pumpAndSettle();
     expect(_sliderValue(tester), 10);
 
     await tester.tap(find.widgetWithText(ChoiceChip, '12'));
@@ -392,12 +436,19 @@ void main() {
     await tester.drag(find.byType(Slider), const Offset(-1000, 0));
     await tester.pumpAndSettle();
     expect(_sliderValue(tester), 1);
-    expect(find.text('1'), findsOneWidget, reason: 'the number of puzzles is shown');
+    expect(_inSheet(find.text('1')), findsOneWidget, reason: 'the number of puzzles is shown');
     expect(_isChipSelected(tester, '12'), isFalse);
+    expect(
+      tester.widget<IconButton>(_inSheet(find.widgetWithIcon(IconButton, Icons.remove))).onPressed,
+      isNull,
+      reason: 'no Drill without puzzles',
+    );
 
     await tester.drag(find.byType(Slider), const Offset(1000, 0));
     await tester.pumpAndSettle();
     expect(_sliderValue(tester), 50);
+    await tester.tap(find.text('Hecho'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Empezar'));
     await tester.pumpAndSettle();
@@ -419,10 +470,10 @@ void main() {
       },
     );
 
-    expect(_sliderValue(tester), 37);
-    expect(find.text('37'), findsOneWidget);
-    expect(find.text('Fork'), findsOneWidget);
-    expect(find.text('Easier'), findsOneWidget);
+    expect(_setting('Problemas'), ['37']);
+    expect(_setting('Tema'), ['Fork']);
+    expect(_setting('Dificultad'), ['Easier']);
+    expect(find.text('Como el último'), findsNothing);
 
     await tester.tap(find.text('Empezar'));
     await tester.pumpAndSettle();
@@ -552,11 +603,12 @@ void main() {
 
     // back home, the theme chosen and the rest of the setup kept
     expect(find.byType(DrillScreen), findsNothing);
-    expect(find.widgetWithText(ListTile, 'Fork'), findsOneWidget);
-    expect(find.text('1'), findsOneWidget);
+    expect(_setting('Tema'), ['Fork', 'para reforzar'], reason: 'failed in the last Drill');
+    expect(_setting('Problemas'), ['1']);
 
     // from a Drill of the Drill History too
-    await tester.tap(find.byIcon(Icons.history));
+    await tester.scrollUntilVisible(find.text('Ver historial'), 200.0);
+    await tester.tap(find.text('Ver historial'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Healthy mix'));
     await tester.pumpAndSettle();
@@ -564,7 +616,49 @@ void main() {
     await tester.tap(find.text('Endgame'));
     await tester.pumpAndSettle();
     expect(find.text('Historial de Drills'), findsNothing);
-    expect(find.widgetWithText(ListTile, 'Endgame'), findsOneWidget);
+    expect(_setting('Tema'), ['Endgame', 'para reforzar']);
+
+    // and from a Drill of the latest Drills
+    await tester.scrollUntilVisible(_lastDrill('Healthy mix'), 200.0);
+    await tester.tap(_lastDrill('Healthy mix'));
+    await tester.pumpAndSettle();
+    expect(find.text('Resumen del Drill'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Fork'), 200.0);
+    await tester.tap(find.text('Fork'));
+    await tester.pumpAndSettle();
+    expect(_setting('Tema'), ['Fork', 'para reforzar']);
+  });
+
+  testWidgets('the themes most failed in the latest Drills are offered first', (tester) async {
+    await openHome(
+      tester,
+      signedIn: true,
+      defaultPreferences: {
+        SessionPreferencesStorage.key(PrefCategory.drill.storageKey, fakeAuthUser): jsonEncode(
+          const DrillConfig(nbPuzzles: 1).toJson(),
+        ),
+      },
+    );
+    await tester.tap(find.text('Tema'));
+    await tester.pumpAndSettle();
+    expect(find.text('Para reforzar'), findsNothing, reason: 'no Drill yet');
+    expect(find.text('Recientes'), findsNothing);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await _playOnePuzzleDrill(tester);
+    await tester.tap(find.text('Tema'));
+    await tester.pumpAndSettle();
+    expect(find.text('Para reforzar'), findsOneWidget);
+    // the failed puzzle's themes, but its length
+    expect(find.text('fallados 1 de 1'), findsWidgets);
+    expect(find.text('Short'), findsNothing);
+    expect(find.text('Recientes'), findsOneWidget);
+    expect(_isChipSelected(tester, 'Healthy mix'), isTrue);
+
+    await tester.tap(find.text('Endgame').first);
+    await tester.pumpAndSettle();
+    expect(_setting('Tema'), ['Endgame', 'para reforzar']);
   });
 
   testWidgets('the Drill History lists the past Drills, opened or deleted', (tester) async {
@@ -577,14 +671,15 @@ void main() {
         ),
       },
     );
-    await tester.tap(find.byIcon(Icons.history));
-    await tester.pumpAndSettle();
-    expect(find.text('Todavía no has terminado ningún Drill.'), findsOneWidget);
-    await tester.pageBack();
-    await tester.pumpAndSettle();
+    expect(find.text('Ver historial'), findsNothing, reason: 'no Drill yet');
+    expect(find.text('Progreso'), findsNothing);
 
     await _playOnePuzzleDrill(tester);
-    await tester.tap(find.byIcon(Icons.history));
+    // the latest Drills, on the home screen
+    expect(find.text('Últimos Drills'), findsOneWidget);
+    expect(_lastDrill('Healthy mix'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Ver historial'), 200.0);
+    await tester.tap(find.text('Ver historial'));
     await tester.pumpAndSettle();
     expect(find.text('Hoy'), findsOneWidget);
     expect(find.text('Healthy mix'), findsOneWidget);
@@ -595,7 +690,6 @@ void main() {
     // in the day header and the Drill
     expect(find.text('−10'), findsNWidgets(2));
     expect(find.text('1490'), findsOneWidget);
-    expect(find.byType(LineChart), findsNothing, reason: 'a single Drill');
 
     await tester.tap(find.text('Healthy mix'));
     await tester.pumpAndSettle();
@@ -604,21 +698,14 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    // the chart, from 2 Drills
+    // a second Drill, both listed without charts
     await tester.pageBack();
     await tester.pumpAndSettle();
     await _playOnePuzzleDrill(tester);
-    await tester.tap(find.byIcon(Icons.history));
+    await tester.scrollUntilVisible(find.text('Ver historial'), 200.0);
+    await tester.tap(find.text('Ver historial'));
     await tester.pumpAndSettle();
-    // both charts, over the only day played: the whole Drill History is the only range
-    expect(find.byType(LineChart), findsOneWidget);
-    expect(find.byType(BarChart), findsOneWidget);
-    expect(find.text('2 Drills, 2 problemas · por días'), findsOneWidget);
-    expect(find.text('Todo'), findsOneWidget);
-    expect(find.text('1M'), findsNothing);
-    // the Drills, below the charts
-    await tester.drag(find.byType(Scrollable).first, const Offset(0, -400));
-    await tester.pumpAndSettle();
+    expect(find.byType(LineChart), findsNothing);
     expect(find.text('Healthy mix'), findsNWidgets(2));
     expect(find.text('2 Drills · '), findsOneWidget);
 
@@ -630,6 +717,40 @@ void main() {
     }
     expect(find.text('Healthy mix'), findsNothing);
     expect(find.text('Todavía no has terminado ningún Drill.'), findsOneWidget);
+  });
+
+  testWidgets('the streak opens the progress, with the charts of the Drill History', (
+    tester,
+  ) async {
+    await openHome(
+      tester,
+      signedIn: true,
+      defaultPreferences: {
+        SessionPreferencesStorage.key(PrefCategory.drill.storageKey, fakeAuthUser): jsonEncode(
+          const DrillConfig(nbPuzzles: 1).toJson(),
+        ),
+      },
+    );
+    expect(_richText('0 días seguidos'), findsOneWidget);
+    expect(find.text('Haz un Drill hoy para empezar una racha'), findsOneWidget);
+
+    await _playOnePuzzleDrill(tester);
+    expect(_richText('1 día seguido'), findsOneWidget);
+    expect(find.text('Tu mejor racha: 1 día'), findsOneWidget);
+    expect(find.textContaining('Haz un Drill hoy'), findsNothing);
+
+    await _playOnePuzzleDrill(tester);
+    await tester.tap(find.text('Progreso'));
+    await tester.pumpAndSettle();
+    expect(find.text('día seguido'), findsOneWidget);
+    expect(find.text('mejor racha'), findsOneWidget);
+    // both charts, over the only day played: the whole Drill History is the only range
+    expect(find.text('2 Drills, 2 problemas · por días'), findsOneWidget);
+    expect(find.text('Todo'), findsOneWidget);
+    expect(find.text('1M'), findsNothing);
+    await tester.scrollUntilVisible(find.byType(BarChart), 200.0);
+    expect(find.byType(LineChart), findsOneWidget);
+    expect(find.byType(BarChart), findsOneWidget);
   });
 }
 
@@ -697,6 +818,39 @@ String _summaryValue(String label) {
       )
       .join(' ');
 }
+
+/// Sets the number of puzzles of the next Drill with one of the numbers its sheet offers.
+Future<void> _chooseNbPuzzles(WidgetTester tester, int nbPuzzles) async {
+  await tester.tap(find.text('Problemas'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.widgetWithText(ChoiceChip, '$nbPuzzles'));
+  await tester.pump();
+  await tester.tap(find.text('Hecho'));
+  await tester.pumpAndSettle();
+}
+
+/// The texts of the setting of the next Drill named [label], its name left out.
+List<String> _setting(String label) {
+  final tile = find.ancestor(of: find.text(label), matching: find.byType(InkWell)).first;
+  return find
+      .descendant(of: tile, matching: find.byType(Text))
+      .evaluate()
+      .map((element) => (element.widget as Text).data)
+      .nonNulls
+      .where((text) => text != label)
+      .toList();
+}
+
+/// A Drill of the latest Drills of the home screen, by its theme.
+Finder _lastDrill(String theme) => find.byWidgetPredicate(
+  (widget) => widget is Text && (widget.textSpan?.toPlainText() ?? '').startsWith('$theme · '),
+);
+
+/// A text made of several spans.
+Finder _richText(String text) =>
+    find.byWidgetPredicate((widget) => widget is Text && widget.textSpan?.toPlainText() == text);
+
+Finder _inSheet(Finder finder) => find.descendant(of: find.byType(BottomSheet), matching: finder);
 
 bool _isChipSelected(WidgetTester tester, String label) =>
     tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, label)).selected;

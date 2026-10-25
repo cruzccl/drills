@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:collection/collection.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/foundation.dart';
@@ -110,10 +112,7 @@ DrillChartSeries drillChartSeries(
   required DateTime today,
 }) {
   final lastDay = _day(today);
-  final firstDay = switch (range.nbDays) {
-    final nbDays? => _daysBefore(lastDay, nbDays - 1),
-    null => points.isEmpty ? lastDay : _day(points.first.startedAt),
-  };
+  final firstDay = drillChartRangeStart(points, range: range, today: today);
   final span = _daysBetween(firstDay, lastDay) + 1;
   final grouping = span <= kMaxDrillChartDaysSpan
       ? DrillChartGrouping.day
@@ -186,6 +185,59 @@ DrillChartValue? _pool(
     nbPuzzles: nbPuzzles,
   );
 }
+
+/// The streaks of days in a row with a Drill: the [current] one, the [best] one, and whether
+/// today is [playedToday].
+typedef DrillStreak = ({int current, int best, bool playedToday});
+
+/// The streaks of days in a row on which a Drill of [points] was played, a puzzle at least.
+///
+/// The current streak goes on until a whole day passes without a Drill: if today has none yet,
+/// it is the one that ended yesterday.
+DrillStreak drillStreak(IList<DrillChartPoint> points, {required DateTime today}) {
+  final days = drillPuzzlesByDay(points).keys.toSet();
+  final lastDay = _day(today);
+  final playedToday = days.contains(lastDay);
+  var current = 0;
+  for (
+    var day = playedToday ? lastDay : _daysBefore(lastDay, 1);
+    days.contains(day);
+    day = _daysBefore(day, 1)
+  ) {
+    current++;
+  }
+  var best = 0;
+  var run = 0;
+  DateTime? previous;
+  for (final day in days.sorted((a, b) => a.compareTo(b))) {
+    run = previous != null && _daysBetween(previous, day) == 1 ? run + 1 : 1;
+    best = math.max(best, run);
+    previous = day;
+  }
+  return (current: current, best: best, playedToday: playedToday);
+}
+
+/// The number of puzzles of the Drills of [points] played on each day, the days without any left
+/// out.
+IMap<DateTime, int> drillPuzzlesByDay(IList<DrillChartPoint> points) {
+  final byDay = <DateTime, int>{};
+  for (final point in points.where((p) => p.nbPuzzles > 0)) {
+    final day = _day(point.startedAt);
+    byDay[day] = (byDay[day] ?? 0) + point.nbPuzzles;
+  }
+  return byDay.lock;
+}
+
+/// The first day of [range] up to [today], or of the first Drill of [points] for the whole Drill
+/// History.
+DateTime drillChartRangeStart(
+  IList<DrillChartPoint> points, {
+  required DrillChartRange range,
+  required DateTime today,
+}) => switch (range.nbDays) {
+  final nbDays? => _daysBefore(_day(today), nbDays - 1),
+  null => points.isEmpty ? _day(today) : _day(points.first.startedAt),
+};
 
 DateTime _day(DateTime date) => DateTime(date.year, date.month, date.day);
 

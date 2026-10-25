@@ -364,8 +364,7 @@ class const _SolvingTimeChart(final IList<DrillPuzzleResult> results) extends Co
 
 /// The weakest themes of the Drill, side by side, each going back to the Drill home with that
 /// theme chosen.
-class const _WeakestThemes(final IList<({String theme, int failures, int puzzles})> themes)
-    extends StatelessWidget {
+class const _WeakestThemes(final IList<DrillWeakTheme> themes) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -405,8 +404,7 @@ class const _WeakestThemes(final IList<({String theme, int failures, int puzzles
 }
 
 /// A weakest theme: how many of its puzzles were failed, and a button to train it.
-class const _ThemeCard(final ({String theme, int failures, int puzzles}) data)
-    extends StatelessWidget {
+class const _ThemeCard(final DrillWeakTheme data) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final key = puzzleThemeNameMap.get(data.theme);

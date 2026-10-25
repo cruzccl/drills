@@ -15,7 +15,9 @@ The Drill feature in this fork was developed with the help of AI tools.
 The app opens straight into a **Drill**: a bounded series of rated Lichess puzzles that ends with a
 summary of the results.
 
-- You choose the number of puzzles, a theme or opening, and a difficulty, and press start.
+- The home screen sets up the next Drill as the last one started: its number of puzzles, theme or
+  opening, and difficulty are each changed on their own sheet or screen, the changes outlined and
+  undone in one tap. The themes most failed in the last 10 Drills are offered first.
 - Puzzles are fetched and solved through the Lichess puzzle API, so they count on your Lichess
   account exactly as in the official app.
 - Signed out, Drills can still be played anonymously: their puzzles are unrated, nothing is sent
@@ -28,10 +30,12 @@ summary of the results.
   even after the app was closed. Each Lichess account signed in on the device has its own.
 - Puzzle Storm, as in the official app, is one tap away on the home screen, to warm up before a
   Drill. It counts neither on the puzzle rating nor in the Drill.
-- Past Drills are kept on the device in a Drill History, one per account, grouped by day, under
-  charts of their performance and success rate over the last week, month, 3 months, year or all
-  of them, by day played (by week over longer ranges), with their averages; each Drill can be
-  reviewed again or deleted.
+- Past Drills are kept on the device in a Drill History, one per account, grouped by day; each
+  Drill can be reviewed again or deleted. The home screen lists the last 3, and shows your streak
+  of days in a row with a Drill over this week.
+- The streak opens your progress: your current and best streaks, a calendar of the days played,
+  and charts of your performance and success rate over the last week, month, 3 months, year or
+  all of them, by day played (by week over longer ranges), with their averages.
 - Your Lichess profile, from your avatar on the home screen, shows only puzzles and Puzzle Storm:
   the two ratings and the daily activity. The puzzle rating opens the puzzle rating history and the
   puzzle dashboard, whose themes set up the next Drill; the Puzzle Storm one opens the Storm high

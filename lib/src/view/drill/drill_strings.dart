@@ -14,6 +14,43 @@ abstract class DrillStrings() {
   static const resumeDrill = 'Reanudar el Drill';
   static const replaceUnfinishedDrillConfirmation =
       '¿Empezar un Drill nuevo? El que está sin terminar se dará por terminado.';
+  static const nextDrill = 'Tu próximo Drill';
+  static const nbPuzzlesTile = 'Problemas';
+  static const difficulty = 'Dificultad';
+  static const sameAsLast = 'Como el último';
+  static const toWorkOnTag = 'para reforzar';
+  static const lastOne = 'El último';
+  static const lastOneTag = 'el último';
+  static const done = 'Hecho';
+  static const onePuzzleLess = 'Un problema menos';
+  static const onePuzzleMore = 'Un problema más';
+  static const ratingBasis = 'Según tu valoración de problemas';
+  static const puzzlesOfAbout = 'Problemas de unos';
+  static const likeYou = 'como tú';
+  static const approximately = 'Unos';
+  static const minuteUnit = 'minuto';
+  static const minutesUnit = 'minutos';
+  static const atYourPace = 'a tu ritmo de los últimos Drills';
+
+  static const streak = 'Racha';
+  static const dayInARow = 'día seguido';
+  static const daysInARow = 'días seguidos';
+  static const bestStreak = 'Tu mejor racha';
+  static const bestStreakLabel = 'mejor racha';
+  static const daysWithDrills = 'días con Drills';
+  static const playTodayToReach = 'Haz un Drill hoy para llegar a';
+  static const playTodayToStart = 'Haz un Drill hoy para empezar una racha';
+  static const progress = 'Progreso';
+  static const fewerPuzzles = 'Menos';
+  static const morePuzzles = 'Más problemas';
+  static const lastDrills = 'Últimos Drills';
+  static const seeHistory = 'Ver historial';
+
+  static const toWorkOn = 'Para reforzar';
+  static const toWorkOnHint = 'Los temas que más fallas en tus últimos 10 Drills';
+  static const failed = 'fallados';
+  static const recentThemes = 'Recientes';
+  static const allThemes = 'Todos los temas';
 
   static const giveUp = 'Rendirse';
   static const previousMove = 'Anterior';

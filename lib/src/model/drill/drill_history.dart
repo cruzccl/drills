@@ -272,6 +272,39 @@ final drillHistoryDrillProvider = FutureProvider.autoDispose.family<Drill?, Date
   return data != null ? _decodeDrill(data) : null;
 }, name: 'DrillHistoryDrillProvider');
 
+/// How many of the latest Drills the themes to work on and the pace of the player are taken from.
+const kRecentDrills = 10;
+
+/// The latest [kRecentDrills] full Drills of the signed in player's Drill History, newest first,
+/// or none while signed out.
+///
+/// It follows the changes of the Drill History.
+final recentDrillsProvider = FutureProvider.autoDispose<IList<Drill>>((ref) async {
+  final userId = ref.watch(authControllerProvider.select((auth) => auth?.user.id));
+  ref.watch(drillHistoryProvider.select((history) => history.value?.revision));
+  if (userId == null) return const IListConst([]);
+  final db = await ref.read(drillDatabaseProvider.future);
+  final rows = await db.query(
+    _tableName,
+    columns: ['data'],
+    where: 'userId = ?',
+    whereArgs: [userId.value],
+    orderBy: 'startedAt DESC',
+    limit: kRecentDrills,
+  );
+  return [for (final row in rows) ?_decodeDrill(row['data']! as String)].toIList();
+}, name: 'RecentDrillsProvider');
+
+/// The most themes to work on suggested from the latest Drills.
+const kMaxRecentWeakestThemes = 4;
+
+/// The themes to work on: the weakest themes of the puzzles of the latest [kRecentDrills] Drills
+/// taken together, at most [kMaxRecentWeakestThemes] of them.
+final recentWeakestThemesProvider = FutureProvider.autoDispose<IList<DrillWeakTheme>>((ref) async {
+  final drills = await ref.watch(recentDrillsProvider.future);
+  return weakestThemesOf(drills.expand((d) => d.results), max: kMaxRecentWeakestThemes);
+}, name: 'RecentWeakestThemesProvider');
+
 /// The values of every Drill of the signed in player's Drill History, oldest first, for the chart
 /// above it.
 final drillChartPointsProvider = FutureProvider.autoDispose<IList<DrillChartPoint>>((ref) async {
