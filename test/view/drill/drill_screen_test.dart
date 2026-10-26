@@ -22,6 +22,7 @@ import 'package:lichess_mobile/src/view/engine/engine_button.dart';
 import 'package:lichess_mobile/src/view/puzzle/puzzle_session_widget.dart';
 import 'package:lichess_mobile/src/widgets/bottom_bar.dart';
 import 'package:lichess_mobile/src/widgets/non_linear_slider.dart';
+import 'package:lichess_mobile/src/widgets/platform_alert_dialog.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../model/auth/fake_auth_storage.dart';
@@ -85,7 +86,10 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.tap(find.text('Terminar'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('OK'));
+    // signed out, a Drill left is not kept to be resumed
+    expect(find.textContaining('Has hecho 2 de 5 problemas.'), findsOneWidget);
+    expect(find.text(DrillStrings.leaveDrillHint), findsNothing);
+    await tester.tap(find.widgetWithText(PlatformDialogAction, 'Terminar'));
     await tester.pumpAndSettle();
 
     // a casual Drill, without the player's rating
@@ -241,9 +245,23 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('2 / 5'), findsOneWidget);
 
+    // the confirmation warns that the Drill can't be resumed, unlike when left
     await tester.tap(find.text('Terminar'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('OK'));
+    expect(
+      find.text('Has hecho 1 de 5 problemas. El Drill quedará incompleto y no podrás retomarlo.'),
+      findsOneWidget,
+    );
+    expect(find.text(DrillStrings.leaveDrillHint), findsOneWidget);
+
+    // cancelled, the Drill goes on
+    await tester.tap(find.widgetWithText(PlatformDialogAction, 'Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('2 / 5'), findsOneWidget);
+
+    await tester.tap(find.text('Terminar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(PlatformDialogAction, 'Terminar'));
     await tester.pumpAndSettle();
 
     expect(_description(), endsWith(' · Incompleto'));
@@ -263,7 +281,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.tap(find.text('Terminar'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('OK'));
+    await tester.tap(find.widgetWithText(PlatformDialogAction, 'Terminar'));
     await tester.pumpAndSettle();
 
     expect(_summaryValue('Puntos'), '··· 1500 → ?');
@@ -290,7 +308,8 @@ void main() {
 
     await tester.tap(find.text('Terminar'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('OK'));
+    expect(find.text(DrillStrings.endEmptyDrillWarning), findsOneWidget);
+    await tester.tap(find.widgetWithText(PlatformDialogAction, 'Terminar'));
     await tester.pumpAndSettle();
 
     expect(find.byType(DrillScreen), findsNothing);

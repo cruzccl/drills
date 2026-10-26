@@ -56,6 +56,10 @@ abstract class DrillStrings() {
   static const previousMove = 'Anterior';
   static const endDrill = 'Terminar';
   static const endDrillConfirmation = '¿Terminar el Drill ahora?';
+  static const youHaveDone = 'Has hecho';
+  static const endPartialDrillWarning = 'El Drill quedará incompleto y no podrás retomarlo.';
+  static const endEmptyDrillWarning = 'Aún no has hecho ningún problema: el Drill se descartará.';
+  static const leaveDrillHint = 'Si sales con la flecha atrás, podrás retomarlo más tarde.';
 
   static const summaryTitle = 'Resumen del Drill';
   static const puzzleUnit = 'problema';
