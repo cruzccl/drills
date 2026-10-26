@@ -20,10 +20,10 @@ import 'package:lichess_mobile/src/view/analysis/analysis_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:lichess_mobile/src/view/drill/drill_summary.dart';
 import 'package:lichess_mobile/src/view/puzzle/puzzle_feedback_widget.dart';
-import 'package:lichess_mobile/src/widgets/adaptive_action_sheet.dart';
 import 'package:lichess_mobile/src/widgets/board.dart';
 import 'package:lichess_mobile/src/widgets/bottom_bar.dart';
 import 'package:lichess_mobile/src/widgets/platform.dart';
+import 'package:lichess_mobile/src/widgets/platform_alert_dialog.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// The screen of the Drill being played: its puzzles one after the other, then its Drill Summary.
@@ -59,15 +59,51 @@ class const DrillScreen({super.key}) extends ConsumerWidget {
           actions: [
             if (drill != null && !drill.isOver)
               TextButton(
-                onPressed: () => showConfirmDialog<void>(
-                  context,
-                  title: const Text(DrillStrings.endDrillConfirmation),
-                  onConfirm: () {
-                    // Ended before any puzzle was solved, the Drill is discarded: no summary.
-                    final hasSummary = ref.read(drillControllerProvider.notifier).end();
-                    if (!hasSummary) Navigator.of(context).pop();
-                  },
-                ),
+                onPressed: () async {
+                  final nbPlayed = drill.drill.results.length;
+                  final confirmed = await showAdaptiveDialog<bool>(
+                    context: context,
+                    builder: (context) => PlatformAlertDialog(
+                      title: const Text(DrillStrings.endDrillConfirmation),
+                      content: Column(
+                        mainAxisSize: .min,
+                        crossAxisAlignment: .stretch,
+                        spacing: 12.0,
+                        children: [
+                          Text(
+                            nbPlayed == 0
+                                ? DrillStrings.endEmptyDrillWarning
+                                : '${DrillStrings.youHaveDone} $nbPlayed ${DrillStrings.ofTotal} '
+                                      '${drill.drill.config.nbPuzzles} ${DrillStrings.puzzlesUnit}. '
+                                      '${DrillStrings.endPartialDrillWarning}',
+                          ),
+                          // Signed out, a Drill left is not kept to be resumed.
+                          if (drill.hasAccount) const Text(DrillStrings.leaveDrillHint),
+                        ],
+                      ),
+                      actions: [
+                        PlatformDialogAction(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          child: Text(context.l10n.cancel),
+                        ),
+                        PlatformDialogAction(
+                          onPressed: () => Navigator.of(context).pop(true),
+                          cupertinoIsDestructiveAction: true,
+                          child: Text(
+                            DrillStrings.endDrill,
+                            style: Theme.of(context).platform == .iOS
+                                ? null
+                                : TextStyle(color: ColorScheme.of(context).error),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed != true || !context.mounted) return;
+                  // Ended before any puzzle was solved, the Drill is discarded: no summary.
+                  final hasSummary = ref.read(drillControllerProvider.notifier).end();
+                  if (!hasSummary) Navigator.of(context).pop();
+                },
                 child: const Text(DrillStrings.endDrill),
               ),
           ],
