@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'package:lichess_mobile/l10n/drill/drill_localizations.dart';
 import 'package:lichess_mobile/l10n/l10n.dart';
 import 'package:lichess_mobile/src/model/common/perf.dart';
 import 'package:lichess_mobile/src/model/user/user.dart';
@@ -320,7 +321,7 @@ class _RatingHistoryChartState() extends State<RatingHistoryChart> {
         if (ranges.length > 1) ...[
           const SizedBox(height: 12.0),
           PlatformSegmentedControl<DateRange>(
-            segments: [for (final range in ranges) (range, range.label(context.l10n))],
+            segments: [for (final range in ranges) (range, range.label(context.drillL10n))],
             selected: _selectedRange,
             showSelectedIcon: false,
             expandedInsets: EdgeInsets.zero,
@@ -361,7 +362,7 @@ class const _RatingChange({required final int change, required final DateRange r
           _formatChange(change),
           style: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold, color: color),
         ),
-        Text(range.label(context.l10n), style: TextStyle(color: textShade(context, 0.5))),
+        Text(range.label(context.drillL10n), style: TextStyle(color: textShade(context, 0.5))),
       ],
     );
   }
@@ -432,11 +433,11 @@ enum DateRange() {
   oneYear,
   allTime;
 
-  String label(AppLocalizations _) => switch (this) {
-    DateRange.oneWeek => '1S',
-    DateRange.oneMonth => '1M',
-    DateRange.threeMonths => '3M',
-    DateRange.oneYear => '1A',
-    DateRange.allTime => 'TODO',
+  String label(DrillLocalizations l10n) => switch (this) {
+    DateRange.oneWeek => l10n.rangeWeek,
+    DateRange.oneMonth => l10n.rangeMonth,
+    DateRange.threeMonths => l10n.rangeThreeMonths,
+    DateRange.oneYear => l10n.rangeYear,
+    DateRange.allTime => l10n.rangeAllTime,
   };
 }

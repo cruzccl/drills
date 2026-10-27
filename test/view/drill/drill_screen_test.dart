@@ -17,7 +17,6 @@ import 'package:lichess_mobile/src/network/http.dart';
 import 'package:lichess_mobile/src/styles/styles.dart';
 import 'package:lichess_mobile/src/view/analysis/analysis_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_screen.dart';
-import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:lichess_mobile/src/view/engine/engine_button.dart';
 import 'package:lichess_mobile/src/view/puzzle/puzzle_session_widget.dart';
 import 'package:lichess_mobile/src/widgets/bottom_bar.dart';
@@ -61,15 +60,20 @@ void main() {
     await openHome(tester, signedIn: false);
 
     // the Drill setup, with a notice and the sign-in button, but no Drill History nor profile
-    expect(find.text('Empezar'), findsOneWidget);
-    expect(find.text('Calentar con Puzzle Storm'), findsOneWidget);
-    expect(find.text(DrillStrings.signedOutNotice), findsOneWidget);
+    expect(find.text('Start'), findsOneWidget);
+    expect(find.text('Warm up with Puzzle Storm'), findsOneWidget);
+    expect(
+      find.text(
+        "Signed out, Drills don't count on any Lichess account and aren't saved to the history. Sign in to have them count on yours.",
+      ),
+      findsOneWidget,
+    );
     expect(find.widgetWithText(OutlinedButton, 'Sign in'), findsOneWidget);
     expect(find.byIcon(Icons.history), findsNothing);
-    expect(find.bySemanticsLabel(DrillStrings.profile), findsNothing);
+    expect(find.bySemanticsLabel('My profile'), findsNothing);
 
     await _chooseNbPuzzles(tester, 5);
-    await tester.tap(find.text('Empezar'));
+    await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
     expect(find.byType(DrillScreen), findsOneWidget);
 
@@ -84,37 +88,37 @@ void main() {
     await _failCurrentPuzzle(tester);
     await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
     await tester.pump(const Duration(milliseconds: 100));
-    await tester.tap(find.text('Terminar'));
+    await tester.tap(find.text('End'));
     await tester.pumpAndSettle();
     // signed out, a Drill left is not kept to be resumed
-    expect(find.textContaining('Has hecho 2 de 5 problemas.'), findsOneWidget);
-    expect(find.text(DrillStrings.leaveDrillHint), findsNothing);
-    await tester.tap(find.widgetWithText(PlatformDialogAction, 'Terminar'));
+    expect(find.textContaining('You have done 2 of 5 puzzles.'), findsOneWidget);
+    expect(find.text('If you leave with the back arrow, you can resume it later.'), findsNothing);
+    await tester.tap(find.widgetWithText(PlatformDialogAction, 'End'));
     await tester.pumpAndSettle();
 
     // a casual Drill, without the player's rating
-    expect(find.text('1 de 2 resueltos'), findsOneWidget);
-    expect(find.text('Puntos'), findsNothing);
-    expect(find.textContaining('espera'), findsNothing);
-    await tester.scrollUntilVisible(find.text('sin puntuar').first, 200.0);
-    expect(find.text('sin puntuar'), findsNWidgets(2));
-    expect(find.text('pendiente'), findsNothing);
+    expect(find.text('1 of 2 solved'), findsOneWidget);
+    expect(find.text('Points'), findsNothing);
+    expect(find.textContaining('expected'), findsNothing);
+    await tester.scrollUntilVisible(find.text('unrated').first, 200.0);
+    expect(find.text('unrated'), findsNWidgets(2));
+    expect(find.text('pending'), findsNothing);
 
-    await tester.scrollUntilVisible(find.text('Volver'), 200.0);
-    await tester.tap(find.text('Volver'));
+    await tester.scrollUntilVisible(find.text('Back'), 200.0);
+    await tester.tap(find.text('Back'));
     await tester.pumpAndSettle();
 
     // no solution sent: Lichess records nothing, and nothing is kept to resume
     expect(server.nbSolveRequests, 0);
     expect(server.solutions, isEmpty);
-    expect(find.textContaining('Reanudar'), findsNothing);
+    expect(find.textContaining('Resume'), findsNothing);
   });
 
   testWidgets('plays a Drill showing only its progress, then its summary', (tester) async {
     await openHome(tester, signedIn: true);
 
     await _chooseNbPuzzles(tester, 5);
-    await tester.tap(find.text('Empezar'));
+    await tester.tap(find.text('Start'));
     // load the puzzles and open the Drill
     await tester.pumpAndSettle();
     expect(find.byType(DrillScreen), findsOneWidget);
@@ -135,7 +139,7 @@ void main() {
     expect(find.text('1 / 5'), findsOneWidget);
     expect(find.text('Rating'), findsNothing);
     expect(find.byType(PuzzleSessionWidget), findsNothing);
-    expect(find.textContaining('Aciertos'), findsNothing);
+    expect(find.textContaining('Successes'), findsNothing);
 
     await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
     await tester.pump(const Duration(milliseconds: 100));
@@ -151,14 +155,14 @@ void main() {
     expect(find.byType(Chessboard), findsNothing);
     expect(server.solutions.map((s) => s.win), [true, false, false, false, false]);
     await tester.pumpAndSettle();
-    expect(_description(), startsWith('Healthy mix · 5 problemas · Normal · Hoy '));
+    expect(_description(), startsWith('Healthy mix · 5 puzzles · Normal · Today '));
     expect(find.text('20 %'), findsOneWidget);
-    expect(find.text('1 de 5 resueltos'), findsOneWidget);
+    expect(find.text('1 of 5 solved'), findsOneWidget);
     // from the puzzles' 1500 and the player's 1500
-    expect(find.text('Peor de lo esperado (50 %)'), findsOneWidget);
+    expect(find.text('Worse than expected (50 %)'), findsOneWidget);
     // 1500 average puzzle rating, 1 success out of 5
-    expect(_summaryValue('Rendimiento'), '1200 Poco fiable');
-    expect(_summaryValue('Puntos'), '−30 1500 → 1470');
+    expect(_summaryValue('Performance'), '1200 Unreliable');
+    expect(_summaryValue('Points'), '−30 1500 → 1470');
     // the 4 puzzles failed, out of the 5 with these themes
     await tester.scrollUntilVisible(find.text('Endgame'), 200.0);
     expect(find.text('4 / 5', findRichText: true), findsNWidgets(2));
@@ -175,7 +179,7 @@ void main() {
 
   testWidgets('one button asks for a hint, which fails the puzzle, then gives up', (tester) async {
     await openHome(tester, signedIn: true);
-    await tester.tap(find.text('Empezar'));
+    await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
 
     // wait for the opponent's move and for the hint to be offered
@@ -215,7 +219,7 @@ void main() {
       },
     );
 
-    await tester.tap(find.text('Empezar'));
+    await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
     // wait for the opponent's move: the player can move
     await tester.pump(const Duration(milliseconds: 1500));
@@ -237,7 +241,7 @@ void main() {
   testWidgets('a Drill ended early shows its summary, marked as partial', (tester) async {
     await openHome(tester, signedIn: true);
     await _chooseNbPuzzles(tester, 5);
-    await tester.tap(find.text('Empezar'));
+    await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
 
     await _failCurrentPuzzle(tester);
@@ -246,32 +250,34 @@ void main() {
     expect(find.text('2 / 5'), findsOneWidget);
 
     // the confirmation warns that the Drill can't be resumed, unlike when left
-    await tester.tap(find.text('Terminar'));
+    await tester.tap(find.text('End'));
     await tester.pumpAndSettle();
     expect(
-      find.text('Has hecho 1 de 5 problemas. El Drill quedará incompleto y no podrás retomarlo.'),
+      find.text(
+        "You have done 1 of 5 puzzles. The Drill will be left incomplete and you won't be able to resume it.",
+      ),
       findsOneWidget,
     );
-    expect(find.text(DrillStrings.leaveDrillHint), findsOneWidget);
+    expect(find.text('If you leave with the back arrow, you can resume it later.'), findsOneWidget);
 
     // cancelled, the Drill goes on
     await tester.tap(find.widgetWithText(PlatformDialogAction, 'Cancel'));
     await tester.pumpAndSettle();
     expect(find.text('2 / 5'), findsOneWidget);
 
-    await tester.tap(find.text('Terminar'));
+    await tester.tap(find.text('End'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(PlatformDialogAction, 'Terminar'));
+    await tester.tap(find.widgetWithText(PlatformDialogAction, 'End'));
     await tester.pumpAndSettle();
 
-    expect(_description(), endsWith(' · Incompleto'));
-    expect(find.text('0 de 1 resuelto'), findsOneWidget);
+    expect(_description(), endsWith(' · Incomplete'));
+    expect(find.text('0 of 1 solved'), findsOneWidget);
   });
 
   testWidgets('the Drill Summary shows the rating as pending until it is synced', (tester) async {
     await openHome(tester, signedIn: true);
     await _chooseNbPuzzles(tester, 5);
-    await tester.tap(find.text('Empezar'));
+    await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
 
     server.isOffline = true;
@@ -279,14 +285,14 @@ void main() {
     await _failCurrentPuzzle(tester);
     await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
     await tester.pump(const Duration(milliseconds: 100));
-    await tester.tap(find.text('Terminar'));
+    await tester.tap(find.text('End'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(PlatformDialogAction, 'Terminar'));
+    await tester.tap(find.widgetWithText(PlatformDialogAction, 'End'));
     await tester.pumpAndSettle();
 
-    expect(_summaryValue('Puntos'), '··· 1500 → ?');
-    expect(_summaryValue('Rendimiento'), '1000 Poco fiable', reason: 'known without the server');
-    await tester.scrollUntilVisible(find.text('pendiente'), 200.0);
+    expect(_summaryValue('Points'), '··· 1500 → ?');
+    expect(_summaryValue('Performance'), '1000 Unreliable', reason: 'known without the server');
+    await tester.scrollUntilVisible(find.text('pending'), 200.0);
 
     server.isOffline = false;
     // past the throttling of connectivity changes
@@ -294,33 +300,36 @@ void main() {
     FakeConnectivity.controller.add([.wifi]);
     await tester.pumpAndSettle();
 
-    expect(find.text('pendiente'), findsNothing);
+    expect(find.text('pending'), findsNothing);
     // in the puzzle list and the rating change
     expect(find.text('−10'), findsNWidgets(2));
-    await tester.scrollUntilVisible(find.text('Puntos'), -200.0);
-    expect(_summaryValue('Puntos'), '−10 1500 → 1490');
+    await tester.scrollUntilVisible(find.text('Points'), -200.0);
+    expect(_summaryValue('Points'), '−10 1500 → 1490');
   });
 
   testWidgets('a Drill ended before any puzzle is solved goes back home', (tester) async {
     await openHome(tester, signedIn: true);
-    await tester.tap(find.text('Empezar'));
+    await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Terminar'));
+    await tester.tap(find.text('End'));
     await tester.pumpAndSettle();
-    expect(find.text(DrillStrings.endEmptyDrillWarning), findsOneWidget);
-    await tester.tap(find.widgetWithText(PlatformDialogAction, 'Terminar'));
+    expect(
+      find.text("You haven't done any puzzle yet: the Drill will be discarded."),
+      findsOneWidget,
+    );
+    await tester.tap(find.widgetWithText(PlatformDialogAction, 'End'));
     await tester.pumpAndSettle();
 
     expect(find.byType(DrillScreen), findsNothing);
-    expect(find.text('Empezar'), findsOneWidget);
-    expect(find.textContaining('Reanudar'), findsNothing);
+    expect(find.text('Start'), findsOneWidget);
+    expect(find.textContaining('Resume'), findsNothing);
   });
 
   testWidgets('the home screen offers to resume an unfinished Drill', (tester) async {
     await openHome(tester, signedIn: true);
     await _chooseNbPuzzles(tester, 5);
-    await tester.tap(find.text('Empezar'));
+    await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
     await _failCurrentPuzzle(tester);
 
@@ -328,7 +337,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('1 / 5 · Healthy mix · Normal'), findsOneWidget);
 
-    await tester.tap(find.text('Reanudar el Drill'));
+    await tester.tap(find.text('Resume the Drill'));
     // the next arrow of the failed puzzle blinks: no pumpAndSettle
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
@@ -338,7 +347,7 @@ void main() {
     // starting a new Drill instead asks first
     await tester.pageBack();
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Empezar'));
+    await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
     expect(find.byType(DrillScreen), findsNothing);
     await tester.tap(find.text('OK'));
@@ -351,39 +360,39 @@ void main() {
     tester,
   ) async {
     await openHome(tester, signedIn: true);
-    expect(_setting('Problemas'), ['10'], reason: 'the default number of puzzles');
-    expect(_setting('Tema'), ['Healthy mix']);
-    expect(_setting('Dificultad'), ['Normal']);
+    expect(_setting('Puzzles'), ['10'], reason: 'the default number of puzzles');
+    expect(_setting('Theme'), ['Healthy mix']);
+    expect(_setting('Difficulty'), ['Normal']);
 
-    await tester.tap(find.text('Problemas'));
+    await tester.tap(find.text('Puzzles'));
     await tester.pumpAndSettle();
     expect(_isChipSelected(tester, '10'), isTrue);
     await tester.tap(find.widgetWithText(ChoiceChip, '12'));
     await tester.pump();
     expect(_isChipSelected(tester, '12'), isTrue);
     expect(_isChipSelected(tester, '10'), isFalse);
-    await tester.tap(find.text('Hecho'));
+    await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
-    expect(_setting('Problemas'), ['12', '10'], reason: 'the last number struck through');
+    expect(_setting('Puzzles'), ['12', '10'], reason: 'the last number struck through');
 
-    await tester.tap(find.text('Tema'));
+    await tester.tap(find.text('Theme'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Motifs'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Fork'));
     await tester.pumpAndSettle();
-    expect(_setting('Tema'), ['Fork']);
+    expect(_setting('Theme'), ['Fork']);
 
-    await tester.tap(find.text('Dificultad'));
+    await tester.tap(find.text('Difficulty'));
     await tester.pumpAndSettle();
     expect(find.text('Difficulty level'), findsOneWidget);
     await tester.tap(find.text('Hardest'));
     await tester.pump();
-    await tester.tap(find.text('Hecho'));
+    await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
-    expect(_setting('Dificultad'), ['Hardest']);
+    expect(_setting('Difficulty'), ['Hardest']);
 
-    await tester.tap(find.text('Empezar'));
+    await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
     expect(find.text('1 / 12'), findsOneWidget);
     expect(server.angles.toSet(), {'fork'});
@@ -392,41 +401,41 @@ void main() {
 
   testWidgets('the setup of the last Drill is set back in one tap', (tester) async {
     await openHome(tester, signedIn: true);
-    expect(find.text('Como el último'), findsNothing);
+    expect(find.text('Same as last'), findsNothing);
 
     await _chooseNbPuzzles(tester, 25);
-    await tester.tap(find.text('Dificultad'));
+    await tester.tap(find.text('Difficulty'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Easiest'));
-    await tester.tap(find.text('Hecho'));
+    await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
-    expect(_setting('Problemas'), ['25', '10']);
+    expect(_setting('Puzzles'), ['25', '10']);
 
-    await tester.tap(find.text('Como el último'));
+    await tester.tap(find.text('Same as last'));
     await tester.pumpAndSettle();
-    expect(_setting('Problemas'), ['10']);
-    expect(_setting('Dificultad'), ['Normal']);
-    expect(find.text('Como el último'), findsNothing);
+    expect(_setting('Puzzles'), ['10']);
+    expect(_setting('Difficulty'), ['Normal']);
+    expect(find.text('Same as last'), findsNothing);
   });
 
   testWidgets('a sheet closed without being done keeps the setup', (tester) async {
     await openHome(tester, signedIn: true);
 
-    await tester.tap(find.text('Problemas'));
+    await tester.tap(find.text('Puzzles'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip(DrillStrings.onePuzzleMore));
+    await tester.tap(find.byTooltip('One puzzle more'));
     await tester.pump();
     expect(_inSheet(find.text('11')), findsOneWidget);
     await tester.tapAt(const Offset(20, 20));
     await tester.pumpAndSettle();
 
-    expect(_setting('Problemas'), ['10']);
+    expect(_setting('Puzzles'), ['10']);
   });
 
   testWidgets('a Drill can be set up on an opening', (tester) async {
     await openHome(tester, signedIn: true);
 
-    await tester.tap(find.text('Tema'));
+    await tester.tap(find.text('Theme'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('By openings'));
     await tester.pumpAndSettle();
@@ -436,7 +445,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Sicilian Defense: Najdorf Variation'), findsOneWidget);
 
-    await tester.tap(find.text('Empezar'));
+    await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
     expect(find.text('1 / 10'), findsOneWidget);
     expect(server.angles.toSet(), {'Sicilian_Defense_Najdorf_Variation'});
@@ -444,7 +453,7 @@ void main() {
 
   testWidgets('the number of puzzles is set with a slider, from 1 to 50', (tester) async {
     await openHome(tester, signedIn: true);
-    await tester.tap(find.text('Problemas'));
+    await tester.tap(find.text('Puzzles'));
     await tester.pumpAndSettle();
     expect(_sliderValue(tester), 10);
 
@@ -466,10 +475,10 @@ void main() {
     await tester.drag(find.byType(Slider), const Offset(1000, 0));
     await tester.pumpAndSettle();
     expect(_sliderValue(tester), 50);
-    await tester.tap(find.text('Hecho'));
+    await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Empezar'));
+    await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
     expect(find.text('1 / 50'), findsOneWidget);
   });
@@ -489,12 +498,12 @@ void main() {
       },
     );
 
-    expect(_setting('Problemas'), ['37']);
-    expect(_setting('Tema'), ['Fork']);
-    expect(_setting('Dificultad'), ['Easier']);
-    expect(find.text('Como el último'), findsNothing);
+    expect(_setting('Puzzles'), ['37']);
+    expect(_setting('Theme'), ['Fork']);
+    expect(_setting('Difficulty'), ['Easier']);
+    expect(find.text('Same as last'), findsNothing);
 
-    await tester.tap(find.text('Empezar'));
+    await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
     expect(find.text('1 / 37'), findsOneWidget);
     expect(server.angles.toSet(), {'fork'});
@@ -516,7 +525,7 @@ void main() {
         ),
       },
     );
-    await tester.tap(find.text('Empezar'));
+    await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
     await tester.pump(const Duration(milliseconds: 1500));
     expect(find.byIcon(Icons.biotech), findsNothing, reason: 'not while the puzzle is solved');
@@ -555,7 +564,7 @@ void main() {
         ),
       },
     );
-    await tester.tap(find.text('Empezar'));
+    await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
     await _failCurrentPuzzle(tester);
     await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
@@ -607,14 +616,14 @@ void main() {
         ),
       },
     );
-    await tester.tap(find.text('Empezar'));
+    await tester.tap(find.text('Start'));
     await tester.pumpAndSettle();
     await _failCurrentPuzzle(tester);
     await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
     await tester.pumpAndSettle();
 
     // the puzzle's themes, but its length
-    expect(find.text('Temas más débiles'), findsOneWidget);
+    expect(find.text('Weakest themes'), findsOneWidget);
     expect(find.text('Short'), findsNothing);
     await tester.scrollUntilVisible(find.text('Fork'), 200.0);
     await tester.tap(find.text('Fork'));
@@ -622,30 +631,30 @@ void main() {
 
     // back home, the theme chosen and the rest of the setup kept
     expect(find.byType(DrillScreen), findsNothing);
-    expect(_setting('Tema'), ['Fork', 'para reforzar'], reason: 'failed in the last Drill');
-    expect(_setting('Problemas'), ['1']);
+    expect(_setting('Theme'), ['Fork', 'to work on'], reason: 'failed in the last Drill');
+    expect(_setting('Puzzles'), ['1']);
 
     // from a Drill of the Drill History too
-    await tester.scrollUntilVisible(find.text('Ver historial'), 200.0);
-    await tester.tap(find.text('Ver historial'));
+    await tester.scrollUntilVisible(find.text('See history'), 200.0);
+    await tester.tap(find.text('See history'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Healthy mix'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Endgame'), 200.0);
     await tester.tap(find.text('Endgame'));
     await tester.pumpAndSettle();
-    expect(find.text('Historial de Drills'), findsNothing);
-    expect(_setting('Tema'), ['Endgame', 'para reforzar']);
+    expect(find.text('Drill History'), findsNothing);
+    expect(_setting('Theme'), ['Endgame', 'to work on']);
 
     // and from a Drill of the latest Drills
     await tester.scrollUntilVisible(_lastDrill('Healthy mix'), 200.0);
     await tester.tap(_lastDrill('Healthy mix'));
     await tester.pumpAndSettle();
-    expect(find.text('Resumen del Drill'), findsOneWidget);
+    expect(find.text('Drill summary'), findsOneWidget);
     await tester.scrollUntilVisible(find.text('Fork'), 200.0);
     await tester.tap(find.text('Fork'));
     await tester.pumpAndSettle();
-    expect(_setting('Tema'), ['Fork', 'para reforzar']);
+    expect(_setting('Theme'), ['Fork', 'to work on']);
   });
 
   testWidgets('the themes most failed in the latest Drills are offered first', (tester) async {
@@ -658,26 +667,26 @@ void main() {
         ),
       },
     );
-    await tester.tap(find.text('Tema'));
+    await tester.tap(find.text('Theme'));
     await tester.pumpAndSettle();
-    expect(find.text('Para reforzar'), findsNothing, reason: 'no Drill yet');
-    expect(find.text('Recientes'), findsNothing);
+    expect(find.text('To work on'), findsNothing, reason: 'no Drill yet');
+    expect(find.text('Recent'), findsNothing);
     await tester.pageBack();
     await tester.pumpAndSettle();
 
     await _playOnePuzzleDrill(tester);
-    await tester.tap(find.text('Tema'));
+    await tester.tap(find.text('Theme'));
     await tester.pumpAndSettle();
-    expect(find.text('Para reforzar'), findsOneWidget);
+    expect(find.text('To work on'), findsOneWidget);
     // the failed puzzle's themes, but its length
-    expect(find.text('fallados 1 de 1'), findsWidgets);
+    expect(find.text('1 of 1 failed'), findsWidgets);
     expect(find.text('Short'), findsNothing);
-    expect(find.text('Recientes'), findsOneWidget);
+    expect(find.text('Recent'), findsOneWidget);
     expect(_isChipSelected(tester, 'Healthy mix'), isTrue);
 
     await tester.tap(find.text('Endgame').first);
     await tester.pumpAndSettle();
-    expect(_setting('Tema'), ['Endgame', 'para reforzar']);
+    expect(_setting('Theme'), ['Endgame', 'to work on']);
   });
 
   testWidgets('the Drill History lists the past Drills, opened or deleted', (tester) async {
@@ -690,30 +699,30 @@ void main() {
         ),
       },
     );
-    expect(find.text('Ver historial'), findsNothing, reason: 'no Drill yet');
-    expect(find.text('Progreso'), findsNothing);
+    expect(find.text('See history'), findsNothing, reason: 'no Drill yet');
+    expect(find.text('Progress'), findsNothing);
 
     await _playOnePuzzleDrill(tester);
     // the latest Drills, on the home screen
-    expect(find.text('Últimos Drills'), findsOneWidget);
+    expect(find.text('Last Drills'), findsOneWidget);
     expect(_lastDrill('Healthy mix'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('Ver historial'), 200.0);
-    await tester.tap(find.text('Ver historial'));
+    await tester.scrollUntilVisible(find.text('See history'), 200.0);
+    await tester.tap(find.text('See history'));
     await tester.pumpAndSettle();
-    expect(find.text('Hoy'), findsOneWidget);
+    expect(find.text('Today'), findsOneWidget);
     expect(find.text('Healthy mix'), findsOneWidget);
     expect(find.text('0 %'), findsOneWidget);
-    expect(find.textContaining('Esperado'), findsNothing, reason: 'in the Drill Summary only');
+    expect(find.textContaining('Expected'), findsNothing, reason: 'in the Drill Summary only');
     expect(find.text('1000'), findsOneWidget);
-    expect(find.text('Poco fiable'), findsOneWidget);
+    expect(find.text('Unreliable'), findsOneWidget);
     // in the day header and the Drill
     expect(find.text('−10'), findsNWidgets(2));
     expect(find.text('1490'), findsOneWidget);
 
     await tester.tap(find.text('Healthy mix'));
     await tester.pumpAndSettle();
-    expect(find.text('Resumen del Drill'), findsOneWidget);
-    expect(find.text('0 de 1 resuelto'), findsOneWidget);
+    expect(find.text('Drill summary'), findsOneWidget);
+    expect(find.text('0 of 1 solved'), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
 
@@ -721,12 +730,12 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
     await _playOnePuzzleDrill(tester);
-    await tester.scrollUntilVisible(find.text('Ver historial'), 200.0);
-    await tester.tap(find.text('Ver historial'));
+    await tester.scrollUntilVisible(find.text('See history'), 200.0);
+    await tester.tap(find.text('See history'));
     await tester.pumpAndSettle();
     expect(find.byType(LineChart), findsNothing);
     expect(find.text('Healthy mix'), findsNWidgets(2));
-    expect(find.text('2 Drills · 2 problemas · '), findsOneWidget);
+    expect(find.text('2 Drills · 2 puzzles · '), findsOneWidget);
 
     for (var i = 0; i < 2; i++) {
       await tester.longPress(find.text('Healthy mix').first);
@@ -735,7 +744,7 @@ void main() {
       await tester.pumpAndSettle();
     }
     expect(find.text('Healthy mix'), findsNothing);
-    expect(find.text('Todavía no has terminado ningún Drill.'), findsOneWidget);
+    expect(find.text("You haven't finished any Drill yet."), findsOneWidget);
   });
 
   testWidgets('the streak opens the progress, with the charts of the Drill History', (
@@ -750,38 +759,83 @@ void main() {
         ),
       },
     );
-    expect(_richText('0 días seguidos'), findsOneWidget);
-    expect(find.text('Haz un Drill hoy para empezar una racha'), findsOneWidget);
+    expect(_richText('0 days in a row'), findsOneWidget);
+    expect(find.text('Play a Drill today to start a streak'), findsOneWidget);
 
     await _playOnePuzzleDrill(tester);
-    expect(_richText('1 día seguido'), findsOneWidget);
-    expect(find.text('Tu mejor racha: 1 día'), findsOneWidget);
-    expect(find.textContaining('Haz un Drill hoy'), findsNothing);
+    expect(_richText('1 day in a row'), findsOneWidget);
+    expect(find.text('Your best streak: 1 day'), findsOneWidget);
+    expect(find.textContaining('Play a Drill today'), findsNothing);
 
     await _playOnePuzzleDrill(tester);
-    await tester.tap(find.text('Progreso'));
+    await tester.tap(find.text('Progress'));
     await tester.pumpAndSettle();
-    expect(find.text('día seguido'), findsOneWidget);
-    expect(find.text('mejor racha'), findsOneWidget);
+    expect(find.text('day in a row'), findsOneWidget);
+    expect(find.text('best streak'), findsOneWidget);
     // both charts, over the only day played: the whole Drill History is the only range
-    expect(find.text('2 Drills, 2 problemas · por días'), findsOneWidget);
-    expect(find.text('Todo'), findsOneWidget);
+    expect(find.text('2 Drills, 2 puzzles · by day'), findsOneWidget);
+    expect(find.text('All'), findsOneWidget);
     expect(find.text('1M'), findsNothing);
     await tester.scrollUntilVisible(find.byType(BarChart), 200.0);
     expect(find.byType(LineChart), findsOneWidget);
     expect(find.byType(BarChart), findsOneWidget);
   });
+
+  testWidgets('in Spanish, Drills read as when Spanish was their only language', (tester) async {
+    tester.platformDispatcher.localesTestValue = const [Locale('es')];
+    addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+    await openHome(tester, signedIn: true);
+    expect(_richText('0 días seguidos'), findsOneWidget);
+    expect(find.text('Haz un Drill hoy para empezar una racha'), findsOneWidget);
+
+    await tester.tap(find.text('Problemas'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ChoiceChip, '5'));
+    await tester.pump();
+    await tester.tap(find.text('Hecho'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Empezar'));
+    await tester.pumpAndSettle();
+    await _failCurrentPuzzle(tester);
+    await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.text('Terminar'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Has hecho 1 de 5 problemas. El Drill quedará incompleto y no podrás retomarlo.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.widgetWithText(PlatformDialogAction, 'Terminar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('0 de 1 resuelto'), findsOneWidget);
+    expect(find.textContaining(' · 5 problemas · '), findsOneWidget);
+    expect(find.textContaining(' · Hoy '), findsOneWidget);
+    expect(find.textContaining(' · Incompleto'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Volver'), 200.0);
+    await tester.tap(find.text('Volver'));
+    await tester.pumpAndSettle();
+
+    expect(_richText('1 día seguido'), findsOneWidget);
+    expect(find.text('Tu mejor racha: 1 día'), findsOneWidget);
+    await tester.tap(find.text('Progreso'));
+    await tester.pumpAndSettle();
+    expect(find.text('día seguido'), findsOneWidget);
+    expect(find.text('mejor racha'), findsOneWidget);
+    expect(find.text('1 Drill, 1 problema · por días'), findsOneWidget);
+    expect(find.text('Todo'), findsOneWidget);
+  });
 }
 
 /// Plays a Drill of 1 puzzle from the home screen, failed, and goes back home from its summary.
 Future<void> _playOnePuzzleDrill(WidgetTester tester) async {
-  await tester.tap(find.text('Empezar'));
+  await tester.tap(find.text('Start'));
   await tester.pumpAndSettle();
   await _failCurrentPuzzle(tester);
   await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
   await tester.pumpAndSettle();
-  await tester.scrollUntilVisible(find.text('Volver'), 200.0);
-  await tester.tap(find.text('Volver'));
+  await tester.scrollUntilVisible(find.text('Back'), 200.0);
+  await tester.tap(find.text('Back'));
   await tester.pumpAndSettle();
 }
 
@@ -840,11 +894,11 @@ String _summaryValue(String label) {
 
 /// Sets the number of puzzles of the next Drill with one of the numbers its sheet offers.
 Future<void> _chooseNbPuzzles(WidgetTester tester, int nbPuzzles) async {
-  await tester.tap(find.text('Problemas'));
+  await tester.tap(find.text('Puzzles'));
   await tester.pumpAndSettle();
   await tester.tap(find.widgetWithText(ChoiceChip, '$nbPuzzles'));
   await tester.pump();
-  await tester.tap(find.text('Hecho'));
+  await tester.tap(find.text('Done'));
   await tester.pumpAndSettle();
 }
 

@@ -41,6 +41,8 @@ summary of the results.
   puzzle dashboard, whose themes set up the next Drill; the Puzzle Storm one opens the Storm high
   scores and the best run of every day, as in the official app, over the last week, month, three
   months or year, with a chart of them.
+- Drills follows the language of the device, like the rest of the app: its own screens are in
+  English, Spanish and Basque, and in English in any other language.
 
 See [GLOSSARY.md](./GLOSSARY.md) for the terms used in this fork and [docs/adr](./docs/adr) for
 the decisions behind it.
