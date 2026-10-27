@@ -17,7 +17,6 @@ import 'package:lichess_mobile/src/utils/l10n_context.dart';
 import 'package:lichess_mobile/src/utils/navigation.dart';
 import 'package:lichess_mobile/src/utils/screen.dart';
 import 'package:lichess_mobile/src/view/analysis/analysis_screen.dart';
-import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:lichess_mobile/src/view/drill/drill_summary.dart';
 import 'package:lichess_mobile/src/view/puzzle/puzzle_feedback_widget.dart';
 import 'package:lichess_mobile/src/widgets/board.dart';
@@ -48,7 +47,7 @@ class const DrillScreen({super.key}) extends ConsumerWidget {
         extendBodyBehindAppBar: false,
         appBar: PlatformAppBar(
           title: drill == null || drill.isOver
-              ? const Text(DrillStrings.summaryTitle)
+              ? Text(context.drillL10n.summaryTitle)
               : Row(
                   mainAxisSize: .min,
                   children: [
@@ -64,7 +63,7 @@ class const DrillScreen({super.key}) extends ConsumerWidget {
                   final confirmed = await showAdaptiveDialog<bool>(
                     context: context,
                     builder: (context) => PlatformAlertDialog(
-                      title: const Text(DrillStrings.endDrillConfirmation),
+                      title: Text(context.drillL10n.endDrillConfirmation),
                       content: Column(
                         mainAxisSize: .min,
                         crossAxisAlignment: .stretch,
@@ -72,13 +71,14 @@ class const DrillScreen({super.key}) extends ConsumerWidget {
                         children: [
                           Text(
                             nbPlayed == 0
-                                ? DrillStrings.endEmptyDrillWarning
-                                : '${DrillStrings.youHaveDone} $nbPlayed ${DrillStrings.ofTotal} '
-                                      '${drill.drill.config.nbPuzzles} ${DrillStrings.puzzlesUnit}. '
-                                      '${DrillStrings.endPartialDrillWarning}',
+                                ? context.drillL10n.endEmptyDrillWarning
+                                : context.drillL10n.endPartialDrillWarning(
+                                    nbPlayed,
+                                    drill.drill.config.nbPuzzles,
+                                  ),
                           ),
                           // Signed out, a Drill left is not kept to be resumed.
-                          if (drill.hasAccount) const Text(DrillStrings.leaveDrillHint),
+                          if (drill.hasAccount) Text(context.drillL10n.leaveDrillHint),
                         ],
                       ),
                       actions: [
@@ -90,7 +90,7 @@ class const DrillScreen({super.key}) extends ConsumerWidget {
                           onPressed: () => Navigator.of(context).pop(true),
                           cupertinoIsDestructiveAction: true,
                           child: Text(
-                            DrillStrings.endDrill,
+                            context.drillL10n.endDrill,
                             style: Theme.of(context).platform == .iOS
                                 ? null
                                 : TextStyle(color: ColorScheme.of(context).error),
@@ -104,7 +104,7 @@ class const DrillScreen({super.key}) extends ConsumerWidget {
                   final hasSummary = ref.read(drillControllerProvider.notifier).end();
                   if (!hasSummary) Navigator.of(context).pop();
                 },
-                child: const Text(DrillStrings.endDrill),
+                child: Text(context.drillL10n.endDrill),
               ),
           ],
         ),
@@ -412,7 +412,7 @@ class _DrillBottomBarState() extends ConsumerState<_DrillBottomBar> {
           else
             BottomBarButton(
               icon: Icons.flag_outlined,
-              label: DrillStrings.giveUp,
+              label: context.drillL10n.giveUp,
               onTap: canGetHelp ? puzzleCtrl.viewSolution : null,
             ),
         // Only the puzzle just solved: zen mode hides the previous ones until the Drill Summary.
@@ -429,7 +429,7 @@ class _DrillBottomBarState() extends ConsumerState<_DrillBottomBar> {
           ),
         BottomBarButton(
           onTap: puzzleState.canGoBack ? puzzleCtrl.userPrevious : null,
-          label: DrillStrings.previousMove,
+          label: context.drillL10n.previousMove,
           icon: CupertinoIcons.chevron_back,
           showTooltip: false,
         ),

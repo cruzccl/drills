@@ -4,7 +4,6 @@ import 'package:http/testing.dart';
 import 'package:lichess_mobile/src/app.dart';
 import 'package:lichess_mobile/src/network/http.dart';
 import 'package:lichess_mobile/src/view/drill/drill_home_screen.dart';
-import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:lichess_mobile/src/view/puzzle/storm_screen.dart';
 
 import '../../model/auth/fake_auth_storage.dart';
@@ -26,8 +25,8 @@ void main() {
     await tester.pumpWidget(app);
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(find.text(DrillStrings.warmUpWithStorm), 100);
-    await tester.tap(find.text(DrillStrings.warmUpWithStorm));
+    await tester.scrollUntilVisible(find.text('Warm up with Puzzle Storm'), 100);
+    await tester.tap(find.text('Warm up with Puzzle Storm'));
     await tester.pumpAndSettle();
     expect(find.byType(StormScreen), findsOneWidget);
 

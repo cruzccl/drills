@@ -169,6 +169,21 @@ This runs `gen-arb.mjs`, `flutter gen-l10n`, and `gen-widget-strings.mjs` in ord
 
 Mobile-specific translations get a `mobile` prefix (e.g., "foo" becomes `mobileFoo` in Dart).
 
+### Drills translations
+
+The UI text of Drills is not in `mobile.xml` (translated on Lichess's Crowdin, which will never have
+it): it is in its own ARB files, `lib/l10n/drill/drill_<locale>.arb`, English being the template.
+Edit them by hand, then regenerate `DrillLocalizations` (the generated Dart files are committed):
+
+```bash
+./scripts/gen-drill-translations.sh
+```
+
+Read the text with `context.drillL10n` (`lib/src/utils/l10n_context.dart`). In a locale without a
+Drills ARB, `DrillLocalizationsDelegate` falls back to English. A sentence is one message, with ICU
+placeholders and plurals, never pieces glued in code: word order and plurals differ between
+languages. The Spanish text stays the one the app had when Spanish was its only language.
+
 ## Architecture
 
 ### Directory Structure

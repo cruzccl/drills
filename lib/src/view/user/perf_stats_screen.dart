@@ -6,6 +6,7 @@ import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:lichess_mobile/l10n/drill/drill_localizations.dart';
 import 'package:lichess_mobile/l10n/l10n.dart';
 import 'package:lichess_mobile/src/constants.dart';
 import 'package:lichess_mobile/src/model/analysis/analysis_controller.dart';
@@ -811,7 +812,7 @@ class _EloChartState() extends State<_EloChart> {
                 .where((dateRange) => _dateIsInRange(dateRange))
                 .map(
                   (dateRange) => _RangeButton(
-                    text: dateRange.label(context.l10n),
+                    text: dateRange.label(context.drillL10n),
                     onPressed: () {
                       setState(() {
                         _selectedRange = dateRange;
@@ -951,11 +952,11 @@ enum DateRange() {
   oneYear,
   allTime;
 
-  String label(AppLocalizations _) => switch (this) {
-    DateRange.oneWeek => '1S',
-    DateRange.oneMonth => '1M',
-    DateRange.threeMonths => '3M',
-    DateRange.oneYear => '1A',
-    DateRange.allTime => 'TODO',
+  String label(DrillLocalizations l10n) => switch (this) {
+    DateRange.oneWeek => l10n.rangeWeek,
+    DateRange.oneMonth => l10n.rangeMonth,
+    DateRange.threeMonths => l10n.rangeThreeMonths,
+    DateRange.oneYear => l10n.rangeYear,
+    DateRange.allTime => l10n.rangeAllTime,
   };
 }

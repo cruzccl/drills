@@ -6,13 +6,14 @@ import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:lichess_mobile/l10n/drill/drill_localizations.dart';
 import 'package:lichess_mobile/src/model/drill/drill_history.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_angle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_difficulty.dart';
 import 'package:lichess_mobile/src/styles/styles.dart';
+import 'package:lichess_mobile/src/utils/l10n_context.dart';
 import 'package:lichess_mobile/src/utils/navigation.dart';
 import 'package:lichess_mobile/src/view/drill/drill_angle_screen.dart';
-import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:lichess_mobile/src/view/drill/drill_summary.dart';
 import 'package:lichess_mobile/src/widgets/adaptive_action_sheet.dart';
 import 'package:lichess_mobile/src/widgets/feedback.dart';
@@ -40,14 +41,14 @@ class const DrillHistoryScreen({super.key}) extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final history = ref.watch(drillHistoryProvider);
     return PlatformScaffold(
-      appBar: const PlatformAppBar(
-        title: Text(DrillStrings.historyTitle),
+      appBar: PlatformAppBar(
+        title: Text(context.drillL10n.historyTitle),
         largeTitle: true,
-        actions: [_HistoryMenu()],
+        actions: const [_HistoryMenu()],
       ),
       body: switch (history) {
-        AsyncData(value: DrillHistoryState(:final entries)) when entries.isEmpty => const Center(
-          child: Padding(padding: Styles.bodyPadding, child: Text(DrillStrings.emptyHistory)),
+        AsyncData(value: DrillHistoryState(:final entries)) when entries.isEmpty => Center(
+          child: Padding(padding: Styles.bodyPadding, child: Text(context.drillL10n.emptyHistory)),
         ),
         AsyncData(value: DrillHistoryState(:final entries, :final hasMore)) =>
           NotificationListener<ScrollNotification>(
@@ -105,17 +106,17 @@ class const _HistoryMenu() extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ContextMenuIconButton(
-      semanticsLabel: DrillStrings.historyMenu,
+      semanticsLabel: context.drillL10n.historyMenu,
       icon: const Icon(Icons.more_vert),
       actions: [
         ContextMenuAction(
           icon: Icons.upload_outlined,
-          label: DrillStrings.exportHistory,
-          onPressed: () => _export(ref, SnackBarPresenter.of(context)),
+          label: context.drillL10n.exportHistory,
+          onPressed: () => _export(ref, SnackBarPresenter.of(context), context.drillL10n),
         ),
         ContextMenuAction(
           icon: Icons.download_outlined,
-          label: DrillStrings.importHistory,
+          label: context.drillL10n.importHistory,
           onPressed: () => _import(context, ref),
         ),
       ],
@@ -124,44 +125,40 @@ class const _HistoryMenu() extends ConsumerWidget {
 
   /// Saves the Drill History file, named with the date, where the player chooses in the system
   /// save dialog: on the device or in a cloud storage such as Drive.
-  Future<void> _export(WidgetRef ref, SnackBarPresenter snackBar) async {
+  Future<void> _export(WidgetRef ref, SnackBarPresenter snackBar, DrillLocalizations l10n) async {
     try {
       final json = await ref.read(drillHistoryProvider.notifier).exportDrills();
       final name = 'drills-${DateFormat('yyyy-MM-dd').format(DateTime.now())}.json';
       final uri = await ref.read(saveDrillHistoryFileProvider)(name, utf8.encode(json));
-      if (uri != null) snackBar.show(DrillStrings.historyExported);
+      if (uri != null) snackBar.show(l10n.historyExported);
     } catch (_) {
-      snackBar.show(DrillStrings.couldNotExportHistory, type: .error);
+      snackBar.show(l10n.couldNotExportHistory, type: .error);
     }
   }
 
   /// Adds the Drills of a picked Drill History file, and says how many were added.
   Future<void> _import(BuildContext context, WidgetRef ref) async {
     final snackBar = SnackBarPresenter.of(context);
+    final l10n = context.drillL10n;
     try {
       final file = await ref.read(pickDrillHistoryFileProvider)();
       if (file == null) return;
       final json = await const Utf8Decoder().bind(file.readAsByteStream()).join();
       final (:added, :existing) = await ref.read(drillHistoryProvider.notifier).importDrills(json);
-      snackBar.show(_importResultText(added: added, existing: existing));
+      snackBar.show(_importResultText(l10n, added: added, existing: existing));
     } on FormatException {
-      snackBar.show(DrillStrings.invalidHistoryFile, type: .error);
+      snackBar.show(l10n.invalidHistoryFile, type: .error);
     } catch (_) {
-      snackBar.show(DrillStrings.couldNotImportHistory, type: .error);
+      snackBar.show(l10n.couldNotImportHistory, type: .error);
     }
   }
 }
 
 /// What an import added to the Drill History, and what was already in it.
-String _importResultText({required int added, required int existing}) {
-  final addedText = switch (added) {
-    0 => DrillStrings.noDrillAdded,
-    1 => '1 ${DrillStrings.drillAdded}',
-    _ => '$added ${DrillStrings.drillsAdded}',
-  };
-  if (existing == 0) return '$addedText.';
-  return '$addedText; $existing '
-      '${existing == 1 ? DrillStrings.alreadyInHistory : DrillStrings.alreadyInHistoryPlural}.';
+String _importResultText(DrillLocalizations l10n, {required int added, required int existing}) {
+  return existing == 0
+      ? l10n.drillsImported(added)
+      : l10n.drillsImportedSomeInHistory(added, existing);
 }
 
 /// The Drills of [entries] grouped by the day they started, in order.
@@ -189,10 +186,9 @@ class const _DayHeader(final DateTime day, final List<DrillHistoryEntry> entries
         crossAxisAlignment: .baseline,
         textBaseline: .alphabetic,
         children: [
-          Expanded(child: Text(drillDayName(day), style: Styles.sectionTitle)),
+          Expanded(child: Text(drillDayName(context, day), style: Styles.sectionTitle)),
           Text(
-            '$nb ${nb == 1 ? DrillStrings.drillUnit : DrillStrings.drillsUnit} · '
-            '$nbPuzzles ${nbPuzzles == 1 ? DrillStrings.puzzleUnit : DrillStrings.puzzlesUnit}'
+            '${context.drillL10n.nbDrills(nb)} · ${context.drillL10n.nbPuzzles(nbPuzzles)}'
             '${change != null ? ' · ' : ''}',
             style: TextStyle(fontSize: 13, color: textShade(context, Styles.subtitleOpacity)),
           ),
@@ -232,7 +228,7 @@ class const _DrillCard(final DrillHistoryEntry entry) extends ConsumerWidget {
         },
         onLongPress: () => showConfirmDialog<void>(
           context,
-          title: const Text(DrillStrings.deleteDrillConfirmation),
+          title: Text(context.drillL10n.deleteDrillConfirmation),
           isDestructiveAction: true,
           onConfirm: () => ref.read(drillHistoryProvider.notifier).delete(entry.startedAt),
         ),
@@ -252,7 +248,7 @@ class const _DrillCard(final DrillHistoryEntry entry) extends ConsumerWidget {
                     ),
                   ),
                   if (entry.isPartial)
-                    _Badge(DrillStrings.partial, color: colors.brag, textColor: Colors.black),
+                    _Badge(context.drillL10n.partial, color: colors.brag, textColor: Colors.black),
                 ],
               ),
               const SizedBox(height: 4.0),
@@ -281,7 +277,7 @@ class const _DrillCard(final DrillHistoryEntry entry) extends ConsumerWidget {
                   spacing: 8.0,
                   children: [
                     _MetricTile(
-                      label: DrillStrings.successes,
+                      label: context.drillL10n.successes,
                       value: '${(entry.successRate * 100).round()} %',
                       valueColor: successRateColor(
                         context,
@@ -291,19 +287,19 @@ class const _DrillCard(final DrillHistoryEntry entry) extends ConsumerWidget {
                       details: [
                         [
                           '${entry.successes} / ${entry.nbPlayed}',
-                          if (entry.isPartial) '${DrillStrings.ofTotal} ${config.nbPuzzles}',
+                          if (entry.isPartial) context.drillL10n.ofTotal(config.nbPuzzles),
                         ].join(' · '),
                       ],
                     ),
                     _MetricTile(
-                      label: DrillStrings.performance,
+                      label: context.drillL10n.performance,
                       value: entry.performance?.toString() ?? '-',
                       valueColor: colors.primary,
                       opacity: entry.isPerformanceReliable ? 1.0 : 0.55,
-                      details: [if (!entry.isPerformanceReliable) DrillStrings.unreliable],
+                      details: [if (!entry.isPerformanceReliable) context.drillL10n.unreliable],
                     ),
                     _MetricTile(
-                      label: DrillStrings.points,
+                      label: context.drillL10n.points,
                       value: ratingChange == null ? '···' : formatRatingChange(ratingChange),
                       valueColor: ratingChange == null
                           ? textShade(context, Styles.subtitleOpacity)
@@ -462,7 +458,7 @@ class const DrillHistorySummaryScreen(final DateTime startedAt) extends Consumer
   Widget build(BuildContext context, WidgetRef ref) {
     final drill = ref.watch(drillHistoryDrillProvider(startedAt));
     return PlatformScaffold(
-      appBar: const PlatformAppBar(title: Text(DrillStrings.summaryTitle)),
+      appBar: PlatformAppBar(title: Text(context.drillL10n.summaryTitle)),
       body: switch (drill) {
         AsyncValue(value: final drill?) => DrillSummary(drill),
         AsyncData() || AsyncError() => const Center(child: Text('Could not load the Drill')),
@@ -474,11 +470,11 @@ class const DrillHistorySummaryScreen(final DateTime startedAt) extends Consumer
 
 /// The name of the day of [date]: today, yesterday, or its date, with the year if it is not this
 /// year's, and with the day of the week unless [short].
-String drillDayName(DateTime date, {bool short = false}) {
+String drillDayName(BuildContext context, DateTime date, {bool short = false}) {
   final today = DateUtils.dateOnly(DateTime.now());
   final day = DateUtils.dateOnly(date);
-  if (day == today) return DrillStrings.today;
-  if (day == today.subtract(const Duration(days: 1))) return DrillStrings.yesterday;
+  if (day == today) return context.drillL10n.today;
+  if (day == today.subtract(const Duration(days: 1))) return context.drillL10n.yesterday;
   final format = day.year == today.year
       ? (short ? DateFormat.MMMd() : DateFormat.MMMEd())
       : (short ? DateFormat.yMMMd() : DateFormat.yMMMEd());

@@ -8,9 +8,9 @@ import 'package:intl/intl.dart';
 import 'package:lichess_mobile/src/model/drill/drill_chart.dart';
 import 'package:lichess_mobile/src/model/drill/drill_history.dart';
 import 'package:lichess_mobile/src/styles/styles.dart';
+import 'package:lichess_mobile/src/utils/l10n_context.dart';
 import 'package:lichess_mobile/src/utils/navigation.dart';
 import 'package:lichess_mobile/src/view/drill/drill_history_screen.dart';
-import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:lichess_mobile/src/view/drill/drill_summary.dart';
 import 'package:lichess_mobile/src/view/user/perf_stats_screen.dart';
 import 'package:lichess_mobile/src/widgets/platform.dart';
@@ -37,7 +37,7 @@ class const DrillProgressScreen({super.key}) extends ConsumerWidget {
     final series = drillChartSeries(points, range: range, today: today);
     final total = series.total;
     return PlatformScaffold(
-      appBar: const PlatformAppBar(title: Text(DrillStrings.progress)),
+      appBar: PlatformAppBar(title: Text(context.drillL10n.progress)),
       // The body's own context: the padding of the screen's isn't the one inside the scaffold.
       body: Builder(
         builder: (context) => ListView(
@@ -49,11 +49,11 @@ class const DrillProgressScreen({super.key}) extends ConsumerWidget {
                 for (final choice in ranges)
                   ChartRangeButton(
                     text: switch (choice) {
-                      .week => '1S',
-                      .month => '1M',
-                      .threeMonths => '3M',
-                      .year => '1A',
-                      .all => DrillStrings.allDays,
+                      .week => context.drillL10n.rangeWeek,
+                      .month => context.drillL10n.rangeMonth,
+                      .threeMonths => context.drillL10n.rangeThreeMonths,
+                      .year => context.drillL10n.rangeYear,
+                      .all => context.drillL10n.allDays,
                     },
                     selected: choice == range,
                     onPressed: () =>
@@ -65,14 +65,12 @@ class const DrillProgressScreen({super.key}) extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 4.0, left: 4.0, right: 4.0),
                 child: Text(
-                  '${total.nbDrills} '
-                  '${total.nbDrills == 1 ? DrillStrings.drillUnit : DrillStrings.drillsUnit}, '
-                  '${total.nbPuzzles} '
-                  '${total.nbPuzzles == 1 ? DrillStrings.puzzleUnit : DrillStrings.puzzlesUnit} · '
+                  '${context.drillL10n.nbDrills(total.nbDrills)}, '
+                  '${context.drillL10n.nbPuzzles(total.nbPuzzles)} · '
                   '${switch (series.grouping) {
-                    .day => DrillStrings.byDay,
-                    .week => DrillStrings.byWeek,
-                    .month => DrillStrings.byMonth,
+                    .day => context.drillL10n.byDay,
+                    .week => context.drillL10n.byWeek,
+                    .month => context.drillL10n.byMonth,
                   }}',
                   style: TextStyle(fontSize: 12, color: textShade(context, Styles.subtitleOpacity)),
                 ),
@@ -116,7 +114,7 @@ class const _StreakCard({
           crossAxisAlignment: .stretch,
           spacing: 12.0,
           children: [
-            const Text(DrillStrings.streak, style: TextStyle(fontSize: 14, fontWeight: .w600)),
+            Text(context.drillL10n.streak, style: const TextStyle(fontSize: 14, fontWeight: .w600)),
             Row(
               children: [
                 Expanded(
@@ -127,10 +125,7 @@ class const _StreakCard({
                         '${streak.current}',
                         style: valueStyle.copyWith(color: context.lichessColors.brag),
                       ),
-                      Text(
-                        streak.current == 1 ? DrillStrings.dayInARow : DrillStrings.daysInARow,
-                        style: labelStyle,
-                      ),
+                      Text(context.drillL10n.daysInARow(streak.current), style: labelStyle),
                     ],
                   ),
                 ),
@@ -139,7 +134,7 @@ class const _StreakCard({
                     crossAxisAlignment: .start,
                     children: [
                       Text('${streak.best}', style: valueStyle),
-                      Text(DrillStrings.bestStreakLabel, style: labelStyle),
+                      Text(context.drillL10n.bestStreakLabel, style: labelStyle),
                     ],
                   ),
                 ),
@@ -163,7 +158,7 @@ class const _StreakCard({
                         ),
                         style: valueStyle,
                       ),
-                      Text(DrillStrings.daysWithDrills, style: labelStyle),
+                      Text(context.drillL10n.daysWithDrills, style: labelStyle),
                     ],
                   ),
                 ),
@@ -177,7 +172,7 @@ class const _StreakCard({
               mainAxisAlignment: .end,
               spacing: 4.0,
               children: [
-                Text(DrillStrings.fewerPuzzles, style: labelStyle.copyWith(fontSize: 10)),
+                Text(context.drillL10n.fewerPuzzles, style: labelStyle.copyWith(fontSize: 10)),
                 for (var level = 0; level <= 3; level++)
                   Container(
                     width: 10.0,
@@ -187,7 +182,7 @@ class const _StreakCard({
                       borderRadius: const BorderRadius.all(Radius.circular(3.0)),
                     ),
                   ),
-                Text(DrillStrings.morePuzzles, style: labelStyle.copyWith(fontSize: 10)),
+                Text(context.drillL10n.morePuzzles, style: labelStyle.copyWith(fontSize: 10)),
               ],
             ),
           ],
@@ -379,18 +374,18 @@ class const _ChartCard({
         child: series.total == null
             ? SizedBox(
                 height: 120.0,
-                child: Center(child: Text(DrillStrings.noChartData, style: subtitleStyle)),
+                child: Center(child: Text(context.drillL10n.noChartData, style: subtitleStyle)),
               )
             : Column(
                 crossAxisAlignment: .stretch,
                 children: [
-                  const Text(DrillStrings.performance, style: titleStyle),
+                  Text(context.drillL10n.performance, style: titleStyle),
                   _PerformanceHeadline(series, range: range),
                   const SizedBox(height: 8.0),
                   SizedBox(height: 150.0, child: _PerformanceChart(series)),
                   _DateAxis(series),
                   const SizedBox(height: 16.0),
-                  const Text(DrillStrings.successes, style: titleStyle),
+                  Text(context.drillL10n.successes, style: titleStyle),
                   _SuccessRateHeadline(series),
                   const SizedBox(height: 8.0),
                   SizedBox(height: 110.0, child: _SuccessRateChart(series)),
@@ -401,9 +396,9 @@ class const _ChartCard({
                     runSpacing: 4.0,
                     children: [
                       for (final (color, label) in [
-                        (context.lichessColors.good, DrillStrings.aboveExpected),
-                        (ColorScheme.of(context).onSurface, DrillStrings.withinExpected),
-                        (context.lichessColors.error, DrillStrings.belowExpected),
+                        (context.lichessColors.good, context.drillL10n.aboveExpected),
+                        (ColorScheme.of(context).onSurface, context.drillL10n.withinExpected),
+                        (context.lichessColors.error, context.drillL10n.belowExpected),
                       ])
                         Row(
                           mainAxisSize: .min,
@@ -442,16 +437,20 @@ class const _PerformanceHeadline(
       final previous? => performance - previous.performance.round(),
       null => null,
     };
-    final since = switch (range) {
-      .week => DrillStrings.sinceLastWeek,
-      .month => DrillStrings.sinceLastMonth,
-      .threeMonths => DrillStrings.sinceLastThreeMonths,
-      .year => DrillStrings.sinceLastYear,
-      .all => '',
+    final l10n = context.drillL10n;
+    final comparison = switch (change) {
+      null => '',
+      final change => switch (range) {
+        .week => l10n.changeSinceLastWeek,
+        .month => l10n.changeSinceLastMonth,
+        .threeMonths => l10n.changeSinceLastThreeMonths,
+        .year => l10n.changeSinceLastYear,
+        .all => (String change) => change,
+      }(formatRatingChange(change)),
     };
     return _ChartHeadline(
       value: '$performance',
-      comparison: change == null ? '' : '${formatRatingChange(change)} $since',
+      comparison: comparison,
       comparisonColor: change != null ? signColor(context, change) : null,
     );
   }
@@ -467,7 +466,7 @@ class const _SuccessRateHeadline(final DrillChartSeries series) extends Stateles
       value: '${_percent(total.successRate)} %',
       valueColor: successRateColor(context, total.successRate, total.expected),
       comparison: switch (total.expected) {
-        final expected? => '${DrillStrings.expected} ${_percent(expected)} %',
+        final expected? => context.drillL10n.expectedPercent(_percent(expected)),
         null => '',
       },
       comparisonColor: textShade(context, Styles.subtitleOpacity),
@@ -551,9 +550,9 @@ class const _PerformanceChart(final DrillChartSeries series) extends StatelessWi
                     children: [
                       _tooltipDetail(
                         context,
-                        '${_valueName(value, series.grouping)}\n${value.nbDrills} '
-                        '${value.nbDrills == 1 ? DrillStrings.drillUnit : DrillStrings.drillsUnit}'
-                        ', ${value.nbPuzzles} ${DrillStrings.puzzlesUnit}',
+                        '${_valueName(context, value, series.grouping)}\n'
+                        '${context.drillL10n.nbDrills(value.nbDrills)}, '
+                        '${context.drillL10n.nbPuzzles(value.nbPuzzles)}',
                       ),
                     ],
                   ),
@@ -633,9 +632,11 @@ class const _SuccessRateChart(final DrillChartSeries series) extends StatelessWi
                     children: [
                       _tooltipDetail(
                         context,
-                        '${_valueName(value, series.grouping)}\n'
-                        '$solved ${DrillStrings.ofTotal} ${value.nbPuzzles}'
-                        '${value.expected != null ? ', ${DrillStrings.expected} ${_percent(value.expected!)} %' : ''}',
+                        '${_valueName(context, value, series.grouping)}\n'
+                        '${switch (value.expected) {
+                          final expected? => context.drillL10n.nbOfTotalExpectedPercent(solved, value.nbPuzzles, _percent(expected)),
+                          null => context.drillL10n.nbOfTotal(solved, value.nbPuzzles),
+                        }}',
                       ),
                     ],
                   );
@@ -720,15 +721,19 @@ class const _DateAxis(final DrillChartSeries series) extends StatelessWidget {
 }
 
 /// The name of the day, week or month of [value].
-String _valueName(DrillChartValue value, DrillChartGrouping grouping) => switch (grouping) {
-  .day => drillDayName(value.date, short: true),
-  .week =>
-    '${DrillStrings.weekOf} ${(value.date.year == DateTime.now().year ? DateFormat.MMMd() : DateFormat.yMMMd()).format(value.date)}',
-  .month => () {
-    final name = DateFormat.yMMMM().format(value.date);
-    return name.isEmpty ? name : name[0].toUpperCase() + name.substring(1);
-  }(),
-};
+String _valueName(BuildContext context, DrillChartValue value, DrillChartGrouping grouping) =>
+    switch (grouping) {
+      .day => drillDayName(context, value.date, short: true),
+      .week => context.drillL10n.weekOf(
+        (value.date.year == DateTime.now().year ? DateFormat.MMMd() : DateFormat.yMMMd()).format(
+          value.date,
+        ),
+      ),
+      .month => () {
+        final name = DateFormat.yMMMM().format(value.date);
+        return name.isEmpty ? name : name[0].toUpperCase() + name.substring(1);
+      }(),
+    };
 
 TextStyle _tooltipStyle(BuildContext context) =>
     TextStyle(fontWeight: .bold, color: ColorScheme.of(context).onInverseSurface);

@@ -19,7 +19,6 @@ import 'package:lichess_mobile/src/utils/l10n_context.dart';
 import 'package:lichess_mobile/src/view/analysis/analysis_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_angle_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_history_screen.dart';
-import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:lichess_mobile/src/widgets/feedback.dart';
 import 'package:lichess_mobile/src/widgets/list.dart';
 import 'package:material_ui/material_ui.dart';
@@ -56,7 +55,7 @@ class const DrillSummary(final Drill drill, {final bool hasAccount = true, super
         const SizedBox(height: 20.0),
         OutlinedButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text(DrillStrings.backToHome),
+          child: Text(context.drillL10n.backToHome),
         ),
       ],
     );
@@ -88,8 +87,7 @@ class const _Headline(final Drill drill) extends ConsumerWidget {
           ),
         ),
         Text(
-          '${drill.successes} ${DrillStrings.ofTotal} $nbPlayed '
-          '${nbPlayed == 1 ? DrillStrings.solvedUnit : DrillStrings.solvedUnitPlural}',
+          context.drillL10n.nbSolvedOfTotal(drill.successes, nbPlayed),
           style: const TextStyle(fontSize: 15),
         ),
         if (expected != null) ...[
@@ -109,10 +107,14 @@ class const _ExpectationBadge(final double successRate, final double expected)
   Widget build(BuildContext context) {
     final colors = context.lichessColors;
     final (icon, text, color) = successRate >= expected + _successRateMargin
-        ? (Icons.trending_up, DrillStrings.betterThanExpected, colors.good)
+        ? (Icons.trending_up, context.drillL10n.betterThanExpected, colors.good)
         : successRate <= expected - _successRateMargin
-        ? (Icons.trending_down, DrillStrings.worseThanExpected, colors.error)
-        : (Icons.trending_flat, DrillStrings.asExpected, ColorScheme.of(context).onSurfaceVariant);
+        ? (Icons.trending_down, context.drillL10n.worseThanExpected, colors.error)
+        : (
+            Icons.trending_flat,
+            context.drillL10n.asExpected,
+            ColorScheme.of(context).onSurfaceVariant,
+          );
     return DecoratedBox(
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
@@ -155,10 +157,10 @@ class const _PerformanceCard(final Drill drill, {required final bool hasAccount}
               child: Opacity(
                 opacity: drill.isPerformanceReliable ? 1.0 : 0.55,
                 child: _Metric(
-                  label: DrillStrings.performance,
+                  label: context.drillL10n.performance,
                   value: performance?.toString() ?? '-',
                   valueColor: context.lichessColors.primary,
-                  detail: drill.isPerformanceReliable ? null : const Text(DrillStrings.unreliable),
+                  detail: drill.isPerformanceReliable ? null : Text(context.drillL10n.unreliable),
                 ),
               ),
             ),
@@ -166,7 +168,7 @@ class const _PerformanceCard(final Drill drill, {required final bool hasAccount}
               const VerticalDivider(width: 1.0, thickness: 1.0),
               Expanded(
                 child: _Metric(
-                  label: DrillStrings.points,
+                  label: context.drillL10n.points,
                   value: ratingChange == null ? '···' : formatRatingChange(ratingChange),
                   valueColor: ratingChange == null
                       ? textShade(context, Styles.subtitleOpacity)
@@ -255,7 +257,10 @@ class const _TimeCard(final IList<DrillPuzzleResult> results) extends StatelessW
                   size: 18,
                   color: textShade(context, Styles.subtitleOpacity),
                 ),
-                const Text(DrillStrings.time, style: TextStyle(fontSize: 17, fontWeight: .bold)),
+                Text(
+                  context.drillL10n.time,
+                  style: const TextStyle(fontSize: 17, fontWeight: .bold),
+                ),
               ],
             ),
             const SizedBox(height: 12.0),
@@ -263,14 +268,14 @@ class const _TimeCard(final IList<DrillPuzzleResult> results) extends StatelessW
               children: [
                 Expanded(
                   child: _Metric(
-                    label: DrillStrings.totalTime,
+                    label: context.drillL10n.totalTime,
                     value: formatSolvingTime(total),
                     padding: .zero,
                   ),
                 ),
                 Expanded(
                   child: _Metric(
-                    label: DrillStrings.averageTime,
+                    label: context.drillL10n.averageTime,
                     value: formatSolvingTime(average),
                     padding: .zero,
                   ),
@@ -376,9 +381,9 @@ class const _WeakestThemes(final IList<DrillWeakTheme> themes) extends Stateless
             crossAxisAlignment: .start,
             spacing: 2.0,
             children: [
-              const Text(DrillStrings.weakestThemes, style: Styles.sectionTitle),
+              Text(context.drillL10n.weakestThemes, style: Styles.sectionTitle),
               Text(
-                DrillStrings.weakestThemesHint,
+                context.drillL10n.weakestThemesHint,
                 style: TextStyle(fontSize: 13, color: textShade(context, Styles.subtitleOpacity)),
               ),
             ],
@@ -452,7 +457,7 @@ class const _ThemeCard(final DrillWeakTheme data) extends StatelessWidget {
                 mainAxisSize: .min,
                 children: [
                   Text(
-                    DrillStrings.train,
+                    context.drillL10n.train,
                     style: TextStyle(fontSize: 13, fontWeight: .w500, color: primary),
                   ),
                   Icon(Icons.chevron_right, size: 16, color: primary),
@@ -501,9 +506,7 @@ class _PuzzleListState() extends State<_PuzzleList> {
                   children: [
                     Expanded(
                       child: Text(
-                        nb == 1
-                            ? DrillStrings.onePuzzle
-                            : '${DrillStrings.allPuzzles} $nb ${DrillStrings.puzzlesUnit}',
+                        context.drillL10n.themePuzzles(nb),
                         style: const TextStyle(fontSize: 16, fontWeight: .w500),
                       ),
                     ),
@@ -553,9 +556,9 @@ class const _DrillPuzzleResultTile(final DrillPuzzleResult result) extends Consu
         children: [
           Text(
             !result.rated
-                ? DrillStrings.unrated
+                ? context.drillL10n.unrated
                 : ratingDiff == null
-                ? DrillStrings.pending
+                ? context.drillL10n.pending
                 : formatRatingChange(ratingDiff),
             style: TextStyle(color: ratingDiff != null ? signColor(context, ratingDiff) : null),
           ),
@@ -588,10 +591,10 @@ String drillDescription(BuildContext context, WidgetRef ref, Drill drill) {
   final config = drill.config;
   return [
     drillAngleName(context, ref, config.angle),
-    '${config.nbPuzzles} ${config.nbPuzzles == 1 ? DrillStrings.puzzleUnit : DrillStrings.puzzlesUnit}',
+    context.drillL10n.nbPuzzles(config.nbPuzzles),
     puzzleDifficultyL10n(context, config.difficulty),
-    '${drillDayName(drill.startedAt)} ${DateFormat.Hm().format(drill.startedAt)}',
-    if (drill.isPartial) DrillStrings.partial,
+    '${drillDayName(context, drill.startedAt)} ${DateFormat.Hm().format(drill.startedAt)}',
+    if (drill.isPartial) context.drillL10n.partial,
   ].join(' · ');
 }
 

@@ -25,7 +25,6 @@ import 'package:lichess_mobile/src/view/drill/drill_profile_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_progress_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_settings_screen.dart';
-import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:lichess_mobile/src/view/drill/drill_summary.dart';
 import 'package:lichess_mobile/src/view/puzzle/storm_screen.dart';
 import 'package:lichess_mobile/src/widgets/adaptive_action_sheet.dart';
@@ -72,7 +71,7 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
     if (started) {
       await _openDrill();
     } else {
-      showSnackBar(context, DrillStrings.couldNotStartDrill, type: SnackBarType.error);
+      showSnackBar(context, context.drillL10n.couldNotStartDrill, type: SnackBarType.error);
     }
   }
 
@@ -84,7 +83,7 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
     if (resumed) {
       await _openDrill();
     } else {
-      showSnackBar(context, DrillStrings.couldNotStartDrill, type: SnackBarType.error);
+      showSnackBar(context, context.drillL10n.couldNotStartDrill, type: SnackBarType.error);
     }
   }
 
@@ -181,7 +180,7 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
 
     return PlatformScaffold(
       appBar: PlatformAppBar(
-        title: const Text(DrillStrings.appName),
+        title: const Text('Drills'),
         actions: [
           SemanticIconButton(
             icon: const Icon(Icons.settings_outlined),
@@ -192,7 +191,7 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
             SemanticIconButton(
               // The profile's user has the flair, which the signed in user lacks.
               icon: UserAvatar(user?.lightUser ?? authUser.user, radius: 14),
-              semanticsLabel: DrillStrings.profile,
+              semanticsLabel: context.drillL10n.profile,
               onPressed: () => _openProfile(authUser.user.id),
             ),
         ],
@@ -203,7 +202,7 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
           padding: Styles.bodyPadding.add(MediaQuery.paddingOf(context)),
           children: [
             if (!isSignedIn) ...[
-              Text(DrillStrings.signedOutNotice, style: TextTheme.of(context).bodyLarge),
+              Text(context.drillL10n.signedOutNotice, style: TextTheme.of(context).bodyLarge),
               const SizedBox(height: 12.0),
               OutlinedButton(
                 onPressed: isOnline && signInState is! MutationPending
@@ -242,7 +241,7 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
                   // A new Drill ends the unfinished one.
                   ? () => showConfirmDialog<void>(
                       context,
-                      title: const Text(DrillStrings.replaceUnfinishedDrillConfirmation),
+                      title: Text(context.drillL10n.replaceUnfinishedDrillConfirmation),
                       onConfirm: _startDrill,
                     )
                   : _startDrill,
@@ -310,27 +309,25 @@ class const _StreakCard({
                           style: const TextStyle(fontSize: 34, fontWeight: .bold, height: 1.1),
                           children: [
                             TextSpan(
-                              text:
-                                  ' ${streak.current == 1 ? DrillStrings.dayInARow : DrillStrings.daysInARow}',
+                              text: ' ${context.drillL10n.daysInARow(streak.current)}',
                               style: const TextStyle(fontSize: 16, fontWeight: .normal),
                             ),
                           ],
                         ),
                       ),
-                      Text(
-                        '${DrillStrings.bestStreak}: ${streak.best} '
-                        '${streak.best == 1 ? DrillStrings.dayUnit : DrillStrings.daysUnit}',
-                        style: subtitleStyle,
-                      ),
+                      Text(context.drillL10n.bestStreakDays(streak.best), style: subtitleStyle),
                     ],
                   ),
                 ),
                 if (onOpenProgress != null)
                   TextButton(
                     onPressed: onOpenProgress,
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: .min,
-                      children: [Text(DrillStrings.progress), Icon(Icons.chevron_right, size: 18)],
+                      children: [
+                        Text(context.drillL10n.progress),
+                        const Icon(Icons.chevron_right, size: 18),
+                      ],
                     ),
                   ),
               ],
@@ -367,9 +364,8 @@ class const _StreakCard({
               const SizedBox(height: 12.0),
               Text(
                 streak.current > 0
-                    ? '${DrillStrings.playTodayToReach} ${streak.current + 1} '
-                          '${DrillStrings.daysUnit}'
-                    : DrillStrings.playTodayToStart,
+                    ? context.drillL10n.playTodayToReach(streak.current + 1)
+                    : context.drillL10n.playTodayToStart,
                 style: TextStyle(fontSize: 13, color: brag),
               ),
             ],
@@ -460,9 +456,9 @@ class const _UnfinishedDrillCard(final Drill drill, {required final VoidCallback
                   crossAxisAlignment: .stretch,
                   spacing: 4.0,
                   children: [
-                    const Text(
-                      DrillStrings.resumeDrill,
-                      style: TextStyle(fontSize: 15, fontWeight: .w600),
+                    Text(
+                      context.drillL10n.resumeDrill,
+                      style: const TextStyle(fontSize: 15, fontWeight: .w600),
                     ),
                     Text(
                       [
@@ -540,7 +536,7 @@ class const _NextDrillCard({
                 children: [
                   Expanded(
                     child: Text(
-                      DrillStrings.nextDrill.toUpperCase(),
+                      context.drillL10n.nextDrill.toUpperCase(),
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: .w600,
@@ -553,7 +549,7 @@ class const _NextDrillCard({
                     TextButton.icon(
                       onPressed: onReset,
                       icon: const Icon(Icons.restart_alt, size: 18),
-                      label: const Text(DrillStrings.sameAsLast),
+                      label: Text(context.drillL10n.sameAsLast),
                       style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
                     ),
                 ],
@@ -566,7 +562,7 @@ class const _NextDrillCard({
                 spacing: 8.0,
                 children: [
                   _ConfigTile(
-                    label: DrillStrings.nbPuzzlesTile,
+                    label: context.drillL10n.nbPuzzlesTile,
                     color: tileColor,
                     changed: nbPuzzlesChanged,
                     onTap: onNbPuzzles,
@@ -586,7 +582,7 @@ class const _NextDrillCard({
                         : null,
                   ),
                   _ConfigTile(
-                    label: DrillStrings.theme,
+                    label: context.drillL10n.theme,
                     color: tileColor,
                     changed: config.angle != last.angle,
                     onTap: onAngle,
@@ -610,7 +606,7 @@ class const _NextDrillCard({
                               ),
                               Flexible(
                                 child: Text(
-                                  DrillStrings.toWorkOnTag,
+                                  context.drillL10n.toWorkOnTag,
                                   overflow: .ellipsis,
                                   style: TextStyle(
                                     fontSize: 11,
@@ -623,7 +619,7 @@ class const _NextDrillCard({
                         : null,
                   ),
                   _ConfigTile(
-                    label: DrillStrings.difficulty,
+                    label: context.drillL10n.difficulty,
                     color: tileColor,
                     changed: config.difficulty != last.difficulty,
                     onTap: onDifficulty,
@@ -643,15 +639,15 @@ class const _NextDrillCard({
               onPressed: onStart,
               child: isStarting
                   ? const ButtonLoadingIndicator()
-                  : const Row(
+                  : Row(
                       mainAxisSize: .min,
                       spacing: 6.0,
-                      children: [Icon(Icons.play_arrow), Text(DrillStrings.startDrill)],
+                      children: [const Icon(Icons.play_arrow), Text(context.drillL10n.startDrill)],
                     ),
             ),
             TextButton.icon(
               icon: const Icon(LichessIcons.storm, size: 18),
-              label: const Text(DrillStrings.warmUpWithStorm),
+              label: Text(context.drillL10n.warmUpWithStorm),
               style: TextButton.styleFrom(foregroundColor: context.lichessColors.brag),
               onPressed: onWarmUp,
             ),
@@ -724,13 +720,13 @@ class const _LastDrills(
       children: [
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Padding(
-                padding: EdgeInsets.only(left: 4.0),
-                child: Text(DrillStrings.lastDrills, style: Styles.sectionTitle),
+                padding: const EdgeInsets.only(left: 4.0),
+                child: Text(context.drillL10n.lastDrills, style: Styles.sectionTitle),
               ),
             ),
-            TextButton(onPressed: onSeeHistory, child: const Text(DrillStrings.seeHistory)),
+            TextButton(onPressed: onSeeHistory, child: Text(context.drillL10n.seeHistory)),
           ],
         ),
         Card(
@@ -763,7 +759,7 @@ class const _LastDrills(
                                   children: [
                                     TextSpan(
                                       text:
-                                          ' · ${drillDayName(entry.startedAt, short: true)}, '
+                                          ' · ${drillDayName(context, entry.startedAt, short: true)}, '
                                           '${DateFormat.Hm().format(entry.startedAt)}',
                                       style: subtitleStyle,
                                     ),
@@ -853,13 +849,13 @@ class _NbPuzzlesSheetState() extends ConsumerState<_NbPuzzlesSheet> {
             crossAxisAlignment: .baseline,
             textBaseline: .alphabetic,
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  DrillStrings.nbPuzzlesChoice,
-                  style: TextStyle(fontSize: 18, fontWeight: .w600),
+                  context.drillL10n.nbPuzzlesChoice,
+                  style: const TextStyle(fontSize: 18, fontWeight: .w600),
                 ),
               ),
-              Text('${DrillStrings.lastOne}: ${widget.last}', style: subtitleStyle),
+              Text(context.drillL10n.lastNbPuzzles(widget.last), style: subtitleStyle),
             ],
           ),
           const SizedBox(height: 16.0),
@@ -868,7 +864,7 @@ class _NbPuzzlesSheetState() extends ConsumerState<_NbPuzzlesSheet> {
             spacing: 24.0,
             children: [
               IconButton.outlined(
-                tooltip: DrillStrings.onePuzzleLess,
+                tooltip: context.drillL10n.onePuzzleLess,
                 iconSize: 26.0,
                 padding: const EdgeInsets.all(14.0),
                 onPressed: _nbPuzzles > 1 ? () => _set(_nbPuzzles - 1) : null,
@@ -882,12 +878,12 @@ class _NbPuzzlesSheetState() extends ConsumerState<_NbPuzzlesSheet> {
                       '$_nbPuzzles',
                       style: const TextStyle(fontSize: 72, fontWeight: .w300, height: 1.0),
                     ),
-                    Text(DrillStrings.puzzlesUnit, style: subtitleStyle),
+                    Text(context.drillL10n.puzzlesLabel(_nbPuzzles), style: subtitleStyle),
                   ],
                 ),
               ),
               IconButton.outlined(
-                tooltip: DrillStrings.onePuzzleMore,
+                tooltip: context.drillL10n.onePuzzleMore,
                 iconSize: 26.0,
                 padding: const EdgeInsets.all(14.0),
                 onPressed: _nbPuzzles < kMaxDrillPuzzles ? () => _set(_nbPuzzles + 1) : null,
@@ -922,9 +918,7 @@ class _NbPuzzlesSheetState() extends ConsumerState<_NbPuzzlesSheet> {
           if (minutes != null) ...[
             const SizedBox(height: 4.0),
             Text(
-              '${DrillStrings.approximately} $minutes '
-              '${minutes == 1 ? DrillStrings.minuteUnit : DrillStrings.minutesUnit}, '
-              '${DrillStrings.atYourPace}',
+              context.drillL10n.estimatedTime(minutes),
               textAlign: .center,
               style: subtitleStyle,
             ),
@@ -932,7 +926,7 @@ class _NbPuzzlesSheetState() extends ConsumerState<_NbPuzzlesSheet> {
           const SizedBox(height: 16.0),
           PlatformFilledButton(
             onPressed: () => Navigator.of(context).pop(_nbPuzzles),
-            child: const Text(DrillStrings.done),
+            child: Text(context.drillL10n.done),
           ),
         ],
       ),
@@ -978,7 +972,7 @@ class _DifficultySheetState() extends State<_DifficultySheet> {
             context.l10n.puzzleDifficultyLevel,
             style: const TextStyle(fontSize: 18, fontWeight: .w600),
           ),
-          if (rating != null) Text('${DrillStrings.ratingBasis}, $rating', style: subtitleStyle),
+          if (rating != null) Text(context.drillL10n.ratingBasis(rating), style: subtitleStyle),
           const SizedBox(height: 6.0),
           for (final difficulty in PuzzleDifficulty.values)
             Material(
@@ -1033,7 +1027,7 @@ class _DifficultySheetState() extends State<_DifficultySheet> {
                                         borderRadius: const BorderRadius.all(Radius.circular(8.0)),
                                       ),
                                       child: Text(
-                                        DrillStrings.lastOneTag,
+                                        context.drillL10n.lastOneTag,
                                         style: subtitleStyle.copyWith(fontSize: 11),
                                       ),
                                     ),
@@ -1041,9 +1035,11 @@ class _DifficultySheetState() extends State<_DifficultySheet> {
                               ),
                               if (rating != null)
                                 Text(
-                                  '${DrillStrings.puzzlesOfAbout} '
-                                  '${((rating + difficulty.ratingDelta) / 50).round() * 50}'
-                                  '${difficulty.ratingDelta == 0 ? ', ${DrillStrings.likeYou}' : ''}',
+                                  (difficulty.ratingDelta == 0
+                                      ? context.drillL10n.puzzlesOfAboutLikeYou
+                                      : context.drillL10n.puzzlesOfAbout)(
+                                    ((rating + difficulty.ratingDelta) / 50).round() * 50,
+                                  ),
                                   style: subtitleStyle.copyWith(fontSize: 12),
                                 ),
                             ],
@@ -1059,7 +1055,7 @@ class _DifficultySheetState() extends State<_DifficultySheet> {
           const SizedBox(height: 10.0),
           PlatformFilledButton(
             onPressed: () => Navigator.of(context).pop(_difficulty),
-            child: const Text(DrillStrings.done),
+            child: Text(context.drillL10n.done),
           ),
         ],
       ),

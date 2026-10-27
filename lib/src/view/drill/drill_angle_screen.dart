@@ -10,7 +10,6 @@ import 'package:lichess_mobile/src/styles/puzzle_icons.dart';
 import 'package:lichess_mobile/src/styles/styles.dart';
 import 'package:lichess_mobile/src/utils/l10n_context.dart';
 import 'package:lichess_mobile/src/utils/navigation.dart';
-import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:lichess_mobile/src/widgets/list.dart';
 import 'package:lichess_mobile/src/widgets/platform.dart';
 import 'package:lichess_mobile/src/widgets/platform_choice_chip.dart';
@@ -67,8 +66,8 @@ class const DrillAngleScreen({required final PuzzleAngle selected, super.key})
                 crossAxisAlignment: .start,
                 spacing: 2.0,
                 children: [
-                  const Text(DrillStrings.toWorkOn),
-                  Text(DrillStrings.toWorkOnHint, style: subtitleStyle),
+                  Text(context.drillL10n.toWorkOn),
+                  Text(context.drillL10n.toWorkOnHint, style: subtitleStyle),
                 ],
               ),
               children: [
@@ -83,7 +82,7 @@ class const DrillAngleScreen({required final PuzzleAngle selected, super.key})
                 crossAxisAlignment: .start,
                 spacing: 10.0,
                 children: [
-                  const Text(DrillStrings.recentThemes, style: Styles.sectionTitle),
+                  Text(context.drillL10n.recentThemes, style: Styles.sectionTitle),
                   Wrap(
                     spacing: 8.0,
                     runSpacing: Theme.of(context).platform == .iOS ? 8.0 : 0.0,
@@ -102,7 +101,7 @@ class const DrillAngleScreen({required final PuzzleAngle selected, super.key})
           // The recommended category is the healthy mix alone.
           ListSection(
             header: weakThemes.isNotEmpty || recentAngles.isNotEmpty
-                ? const Text(DrillStrings.allThemes)
+                ? Text(context.drillL10n.allThemes)
                 : null,
             hasLeading: true,
             children: [
@@ -159,7 +158,7 @@ class const _WeakThemeTile({
         children: [
           Expanded(child: Text(theme.l10n(context.l10n).name, overflow: .ellipsis)),
           Text(
-            '${DrillStrings.failed} ${data.failures} ${DrillStrings.ofTotal} ${data.puzzles}',
+            context.drillL10n.failedOfTotal(data.failures, data.puzzles),
             style: TextStyle(fontSize: 13, color: textShade(context, Styles.subtitleOpacity)),
           ),
         ],

@@ -31,6 +31,7 @@ import 'package:lichess_mobile/src/service/opening_service.dart';
 import 'package:lichess_mobile/src/service/sound_service.dart';
 import 'package:lichess_mobile/src/service/weights_service.dart';
 import 'package:lichess_mobile/src/tab_navigation.dart' show rootNavRouteStackObserver;
+import 'package:lichess_mobile/src/utils/l10n_context.dart';
 import 'package:lichess_mobile/src/utils/riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -108,6 +109,7 @@ class _FakeAppState() extends ConsumerState<_FakeApp> {
       // MaterialLocalizations.
       localizationsDelegates: const [
         AppLocalizations.delegate,
+        DrillLocalizationsDelegate(),
         ...GlobalMaterialLocalizations.delegates,
         MaterialLocalizationsEo.delegate,
         CupertinoLocalizationsEo.delegate,

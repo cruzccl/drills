@@ -10,7 +10,6 @@ import 'package:lichess_mobile/src/app.dart';
 import 'package:lichess_mobile/src/network/http.dart';
 import 'package:lichess_mobile/src/view/drill/drill_home_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_profile_screen.dart';
-import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:lichess_mobile/src/view/puzzle/dashboard_screen.dart';
 import 'package:lichess_mobile/src/widgets/user.dart';
 
@@ -86,14 +85,14 @@ void main() {
     expect(find.textContaining('605'), findsNothing);
     expect(find.textContaining('Time spent playing'), findsNothing);
 
-    expect(find.text(DrillStrings.puzzles), findsOneWidget);
+    expect(find.text('Puzzles'), findsOneWidget);
     expect(find.text('2128'), findsWidgets);
-    expect(find.text('10,336 ${DrillStrings.played}'), findsOneWidget);
-    expect(find.text('${DrillStrings.highScore} · 29 ${DrillStrings.runs}'), findsOneWidget);
+    expect(find.text('10,336 played'), findsOneWidget);
+    expect(find.text('highscore · 29 runs'), findsOneWidget);
     expect(find.text('2041'), findsNothing, reason: 'no blitz rating');
 
     // The details are behind the ratings, and only load once opened.
-    expect(find.text(DrillStrings.puzzleRating), findsNothing);
+    expect(find.text('Puzzle rating'), findsNothing);
     expect(find.text('Highscores'), findsNothing);
     expect(requests['/api/puzzle/dashboard/30'], isNull);
     expect(requests['/api/storm/dashboard/testuser'], isNull);
@@ -112,22 +111,18 @@ void main() {
     tester,
   ) async {
     await openProfile(tester);
-    await tester.tap(find.text(DrillStrings.puzzles));
+    await tester.tap(find.text('Puzzles'));
     await tester.pumpAndSettle();
 
-    expect(find.text(DrillStrings.puzzleRating), findsOneWidget);
-    expect(find.text(DrillStrings.highestRating), findsOneWidget);
+    expect(find.text('Puzzle rating'), findsOneWidget);
+    expect(find.text('Highest'), findsOneWidget);
     await tester.scrollUntilVisible(find.byType(PuzzleChart), 200, scrollable: topScrollable);
     expect(find.textContaining('to replay'), findsNothing);
     await tester.scrollUntilVisible(find.text('Improvement areas'), 200, scrollable: topScrollable);
     await tester.scrollUntilVisible(find.text('Strengths'), 200, scrollable: topScrollable);
     expect(find.text('Fork'), findsOneWidget);
 
-    await tester.scrollUntilVisible(
-      find.text(DrillStrings.puzzleRating),
-      -200,
-      scrollable: topScrollable,
-    );
+    await tester.scrollUntilVisible(find.text('Puzzle rating'), -200, scrollable: topScrollable);
     // A section reloaded on the way back would change height under the player's finger.
     expect(requests['/api/puzzle/dashboard/30'], 1);
     expect(requests['/api/user/testuser/rating-history'], 1);
@@ -135,7 +130,7 @@ void main() {
 
   testWidgets('the puzzle dashboard of other days loads without moving the screen', (tester) async {
     await openProfile(tester);
-    await tester.tap(find.text(DrillStrings.puzzles));
+    await tester.tap(find.text('Puzzles'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.byType(PuzzleChart), 200, scrollable: topScrollable);
     final offset = tester.state<ScrollableState>(topScrollable).position.pixels;
@@ -159,7 +154,7 @@ void main() {
 
   testWidgets('a theme of the puzzle dashboard sets up the Drill', (tester) async {
     await openProfile(tester);
-    await tester.tap(find.text(DrillStrings.puzzles));
+    await tester.tap(find.text('Puzzles'));
     await tester.pumpAndSettle();
 
     await tester.dragUntilVisible(
@@ -188,14 +183,8 @@ void main() {
     expect(find.text('24'), findsOneWidget);
     expect(find.text('Best run of day'), findsOneWidget);
     expect(find.byType(BarChart), findsOneWidget);
-    expect(
-      find.textContaining('+3 ${DrillStrings.sinceLastDay}', findRichText: true),
-      findsOneWidget,
-    );
-    expect(
-      find.text('${DrillStrings.stormChartCaption} · 8 ${DrillStrings.daysUnit}'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('+3 over the previous day', findRichText: true), findsOneWidget);
+    expect(find.text('Best score of each day played · 8 days'), findsOneWidget);
     // Every day of the last month, not only the last week.
     await tester.scrollUntilVisible(find.text('1150'), 200, scrollable: topScrollable);
     expect(find.text('1306'), findsOneWidget);
@@ -207,8 +196,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('1150'), 200, scrollable: topScrollable);
 
-    await tester.scrollUntilVisible(find.text('1S'), -200, scrollable: topScrollable);
-    await tester.tap(find.text('1S'));
+    await tester.scrollUntilVisible(find.text('1W'), -200, scrollable: topScrollable);
+    await tester.tap(find.text('1W'));
     await tester.pumpAndSettle();
     expect(stormDays, ['30', '7']);
     // The day played 9 days ago is out of the last week, though Lichess gives it.

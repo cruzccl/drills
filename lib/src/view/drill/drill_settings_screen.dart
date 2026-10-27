@@ -16,7 +16,6 @@ import 'package:lichess_mobile/src/utils/l10n_context.dart';
 import 'package:lichess_mobile/src/utils/navigation.dart';
 import 'package:lichess_mobile/src/view/auth/sign_in_error.dart';
 import 'package:lichess_mobile/src/view/auth/sign_in_options.dart';
-import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:lichess_mobile/src/view/settings/sound_settings_screen.dart';
 import 'package:lichess_mobile/src/view/settings/theme_settings_screen.dart';
 import 'package:lichess_mobile/src/widgets/adaptive_action_sheet.dart';
@@ -57,7 +56,7 @@ class const DrillSettingsScreen({super.key}) extends ConsumerWidget {
       body: ListView(
         children: [
           ListSection(
-            header: const SettingsSectionTitle(DrillStrings.settingsAccount),
+            header: SettingsSectionTitle(context.drillL10n.settingsAccount),
             hasLeading: true,
             children: [
               if (authUser != null)
@@ -85,7 +84,7 @@ class const DrillSettingsScreen({super.key}) extends ConsumerWidget {
             ],
           ),
           ListSection(
-            header: const SettingsSectionTitle(DrillStrings.settingsDrills),
+            header: const SettingsSectionTitle('Drills'),
             hasLeading: false,
             children: [
               SwitchSettingTile(
@@ -96,7 +95,7 @@ class const DrillSettingsScreen({super.key}) extends ConsumerWidget {
                 },
               ),
               SwitchSettingTile(
-                title: const Text(DrillStrings.showClock),
+                title: Text(context.drillL10n.showClock),
                 value: showClock,
                 onChanged: (value) {
                   ref.read(drillPreferencesProvider.notifier).setShowClock(value);
@@ -105,7 +104,7 @@ class const DrillSettingsScreen({super.key}) extends ConsumerWidget {
             ],
           ),
           ListSection(
-            header: const SettingsSectionTitle(DrillStrings.settingsAppearance),
+            header: SettingsSectionTitle(context.drillL10n.settingsAppearance),
             hasLeading: true,
             children: [
               SettingsListTile(
@@ -161,7 +160,7 @@ class const DrillSettingsScreen({super.key}) extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: .start,
               children: [
-                Text(DrillStrings.about, style: TextTheme.of(context).bodySmall),
+                Text(context.drillL10n.about, style: TextTheme.of(context).bodySmall),
                 const SizedBox(height: 8),
                 InkWell(
                   onTap: () => launchUrl(Uri.parse('https://lichess.org/patron')),
@@ -172,7 +171,7 @@ class const DrillSettingsScreen({super.key}) extends ConsumerWidget {
                       spacing: 4,
                       children: [
                         Text(
-                          DrillStrings.supportLichess,
+                          context.drillL10n.supportLichess,
                           style: TextTheme.of(context).bodySmall
                               ?.copyWith(color: ColorScheme.of(context).primary, fontWeight: .w500),
                         ),

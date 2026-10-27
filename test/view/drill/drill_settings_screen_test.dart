@@ -83,7 +83,7 @@ void main() {
     for (final label in [
       'Sign out',
       'Jump to next puzzle immediately',
-      'Mostrar reloj',
+      'Show clock',
       'Sound',
       'Touch feedback',
       'Theme',
@@ -112,8 +112,8 @@ void main() {
     final about = find.textContaining('Lichess Mobile');
     await scrollTo(tester, about);
     expect(about, findsOneWidget);
-    expect(find.textContaining('Gracias a Lichess'), findsOneWidget);
-    expect(find.textContaining('Apoya a Lichess'), findsOneWidget);
+    expect(find.textContaining('Thanks to Lichess'), findsOneWidget);
+    expect(find.textContaining('Support Lichess'), findsOneWidget);
   });
 
   testWidgets('the puzzle, clock and touch feedback switches change the preferences', (
@@ -127,7 +127,7 @@ void main() {
     expect(container.read(puzzlePreferencesProvider).autoNext, true);
 
     expect(container.read(drillPreferencesProvider).showClock, false);
-    await toggle(tester, 'Mostrar reloj');
+    await toggle(tester, 'Show clock');
     expect(container.read(drillPreferencesProvider).showClock, true);
 
     final hapticFeedback = container.read(boardPreferencesProvider).hapticFeedback;

@@ -2,6 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lichess_mobile/l10n/drill/drill_localizations.dart';
 import 'package:lichess_mobile/src/model/auth/auth_controller.dart';
 import 'package:lichess_mobile/src/model/common/id.dart';
 import 'package:lichess_mobile/src/model/common/perf.dart';
@@ -21,7 +22,6 @@ import 'package:lichess_mobile/src/utils/l10n_context.dart';
 import 'package:lichess_mobile/src/utils/navigation.dart';
 import 'package:lichess_mobile/src/utils/string.dart';
 import 'package:lichess_mobile/src/view/drill/drill_history_screen.dart';
-import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:lichess_mobile/src/view/drill/drill_summary.dart';
 import 'package:lichess_mobile/src/view/puzzle/dashboard_screen.dart';
 import 'package:lichess_mobile/src/view/user/perf_stats_screen.dart';
@@ -145,7 +145,7 @@ class const _RatingCards({required final User user}) extends StatelessWidget {
                     // A theme of the puzzle dashboard goes on back to the Drill home.
                     if (angle != null && context.mounted) Navigator.of(context).pop(angle);
                   },
-                  label: DrillStrings.puzzles,
+                  label: context.drillL10n.puzzles,
                   icon: Perf.puzzle.icon,
                   rating: RatingWidget(
                     rating: puzzle.rating,
@@ -154,9 +154,7 @@ class const _RatingCards({required final User user}) extends StatelessWidget {
                     style: const TextStyle(fontSize: 24, fontWeight: .w500),
                   ),
                   progression: puzzle.progression,
-                  subtitle:
-                      '${puzzle.numberOfGamesOrRuns.toString().localizeNumbers()} '
-                      '${DrillStrings.played}',
+                  subtitle: context.drillL10n.nbPlayed(puzzle.numberOfGamesOrRuns),
                 ),
               ),
             if (storm != null)
@@ -170,9 +168,7 @@ class const _RatingCards({required final User user}) extends StatelessWidget {
                     style: const TextStyle(fontSize: 24, fontWeight: .w500),
                   ),
                   progression: 0,
-                  subtitle:
-                      '${DrillStrings.highScore} · ${storm.numberOfGamesOrRuns} '
-                      '${storm.numberOfGamesOrRuns == 1 ? DrillStrings.run : DrillStrings.runs}',
+                  subtitle: context.drillL10n.highScoreNbRuns(storm.numberOfGamesOrRuns),
                 ),
               ),
           ],
@@ -264,7 +260,7 @@ class const _PuzzlesScreen({required final UserId userId}) extends ConsumerWidge
   Widget build(BuildContext context, WidgetRef ref) {
     return _DetailsScaffold(
       icon: Perf.puzzle.icon,
-      title: DrillStrings.puzzles,
+      title: context.drillL10n.puzzles,
       onRefresh: () => Future.wait([
         ref.refresh(userRatingHistoryProvider(userId).future),
         ref.refresh(puzzleDashboardProvider(ref.read(daysProvider).days).future),
@@ -319,11 +315,18 @@ class _StormScreenState() extends ConsumerState<_StormScreen> {
 
 /// The periods of the Puzzle Storm details, in days, labelled like those of the puzzle rating
 /// chart.
-enum _StormPeriod(final int days, final String label) {
-  week(7, '1S'),
-  month(30, '1M'),
-  quarter(90, '3M'),
-  year(365, '1A');
+enum _StormPeriod(final int days) {
+  week(7),
+  month(30),
+  quarter(90),
+  year(365);
+
+  String label(DrillLocalizations l10n) => switch (this) {
+    week => l10n.rangeWeek,
+    month => l10n.rangeMonth,
+    quarter => l10n.rangeThreeMonths,
+    year => l10n.rangeYear,
+  };
 
   /// The number of days between [day] and [today], if [day] is within this period.
   int? daysAgo(DateTime day, DateTime today) {
@@ -378,7 +381,7 @@ class const _RatingHistorySection({required final UserId userId}) extends Consum
         if (history == null || history.points.length <= 1) return const SizedBox.shrink();
         final ratings = history.points.map((p) => p.elo);
         return _Section(
-          title: const Text(DrillStrings.puzzleRating),
+          title: Text(context.drillL10n.puzzleRating),
           children: [
             Card(
               margin: EdgeInsets.zero,
@@ -389,15 +392,15 @@ class const _RatingHistorySection({required final UserId userId}) extends Consum
             ),
             const SizedBox(height: 8.0),
             StatCardRow([
-              StatCard(DrillStrings.highestRating, value: '${ratings.max}'),
-              StatCard(DrillStrings.lowestRating, value: '${ratings.min}'),
+              StatCard(context.drillL10n.highestRating, value: '${ratings.max}'),
+              StatCard(context.drillL10n.lowestRating, value: '${ratings.min}'),
             ]),
           ],
         );
       }(),
-      AsyncError() => const _Section(
-        title: Text(DrillStrings.puzzleRating),
-        children: [Text('Could not load the rating history.')],
+      AsyncError() => _Section(
+        title: Text(context.drillL10n.puzzleRating),
+        children: const [Text('Could not load the rating history.')],
       ),
       _ => const SizedBox.shrink(),
     };
@@ -608,7 +611,7 @@ class const _StormSection({
                               TableRow(
                                 children: [
                                   for (final (i, value) in [
-                                    drillDayName(day.day, short: true),
+                                    drillDayName(context, day.day, short: true),
                                     '${day.score}',
                                     '${day.time}s',
                                     '${day.highest}',
@@ -686,7 +689,7 @@ class const _StormChart(
               children: [
                 for (final choice in _StormPeriod.values)
                   ChartRangeButton(
-                    text: choice.label,
+                    text: choice.label(context.drillL10n),
                     onPressed: () => onPeriodChanged(choice),
                     selected: period == choice,
                   ),
@@ -703,7 +706,8 @@ class const _StormChart(
                     ),
                     if (change != null)
                       TextSpan(
-                        text: '  ${formatRatingChange(change)} ${DrillStrings.sinceLastDay}',
+                        text:
+                            '  ${context.drillL10n.changeSinceLastDay(formatRatingChange(change))}',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: .w500,
@@ -713,16 +717,12 @@ class const _StormChart(
                   ],
                 ),
               ),
-            Text(
-              '${DrillStrings.stormChartCaption} · ${played.length} '
-              '${played.length == 1 ? DrillStrings.dayUnit : DrillStrings.daysUnit}',
-              style: subtitleStyle,
-            ),
+            Text(context.drillL10n.stormChartCaption(played.length), style: subtitleStyle),
             const SizedBox(height: 12.0),
             SizedBox(
               height: 120.0,
               child: played.isEmpty
-                  ? Center(child: Text(DrillStrings.noChartData, style: subtitleStyle))
+                  ? Center(child: Text(context.drillL10n.noChartData, style: subtitleStyle))
                   : LayoutBuilder(
                       builder: (context, constraints) {
                         final barWidth = (constraints.maxWidth / period.days * 0.7).clamp(0.5, 9.0);
@@ -764,7 +764,7 @@ class const _StormChart(
                                     alignment: Alignment.topRight,
                                     padding: const EdgeInsets.only(bottom: 2.0),
                                     style: TextStyle(fontSize: 10, color: brag),
-                                    labelResolver: (_) => '${DrillStrings.highScore} $allTime',
+                                    labelResolver: (_) => context.drillL10n.highScoreValue(allTime),
                                   ),
                                 ),
                               ],
@@ -789,7 +789,7 @@ class const _StormChart(
                                     TextStyle(fontWeight: .bold, color: onInverse),
                                     children: [
                                       TextSpan(
-                                        text: drillDayName(day.day, short: true),
+                                        text: drillDayName(context, day.day, short: true),
                                         style: TextStyle(
                                           fontSize: 11,
                                           fontWeight: .normal,
@@ -811,10 +811,14 @@ class const _StormChart(
               mainAxisAlignment: .spaceBetween,
               children: [
                 Text(
-                  drillDayName(today.subtract(Duration(days: period.days - 1)), short: true),
+                  drillDayName(
+                    context,
+                    today.subtract(Duration(days: period.days - 1)),
+                    short: true,
+                  ),
                   style: subtitleStyle,
                 ),
-                Text(drillDayName(today, short: true), style: subtitleStyle),
+                Text(drillDayName(context, today, short: true), style: subtitleStyle),
               ],
             ),
           ],
@@ -865,7 +869,7 @@ class const _ActivityDay(final UserActivity activity) extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(left: 14.0, top: 16.0, right: 14.0, bottom: 4.0),
           child: Text(
-            drillDayName(activity.startTime, short: true),
+            drillDayName(context, activity.startTime, short: true),
             style: TextStyle(color: context.lichessColors.brag, fontWeight: .bold),
           ),
         ),

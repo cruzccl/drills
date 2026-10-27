@@ -7,7 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lichess_mobile/src/model/common/id.dart';
 import 'package:lichess_mobile/src/model/drill/drill_controller.dart';
 import 'package:lichess_mobile/src/view/drill/drill_history_screen.dart';
-import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../model/auth/fake_auth_storage.dart';
@@ -59,13 +58,13 @@ Future<Widget> _makeApp(
 );
 
 Future<void> _openMenuAction(WidgetTester tester, String action) async {
-  await tester.tap(find.byTooltip(DrillStrings.historyMenu));
+  await tester.tap(find.byTooltip('More options'));
   await tester.pumpAndSettle();
   await tester.tap(find.text(action));
   await tester.pumpAndSettle();
 }
 
-Future<void> _import(WidgetTester tester) => _openMenuAction(tester, DrillStrings.importHistory);
+Future<void> _import(WidgetTester tester) => _openMenuAction(tester, 'Import');
 
 void main() {
   testWidgets('imports the Drills of a file and says how many were added', (tester) async {
@@ -77,16 +76,16 @@ void main() {
     });
     await tester.pumpWidget(await _makeApp(tester, file: file));
     await tester.pumpAndSettle();
-    expect(find.text(DrillStrings.emptyHistory), findsOneWidget);
+    expect(find.text("You haven't finished any Drill yet."), findsOneWidget);
 
     await _import(tester);
-    expect(find.text('1 Drill añadido.'), findsOneWidget);
-    expect(find.text(DrillStrings.emptyHistory), findsNothing);
+    expect(find.text('1 Drill added.'), findsOneWidget);
+    expect(find.text("You haven't finished any Drill yet."), findsNothing);
 
     await tester.pump(const Duration(seconds: 10));
     await tester.pumpAndSettle();
     await _import(tester);
-    expect(find.text('Ningún Drill añadido; 1 ya estaba en el historial.'), findsOneWidget);
+    expect(find.text('No Drill added; 1 was already in the history.'), findsOneWidget);
   });
 
   testWidgets('exports the Drill History to a file saved where the player chooses', (tester) async {
@@ -112,11 +111,11 @@ void main() {
     await tester.pump(const Duration(seconds: 10));
     await tester.pumpAndSettle();
 
-    await _openMenuAction(tester, DrillStrings.exportHistory);
+    await _openMenuAction(tester, 'Export');
 
     expect(saved.keys.single, matches(RegExp(r'^drills-\d{4}-\d{2}-\d{2}\.json$')));
     expect(jsonDecode(utf8.decode(saved.values.single)), jsonDecode(file));
-    expect(find.text(DrillStrings.historyExported), findsOneWidget);
+    expect(find.text('History exported.'), findsOneWidget);
   });
 
   testWidgets('says so when the file is not a Drill History file', (tester) async {
@@ -125,8 +124,8 @@ void main() {
 
     await _import(tester);
 
-    expect(find.text(DrillStrings.invalidHistoryFile), findsOneWidget);
-    expect(find.text(DrillStrings.emptyHistory), findsOneWidget);
+    expect(find.text('Not a valid Drill History file.'), findsOneWidget);
+    expect(find.text("You haven't finished any Drill yet."), findsOneWidget);
   });
 }
 

@@ -36,9 +36,9 @@ import 'package:lichess_mobile/src/tab_navigation.dart';
 import 'package:lichess_mobile/src/tab_scaffold.dart';
 import 'package:lichess_mobile/src/theme.dart';
 import 'package:lichess_mobile/src/ui_event_coordinator.dart';
+import 'package:lichess_mobile/src/utils/l10n_context.dart';
 import 'package:lichess_mobile/src/utils/screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_home_screen.dart';
-import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
 import 'package:material_ui/material_ui.dart';
 
 const String _kIosAppGroupId = 'group.org.lichess.mobileV2.LichessWidgets';
@@ -273,12 +273,13 @@ class _AppState() extends ConsumerState<Application> {
       // libraries, not the `material_ui` and `cupertino_ui` ones the app is built with.
       localizationsDelegates: const [
         AppLocalizations.delegate,
+        DrillLocalizationsDelegate(),
         ...GlobalMaterialLocalizations.delegates,
         MaterialLocalizationsEo.delegate,
         CupertinoLocalizationsEo.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
-      title: DrillStrings.appName,
+      title: 'Drills',
       locale: themeConfig.$5,
       theme: theme.copyWith(
         navigationBarTheme: isIOS
