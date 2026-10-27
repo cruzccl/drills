@@ -113,6 +113,7 @@ void main() {
     await scrollTo(tester, about);
     expect(about, findsOneWidget);
     expect(find.textContaining('Gracias a Lichess'), findsOneWidget);
+    expect(find.textContaining('Apoya a Lichess'), findsOneWidget);
   });
 
   testWidgets('the puzzle, clock and touch feedback switches change the preferences', (

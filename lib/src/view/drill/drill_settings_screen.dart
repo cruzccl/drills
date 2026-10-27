@@ -26,6 +26,7 @@ import 'package:lichess_mobile/src/widgets/list.dart';
 import 'package:lichess_mobile/src/widgets/platform.dart';
 import 'package:lichess_mobile/src/widgets/settings.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// The settings of Drills: only those that affect Drills, out of the upstream [SettingsScreen].
 ///
@@ -157,9 +158,33 @@ class const DrillSettingsScreen({super.key}) extends ConsumerWidget {
           ),
           Padding(
             padding: Styles.bodySectionPadding,
-            child: Text(
-              '${DrillStrings.about}\n\nv${packageInfo.version}',
-              style: TextTheme.of(context).bodySmall,
+            child: Column(
+              crossAxisAlignment: .start,
+              children: [
+                Text(DrillStrings.about, style: TextTheme.of(context).bodySmall),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () => launchUrl(Uri.parse('https://lichess.org/patron')),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      mainAxisSize: .min,
+                      spacing: 4,
+                      children: [
+                        Text(
+                          DrillStrings.supportLichess,
+                          style: TextTheme.of(context).bodySmall
+                              ?.copyWith(color: ColorScheme.of(context).primary, fontWeight: .w500),
+                        ),
+                        // An icon rather than the ♥ character, which Android draws as a red emoji.
+                        Icon(Icons.favorite, size: 14, color: ColorScheme.of(context).primary),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text('v${packageInfo.version}', style: TextTheme.of(context).bodySmall),
+              ],
             ),
           ),
         ],
