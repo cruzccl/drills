@@ -144,6 +144,7 @@ abstract class DrillStrings() {
   static const showClock = 'Mostrar reloj';
 
   static const about =
-      'Drills es una versión personal y no oficial de Lichess Mobile. '
-      'Gracias a Lichess por su aplicación y por hacer el ajedrez libre y gratuito para todos.';
+      'Drills es una versión personal y no oficial de Lichess Mobile.\n'
+      'Gracias a Lichess por hacer el ajedrez libre y gratuito para todos.';
+  static const supportLichess = 'Apoya a Lichess';
 }
