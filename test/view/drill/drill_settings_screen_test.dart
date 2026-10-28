@@ -8,6 +8,7 @@ import 'package:lichess_mobile/src/model/auth/auth_repository.dart';
 import 'package:lichess_mobile/src/model/drill/drill_preferences.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_preferences.dart';
 import 'package:lichess_mobile/src/model/settings/board_preferences.dart';
+import 'package:lichess_mobile/src/model/settings/general_preferences.dart';
 import 'package:lichess_mobile/src/network/http.dart';
 import 'package:lichess_mobile/src/view/drill/drill_settings_screen.dart';
 import 'package:lichess_mobile/src/widgets/platform_switch.dart';
@@ -167,5 +168,47 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(nbAuthorizations, 1);
+  });
+
+  group('language', () {
+    Future<Locale> appLocaleOnDevice(WidgetTester tester, Locale deviceLocale) async {
+      tester.platformDispatcher.localesTestValue = [deviceLocale];
+      addTearDown(tester.platformDispatcher.clearLocalesTestValue);
+      final app = await makeTestProviderScope(
+        tester,
+        child: const Application(),
+        authUser: fakeAuthUser,
+        overrides: {httpClientFactoryProvider: httpOverride},
+      );
+      await tester.pumpWidget(app);
+      await tester.pumpAndSettle();
+      return Localizations.localeOf(tester.element(find.byType(Scaffold).first));
+    }
+
+    testWidgets('follows the device in a language Drills is translated into', (tester) async {
+      expect(await appLocaleOnDevice(tester, const Locale('eu')), const Locale('eu'));
+    });
+
+    testWidgets('is English on a device in any other language', (tester) async {
+      expect(await appLocaleOnDevice(tester, const Locale('de')), const Locale('en'));
+      expect(find.byTooltip('Settings'), findsOneWidget);
+    });
+
+    testWidgets('offers only the languages Drills is translated into', (tester) async {
+      await openSettings(tester);
+
+      await scrollTo(tester, find.text('Language'));
+      await tester.tap(find.text('Language'));
+      await tester.pumpAndSettle();
+
+      final options = tester
+          .widgetList<RadioListTile<Locale>>(find.byType(RadioListTile<Locale>))
+          .map((tile) => tile.value);
+      expect(options, const [Locale('en'), Locale('es'), Locale('eu')]);
+
+      await tester.tap(find.text('Euskara'));
+      await tester.pumpAndSettle();
+      expect(containerOf(tester).read(generalPreferencesProvider).locale, const Locale('eu'));
+    });
   });
 }

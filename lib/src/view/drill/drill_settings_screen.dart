@@ -2,7 +2,7 @@ import 'package:app_settings/app_settings.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/experimental/mutation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lichess_mobile/l10n/l10n.dart';
+import 'package:lichess_mobile/l10n/drill/drill_localizations.dart';
 import 'package:lichess_mobile/src/model/auth/auth_controller.dart';
 import 'package:lichess_mobile/src/model/common/preloaded_data.dart';
 import 'package:lichess_mobile/src/model/drill/drill_preferences.dart';
@@ -135,15 +135,13 @@ class const DrillSettingsScreen({super.key}) extends ConsumerWidget {
               SettingsListTile(
                 icon: const Icon(Icons.language_outlined),
                 settingsLabel: Text(context.l10n.language),
-                settingsValue: localeToLocalizedName(
-                  generalPrefs.locale ?? Localizations.localeOf(context),
-                ),
+                settingsValue: localeToLocalizedName(Localizations.localeOf(context)),
                 onTap: () {
                   if (Theme.of(context).platform == .android) {
                     showChoicePicker<Locale>(
                       context,
-                      choices: localesSortedByLocalizedName(AppLocalizations.supportedLocales),
-                      selectedItem: generalPrefs.locale ?? Localizations.localeOf(context),
+                      choices: DrillLocalizations.supportedLocales,
+                      selectedItem: Localizations.localeOf(context),
                       labelBuilder: (t) => Text(localeToLocalizedName(t)),
                       onSelectedItemChanged: (Locale? locale) =>
                           ref.read(generalPreferencesProvider.notifier).setLocale(locale),

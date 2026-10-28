@@ -179,8 +179,10 @@ Edit them by hand, then regenerate `DrillLocalizations` (the generated Dart file
 ./scripts/gen-drill-translations.sh
 ```
 
-Read the text with `context.drillL10n` (`lib/src/utils/l10n_context.dart`). In a locale without a
-Drills ARB, `DrillLocalizationsDelegate` falls back to English. A sentence is one message, with ICU
+Read the text with `context.drillL10n` (`lib/src/utils/l10n_context.dart`). The app supports only
+the languages that have a Drills ARB (`MaterialApp.supportedLocales` in `app.dart`, and the
+language picker of the Drill settings): on a device in another language, the whole app is in
+English, the Lichess translations included. A sentence is one message, with ICU
 placeholders and plurals, never pieces glued in code: word order and plurals differ between
 languages. The Spanish text stays the one the app had when Spanish was its only language.
 
