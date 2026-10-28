@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:intl/intl.dart';
 import 'package:l10n_esperanto/l10n_esperanto.dart';
+import 'package:lichess_mobile/l10n/drill/drill_localizations.dart';
 import 'package:lichess_mobile/l10n/l10n.dart';
 import 'package:lichess_mobile/src/constants.dart';
 import 'package:lichess_mobile/src/intl.dart';
@@ -34,7 +35,6 @@ import 'package:lichess_mobile/src/tab_navigation.dart';
 import 'package:lichess_mobile/src/tab_scaffold.dart';
 import 'package:lichess_mobile/src/theme.dart';
 import 'package:lichess_mobile/src/ui_event_coordinator.dart';
-import 'package:lichess_mobile/src/utils/l10n_context.dart';
 import 'package:lichess_mobile/src/utils/screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_home_screen.dart';
 import 'package:lichess_mobile/src/widgets/platform.dart' show usePinnedNavBar;
@@ -227,12 +227,14 @@ class _AppState() extends ConsumerState<Application> {
       // libraries, not the `material_ui` and `cupertino_ui` ones the app is built with.
       localizationsDelegates: const [
         AppLocalizations.delegate,
-        DrillLocalizationsDelegate(),
+        DrillLocalizations.delegate,
         ...GlobalMaterialLocalizations.delegates,
         MaterialLocalizationsEo.delegate,
         CupertinoLocalizationsEo.delegate,
       ],
-      supportedLocales: AppLocalizations.supportedLocales,
+      // Only the languages Drills is translated into: on a device in another language, the whole
+      // app is in English (the first one), not in the Lichess translation mixed with English.
+      supportedLocales: DrillLocalizations.supportedLocales,
       title: 'Drills',
       locale: themeConfig.$5,
       theme: theme.copyWith(

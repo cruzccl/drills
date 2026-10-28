@@ -237,7 +237,7 @@ class DrillLocalizationsEu extends DrillLocalizations {
   String get averageTime => 'Ariketako';
 
   @override
-  String get performance => 'Performancea';
+  String get performance => 'Errendimendua';
 
   @override
   String get unreliable => 'Ez oso fidagarria';

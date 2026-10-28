@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:l10n_esperanto/l10n_esperanto.dart';
+import 'package:lichess_mobile/l10n/drill/drill_localizations.dart';
 import 'package:lichess_mobile/l10n/l10n.dart';
 import 'package:lichess_mobile/src/constants.dart';
 import 'package:lichess_mobile/src/db/database.dart';
@@ -32,7 +33,6 @@ import 'package:lichess_mobile/src/service/sound_service.dart';
 import 'package:lichess_mobile/src/service/weights_service.dart';
 import 'package:lichess_mobile/src/tab_navigation.dart'
     show rootNavRouteStackObserver, tabNavigatorObservers;
-import 'package:lichess_mobile/src/utils/l10n_context.dart';
 import 'package:lichess_mobile/src/utils/riverpod.dart';
 import 'package:lichess_mobile/src/widgets/platform.dart' show usePinnedNavBar;
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart' show GlassNavigationShell;
@@ -112,7 +112,7 @@ class _FakeAppState() extends ConsumerState<_FakeApp> {
       // MaterialLocalizations.
       localizationsDelegates: const [
         AppLocalizations.delegate,
-        DrillLocalizationsDelegate(),
+        DrillLocalizations.delegate,
         ...GlobalMaterialLocalizations.delegates,
         MaterialLocalizationsEo.delegate,
         CupertinoLocalizationsEo.delegate,
