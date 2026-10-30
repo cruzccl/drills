@@ -756,12 +756,27 @@ void main() {
     expect(find.text('Healthy mix'), findsNWidgets(2));
     expect(find.text('2 Drills · 2 puzzles · '), findsOneWidget);
 
-    for (var i = 0; i < 2; i++) {
-      await tester.longPress(find.text('Healthy mix').first);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('OK'));
-      await tester.pumpAndSettle();
-    }
+    // both Drills selected, analyzed together, then deleted
+    await tester.longPress(find.text('Healthy mix').first);
+    await tester.pumpAndSettle();
+    expect(find.text('1 selected'), findsOneWidget);
+    await tester.tap(find.text('Healthy mix').last);
+    await tester.pumpAndSettle();
+    expect(find.text('2 selected'), findsOneWidget);
+    await tester.tap(find.byTooltip('Analyze'));
+    await tester.pumpAndSettle();
+    expect(find.text('Summary of 2 Drills'), findsOneWidget);
+    expect(find.text('0 of 2 solved'), findsOneWidget);
+    expect(find.text('−20'), findsOneWidget);
+    expect(find.text('1490'), findsNothing, reason: 'no rating before and after');
+    expect(find.byType(BarChart), findsNothing, reason: 'no solving time chart');
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Delete'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete these 2 Drills from the history?'), findsOneWidget);
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
     expect(find.text('Healthy mix'), findsNothing);
     expect(find.text("You haven't finished any Drill yet."), findsOneWidget);
   });

@@ -923,7 +923,7 @@ void main() {
       expect(history.map((d) => d.config.nbPuzzles), [3, 2, 1]);
       expect(history.map((d) => d.startedAt.hour), [11, 10, 9]);
 
-      await container.read(drillHistoryProvider.notifier).delete(history[1].startedAt);
+      await container.read(drillHistoryProvider.notifier).delete({history[1].startedAt}.lock);
 
       expect(_loadedHistory(container)!.map((d) => d.config.nbPuzzles), [3, 1]);
       container.dispose();
@@ -944,7 +944,7 @@ void main() {
 
     await container
         .read(drillHistoryProvider.notifier)
-        .delete(_loadedHistory(container)!.single.startedAt);
+        .delete({_loadedHistory(container)!.single.startedAt}.lock);
     await _goOnline(container, server);
     await _waitFor(() => !container.read(drillControllerProvider)!.drill.hasPendingRatingDiff);
 

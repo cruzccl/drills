@@ -511,11 +511,47 @@ abstract class DrillLocalizations {
   /// **'You haven\'t finished any Drill yet.'**
   String get emptyHistory;
 
-  /// No description provided for @deleteDrillConfirmation.
+  /// No description provided for @deleteDrillsConfirmation.
   ///
   /// In en, this message translates to:
-  /// **'Delete this Drill from the history?'**
-  String get deleteDrillConfirmation;
+  /// **'{count, plural, =1{Delete this Drill from the history?} other{Delete these {count} Drills from the history?}}'**
+  String deleteDrillsConfirmation(int count);
+
+  /// No description provided for @nbSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String nbSelected(int count);
+
+  /// No description provided for @analyzeDrills.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyze'**
+  String get analyzeDrills;
+
+  /// No description provided for @deleteDrills.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get deleteDrills;
+
+  /// No description provided for @selectSameDrillsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select other Drills of the same theme and difficulty to analyze them together.'**
+  String get selectSameDrillsHint;
+
+  /// No description provided for @mixedDrillsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Only Drills of the same theme and difficulty are analyzed together.'**
+  String get mixedDrillsHint;
+
+  /// No description provided for @groupSummaryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Summary of 1 Drill} other{Summary of {count} Drills}}'**
+  String groupSummaryTitle(int count);
 
   /// No description provided for @historyMenu.
   ///
