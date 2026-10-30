@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lichess_mobile/src/model/common/id.dart';
 import 'package:lichess_mobile/src/model/drill/drill_controller.dart';
+import 'package:lichess_mobile/src/model/drill/drill_group.dart';
+import 'package:lichess_mobile/src/model/drill/drill_history.dart';
 import 'package:lichess_mobile/src/model/drill/drill_puzzle_analysis.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_angle.dart';
@@ -37,12 +39,12 @@ const _successRateMargin = 0.05;
 /// summary returns it. A Drill played signed out, without an account ([hasAccount] `false`), has
 /// no rating change.
 class const DrillSummary(final Drill drill, {final bool hasAccount = true, super.key})
-    extends StatefulWidget {
+    extends ConsumerStatefulWidget {
   @override
-  State<DrillSummary> createState() => _DrillSummaryState();
+  ConsumerState<DrillSummary> createState() => _DrillSummaryState();
 }
 
-class _DrillSummaryState() extends State<DrillSummary> {
+class _DrillSummaryState() extends ConsumerState<DrillSummary> {
   /// Whether the puzzles shown are the ones solved (`true`) or failed (`false`), or all of them
   /// (`null`).
   bool? _winShown;
@@ -54,9 +56,20 @@ class _DrillSummaryState() extends State<DrillSummary> {
     return ListView(
       padding: Styles.bodyPadding.add(MediaQuery.paddingOf(context)),
       children: [
-        _Headline(drill),
+        _Headline(
+          description: drillDescription(context, ref, drill),
+          successes: drill.successes,
+          nbPlayed: drill.results.length,
+          expected: drill.expectedSuccessRate,
+        ),
         const SizedBox(height: 20.0),
-        _PerformanceCard(drill, hasAccount: widget.hasAccount),
+        _PerformanceCard(
+          performance: drill.performance,
+          isPerformanceReliable: drill.isPerformanceReliable,
+          hasAccount: widget.hasAccount,
+          ratingChange: drill.ratingChange,
+          ratingRange: (drill.ratingBefore, drill.ratingAfter),
+        ),
         const SizedBox(height: 20.0),
         _TimeCard(drill.results, winShown: _winShown),
         if (weakestThemes.isNotEmpty) ...[
@@ -65,7 +78,7 @@ class _DrillSummaryState() extends State<DrillSummary> {
         ],
         const SizedBox(height: 24.0),
         _PuzzleList(
-          drill.results,
+          [drill].lock,
           winShown: _winShown,
           onWinShownChanged: (winShown) => setState(() => _winShown = winShown),
         ),
@@ -79,37 +92,101 @@ class _DrillSummaryState() extends State<DrillSummary> {
   }
 }
 
-/// What the Drill was, its share of puzzles solved, large, and how it compares with the share
-/// expected.
-class const _Headline(final Drill drill) extends ConsumerWidget {
+/// The Drill Summary of several Drills of the same theme and difficulty taken as one, a
+/// [DrillGroup].
+///
+/// It is a Drill's Drill Summary but for the rating change, the sum of the Drills' without the
+/// rating before and after, and the solving times, without their chart. The puzzles are folded at
+/// first, under a header per Drill.
+///
+/// Its route returns the weakest theme the player tapped, as a Drill's.
+class const DrillGroupSummary(final DrillGroup group, {super.key}) extends ConsumerStatefulWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final expected = drill.expectedSuccessRate;
-    final nbPlayed = drill.results.length;
+  ConsumerState<DrillGroupSummary> createState() => _DrillGroupSummaryState();
+}
+
+class _DrillGroupSummaryState() extends ConsumerState<DrillGroupSummary> {
+  /// See [_DrillSummaryState._winShown].
+  bool? _winShown;
+
+  @override
+  Widget build(BuildContext context) {
+    final group = widget.group;
+    final weakestThemes = group.weakestThemes;
+    return ListView(
+      padding: Styles.bodyPadding.add(MediaQuery.paddingOf(context)),
+      children: [
+        _Headline(
+          description: drillGroupDescription(context, ref, group),
+          successes: group.successes,
+          nbPlayed: group.nbPlayed,
+          expected: group.expectedSuccessRate,
+        ),
+        const SizedBox(height: 20.0),
+        _PerformanceCard(
+          performance: group.performance,
+          isPerformanceReliable: group.isPerformanceReliable,
+          hasAccount: true,
+          ratingChange: group.ratingChange,
+        ),
+        const SizedBox(height: 20.0),
+        _TimeCard(group.results, winShown: null, chart: false),
+        if (weakestThemes.isNotEmpty) ...[
+          const SizedBox(height: 24.0),
+          _WeakestThemes(weakestThemes),
+        ],
+        const SizedBox(height: 24.0),
+        _PuzzleList(
+          group.drills,
+          winShown: _winShown,
+          onWinShownChanged: (winShown) => setState(() => _winShown = winShown),
+          grouped: true,
+        ),
+        const SizedBox(height: 20.0),
+        OutlinedButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(context.drillL10n.backToHome),
+        ),
+      ],
+    );
+  }
+}
+
+/// What the Drills were ([description]), their share of puzzles solved, large, and how it
+/// compares with the share [expected].
+class const _Headline({
+  required final String description,
+  required final int successes,
+  required final int nbPlayed,
+  required final double? expected,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final successRate = nbPlayed == 0 ? 0.0 : successes / nbPlayed;
     return Column(
       children: [
         Text(
-          drillDescription(context, ref, drill),
+          description,
           textAlign: .center,
           style: TextStyle(fontSize: 13, color: textShade(context, Styles.subtitleOpacity)),
         ),
         const SizedBox(height: 8.0),
         Text(
-          '${(drill.successRate * 100).round()} %',
+          '${(successRate * 100).round()} %',
           style: TextStyle(
             fontSize: 64,
             fontWeight: .bold,
             height: 1.1,
-            color: successRateColor(context, drill.successRate, expected),
+            color: successRateColor(context, successRate, expected),
           ),
         ),
         Text(
-          context.drillL10n.nbSolvedOfTotal(drill.successes, nbPlayed),
+          context.drillL10n.nbSolvedOfTotal(successes, nbPlayed),
           style: const TextStyle(fontSize: 15),
         ),
-        if (expected != null) ...[
+        if (expected case final expected?) ...[
           const SizedBox(height: 10.0),
-          _ExpectationBadge(drill.successRate, expected),
+          _ExpectationBadge(successRate, expected),
         ],
       ],
     );
@@ -156,13 +233,18 @@ class const _ExpectationBadge(final double successRate, final double expected)
 }
 
 /// The Drill Performance and, with an account, the rating change, side by side in the order of
-/// the Drill History cards.
-class const _PerformanceCard(final Drill drill, {required final bool hasAccount})
-    extends StatelessWidget {
+/// the Drill History cards, with the rating before and after ([ratingRange]) if given.
+class const _PerformanceCard({
+  required final int? performance,
+  required final bool isPerformanceReliable,
+  required final bool hasAccount,
+  required final int? ratingChange,
+  final (int?, int?)? ratingRange,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final performance = drill.performance;
-    final ratingChange = drill.ratingChange;
+    final change = ratingChange;
+    final range = ratingRange;
     return Card(
       margin: .zero,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16.0))),
@@ -172,12 +254,12 @@ class const _PerformanceCard(final Drill drill, {required final bool hasAccount}
           children: [
             Expanded(
               child: Opacity(
-                opacity: drill.isPerformanceReliable ? 1.0 : 0.55,
+                opacity: isPerformanceReliable ? 1.0 : 0.55,
                 child: _Metric(
                   label: context.drillL10n.performance,
                   value: performance?.toString() ?? '-',
                   valueColor: context.lichessColors.primary,
-                  detail: drill.isPerformanceReliable ? null : Text(context.drillL10n.unreliable),
+                  detail: isPerformanceReliable ? null : Text(context.drillL10n.unreliable),
                 ),
               ),
             ),
@@ -186,19 +268,21 @@ class const _PerformanceCard(final Drill drill, {required final bool hasAccount}
               Expanded(
                 child: _Metric(
                   label: context.drillL10n.points,
-                  value: ratingChange == null ? '···' : formatRatingChange(ratingChange),
-                  valueColor: ratingChange == null
+                  value: change == null ? '···' : formatRatingChange(change),
+                  valueColor: change == null
                       ? textShade(context, Styles.subtitleOpacity)
-                      : signColor(context, ratingChange),
-                  detail: Row(
-                    mainAxisSize: .min,
-                    spacing: 3.0,
-                    children: [
-                      Text(drill.ratingBefore?.toString() ?? '?'),
-                      const Icon(Icons.arrow_forward, size: 12),
-                      Text(drill.ratingAfter?.toString() ?? '?'),
-                    ],
-                  ),
+                      : signColor(context, change),
+                  detail: range == null
+                      ? null
+                      : Row(
+                          mainAxisSize: .min,
+                          spacing: 3.0,
+                          children: [
+                            Text(range.$1?.toString() ?? '?'),
+                            const Icon(Icons.arrow_forward, size: 12),
+                            Text(range.$2?.toString() ?? '?'),
+                          ],
+                        ),
                 ),
               ),
             ],
@@ -252,10 +336,13 @@ class const _Metric({
   }
 }
 
-/// The time spent solving the Drill's puzzles, in total and on average, and on each of them, the
-/// puzzles not shown in the list ([winShown]) faded.
-class const _TimeCard(final IList<DrillPuzzleResult> results, {required final bool? winShown})
-    extends StatelessWidget {
+/// The time spent solving the puzzles, in total and on average, and, with a [chart], on each of
+/// them, the puzzles not shown in the list ([winShown]) faded.
+class const _TimeCard(
+  final IList<DrillPuzzleResult> results, {
+  required final bool? winShown,
+  final bool chart = true,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final total = results.fold(Duration.zero, (total, r) => total + r.solvingTime);
@@ -301,7 +388,7 @@ class const _TimeCard(final IList<DrillPuzzleResult> results, {required final bo
                 ),
               ],
             ),
-            if (results.isNotEmpty) ...[
+            if (chart && results.isNotEmpty) ...[
               const SizedBox(height: 12.0),
               SizedBox(height: 64.0, child: _SolvingTimeChart(results, winShown: winShown)),
             ],
@@ -495,26 +582,34 @@ class const _ThemeCard(final DrillWeakTheme data) extends StatelessWidget {
   }
 }
 
-/// The puzzles of the Drill, under a header that folds and unfolds them, with its counts of
+/// The puzzles of the [drills], under a header that folds and unfolds them, with its counts of
 /// puzzles solved and failed, each showing only those puzzles until tapped again.
+///
+/// The puzzles of [grouped] Drills are folded at first, under a header per Drill, left out when
+/// none of its puzzles is shown.
 class const _PuzzleList(
-  final IList<DrillPuzzleResult> results, {
+  final IList<Drill> drills, {
   required final bool? winShown,
   required final ValueChanged<bool?> onWinShownChanged,
+  final bool grouped = false,
 }) extends StatefulWidget {
   @override
   State<_PuzzleList> createState() => _PuzzleListState();
 }
 
 class _PuzzleListState() extends State<_PuzzleList> {
-  bool _isExpanded = true;
+  late bool _isExpanded = !widget.grouped;
 
   @override
   Widget build(BuildContext context) {
-    final results = widget.results;
+    final results = widget.drills.expand((d) => d.results);
     final nb = results.length;
     final successes = results.where((r) => r.win).length;
     final winShown = widget.winShown;
+    List<Widget> tiles(Drill drill) => [
+      for (final result in drill.results)
+        if (winShown == null || result.win == winShown) _DrillPuzzleResultTile(result),
+    ];
     return Column(
       crossAxisAlignment: .stretch,
       spacing: 8.0,
@@ -564,15 +659,55 @@ class _PuzzleListState() extends State<_PuzzleList> {
           ),
         ),
         if (_isExpanded)
-          ListSection(
-            margin: .zero,
-            hasLeading: true,
+          if (!widget.grouped)
+            ListSection(margin: .zero, hasLeading: true, children: tiles(widget.drills.single))
+          else
+            for (final drill in widget.drills)
+              if (tiles(drill) case final drillTiles when drillTiles.isNotEmpty) ...[
+                _DrillHeader(drill, winShown: winShown),
+                ListSection(margin: .zero, hasLeading: true, children: drillTiles),
+              ],
+      ],
+    );
+  }
+}
+
+/// The header of a Drill's puzzles in the Drill Summary of several Drills: when it started, its
+/// puzzles solved and the result of each, those not shown in the list ([winShown]) faded.
+class const _DrillHeader(final Drill drill, {required final bool? winShown})
+    extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final subtitleStyle = TextStyle(
+      fontSize: 13,
+      color: textShade(context, Styles.subtitleOpacity),
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4.0, 8.0, 4.0, 2.0),
+      child: Column(
+        crossAxisAlignment: .stretch,
+        spacing: 6.0,
+        children: [
+          Row(
+            crossAxisAlignment: .baseline,
+            textBaseline: .alphabetic,
+            spacing: 8.0,
             children: [
-              for (final result in results)
-                if (winShown == null || result.win == winShown) _DrillPuzzleResultTile(result),
+              Expanded(
+                child: Text(
+                  [
+                    '${drillDayName(context, drill.startedAt)} ${DateFormat.Hm().format(drill.startedAt)}',
+                    if (drill.isPartial) context.drillL10n.partial,
+                  ].join(' · '),
+                  style: const TextStyle(fontSize: 14, fontWeight: .w500),
+                ),
+              ),
+              Text('${drill.successes} / ${drill.results.length}', style: subtitleStyle),
             ],
           ),
-      ],
+          DrillResultsBar(DrillHistoryEntry.of(drill), winShown: winShown),
+        ],
+      ),
     );
   }
 }
@@ -678,6 +813,18 @@ String drillDescription(BuildContext context, WidgetRef ref, Drill drill) {
     puzzleDifficultyL10n(context, config.difficulty),
     '${drillDayName(context, drill.startedAt)} ${DateFormat.Hm().format(drill.startedAt)}',
     if (drill.isPartial) context.drillL10n.partial,
+  ].join(' · ');
+}
+
+/// What the Drills of [group] were: their theme and difficulty, and the days they were played.
+String drillGroupDescription(BuildContext context, WidgetRef ref, DrillGroup group) {
+  final config = group.config;
+  final first = drillDayName(context, group.drills.first.startedAt, short: true);
+  final last = drillDayName(context, group.drills.last.startedAt, short: true);
+  return [
+    drillAngleName(context, ref, config.angle),
+    puzzleDifficultyL10n(context, config.difficulty),
+    if (first == last) first else '$first – $last',
   ].join(' · ');
 }
 

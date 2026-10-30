@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lichess_mobile/l10n/drill/drill_localizations.dart';
+import 'package:lichess_mobile/src/model/drill/drill_group.dart';
 import 'package:lichess_mobile/src/model/drill/drill_history.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_angle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_difficulty.dart';
@@ -27,57 +28,171 @@ const _loadMoreExtent = 600.0;
 /// The Drill History: the past Drills, newest first and grouped by day. Their charts are on the
 /// Drill Progress screen.
 ///
-/// A Drill is opened on its Drill Summary, and deleted with a long press. The Drill History of
-/// every account on the device is saved to a file, and imported back, from the app bar menu.
+/// A Drill is opened on its Drill Summary. A long press starts selecting Drills, to delete them or,
+/// two at least of the same theme and difficulty, to open the Drill Summary of them all
+/// ([DrillGroup]). The Drill History of every account on the device is saved to a file, and
+/// imported back, from the app bar menu.
 ///
 /// Its route returns the weakest theme of a Drill Summary the player tapped, to set up a Drill
 /// with.
-class const DrillHistoryScreen({super.key}) extends ConsumerWidget {
+class const DrillHistoryScreen({super.key}) extends ConsumerStatefulWidget {
   static Route<PuzzleAngle> buildRoute() {
     return buildScreenRoute(screen: const DrillHistoryScreen());
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DrillHistoryScreen> createState() => _DrillHistoryScreenState();
+}
+
+class _DrillHistoryScreenState() extends ConsumerState<DrillHistoryScreen> {
+  /// When the selected Drills started, empty while none is.
+  ISet<DateTime> _selected = const ISetConst({});
+
+  @override
+  Widget build(BuildContext context) {
     final history = ref.watch(drillHistoryProvider);
-    return PlatformScaffold(
-      appBar: PlatformAppBar(
-        title: Text(context.drillL10n.historyTitle),
-        largeTitle: true,
-        actions: const [_HistoryMenu()],
-      ),
-      body: switch (history) {
-        AsyncData(value: DrillHistoryState(:final entries)) when entries.isEmpty => Center(
-          child: Padding(padding: Styles.bodyPadding, child: Text(context.drillL10n.emptyHistory)),
-        ),
-        AsyncData(value: DrillHistoryState(:final entries, :final hasMore)) =>
-          NotificationListener<ScrollNotification>(
-            onNotification: (notification) {
-              if (hasMore && notification.metrics.extentAfter < _loadMoreExtent) {
-                ref.read(drillHistoryProvider.notifier).loadMore();
-              }
-              return false;
-            },
-            // The body's own context: the padding of the screen's isn't the one inside the scaffold.
-            child: Builder(
-              builder: (context) => ListView(
-                padding: Styles.bodyPadding.add(MediaQuery.paddingOf(context)),
-                children: [
-                  for (final (day, dayEntries) in _groupByDay(entries)) ...[
-                    _DayHeader(day, dayEntries),
-                    for (final entry in dayEntries) ...[
-                      _DrillCard(entry),
-                      const SizedBox(height: 10.0),
-                    ],
-                    const SizedBox(height: 14.0),
-                  ],
-                  if (hasMore) const Center(child: CircularProgressIndicator.adaptive()),
+    // The Drills deleted meanwhile are no longer selected.
+    final selected = [
+      for (final entry in history.value?.entries ?? const IListConst<DrillHistoryEntry>([]))
+        if (_selected.contains(entry.startedAt)) entry,
+    ];
+    final isSelecting = selected.isNotEmpty;
+    final canAnalyze = DrillGroup.canBeGrouped(selected.map((e) => e.config));
+    final hint = !isSelecting || canAnalyze
+        ? null
+        : selected.length == 1
+        ? context.drillL10n.selectSameDrillsHint
+        : context.drillL10n.mixedDrillsHint;
+    return PopScope(
+      canPop: !isSelecting,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _clearSelection();
+      },
+      child: PlatformScaffold(
+        appBar: isSelecting
+            ? PlatformAppBar(
+                leading: IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                  onPressed: _clearSelection,
+                ),
+                title: Text(context.drillL10n.nbSelected(selected.length)),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.bar_chart),
+                    tooltip: context.drillL10n.analyzeDrills,
+                    onPressed: canAnalyze ? () => _analyze(selected) : null,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    tooltip: context.drillL10n.deleteDrills,
+                    onPressed: () => _delete(selected),
+                  ),
                 ],
+                bottom: hint == null
+                    ? null
+                    : PreferredSize(
+                        preferredSize: const Size.fromHeight(48.0),
+                        child: Container(
+                          height: 48.0,
+                          alignment: .centerLeft,
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Text(
+                            hint,
+                            maxLines: 2,
+                            overflow: .ellipsis,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: textShade(context, Styles.subtitleOpacity),
+                            ),
+                          ),
+                        ),
+                      ),
+              )
+            : PlatformAppBar(
+                title: Text(context.drillL10n.historyTitle),
+                largeTitle: true,
+                actions: const [_HistoryMenu()],
               ),
+        body: switch (history) {
+          AsyncData(value: DrillHistoryState(:final entries)) when entries.isEmpty => Center(
+            child: Padding(
+              padding: Styles.bodyPadding,
+              child: Text(context.drillL10n.emptyHistory),
             ),
           ),
-        AsyncError() => const Center(child: Text('Could not load the Drill History')),
-        _ => const Center(child: CircularProgressIndicator.adaptive()),
+          AsyncData(value: DrillHistoryState(:final entries, :final hasMore)) =>
+            NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                if (hasMore && notification.metrics.extentAfter < _loadMoreExtent) {
+                  ref.read(drillHistoryProvider.notifier).loadMore();
+                }
+                return false;
+              },
+              // The body's own context: the padding of the screen's isn't the one inside the
+              // scaffold.
+              child: Builder(
+                builder: (context) => ListView(
+                  padding: Styles.bodyPadding.add(MediaQuery.paddingOf(context)),
+                  children: [
+                    for (final (day, dayEntries) in _groupByDay(entries)) ...[
+                      _DayHeader(day, dayEntries),
+                      for (final entry in dayEntries) ...[
+                        _DrillCard(
+                          entry,
+                          selected: isSelecting ? _selected.contains(entry.startedAt) : null,
+                          onTap: () => isSelecting ? _toggle(entry) : _open(entry),
+                          onLongPress: () => _toggle(entry),
+                        ),
+                        const SizedBox(height: 10.0),
+                      ],
+                      const SizedBox(height: 14.0),
+                    ],
+                    if (hasMore) const Center(child: CircularProgressIndicator.adaptive()),
+                  ],
+                ),
+              ),
+            ),
+          AsyncError() => const Center(child: Text('Could not load the Drill History')),
+          _ => const Center(child: CircularProgressIndicator.adaptive()),
+        },
+      ),
+    );
+  }
+
+  void _toggle(DrillHistoryEntry entry) {
+    setState(() {
+      _selected = _selected.contains(entry.startedAt)
+          ? _selected.remove(entry.startedAt)
+          : _selected.add(entry.startedAt);
+    });
+  }
+
+  void _clearSelection() => setState(() => _selected = const ISetConst({}));
+
+  /// Opens the Drill Summary of [entry], and returns the weakest theme tapped in it, if any.
+  Future<void> _open(DrillHistoryEntry entry) async {
+    final angle = await Navigator.of(context)
+        .push(DrillHistorySummaryScreen.buildRoute(entry.startedAt));
+    if (angle != null && mounted) Navigator.of(context).pop(angle);
+  }
+
+  /// Opens the Drill Summary of the [selected] Drills taken as one, and returns the weakest theme
+  /// tapped in it, if any.
+  Future<void> _analyze(List<DrillHistoryEntry> selected) async {
+    final angle = await Navigator.of(context)
+        .push(DrillGroupSummaryScreen.buildRoute(selected.map((e) => e.startedAt).toISet()));
+    if (angle != null && mounted) Navigator.of(context).pop(angle);
+  }
+
+  void _delete(List<DrillHistoryEntry> selected) {
+    showConfirmDialog<void>(
+      context,
+      title: Text(context.drillL10n.deleteDrillsConfirmation(selected.length)),
+      isDestructiveAction: true,
+      onConfirm: () {
+        ref.read(drillHistoryProvider.notifier).delete(selected.map((e) => e.startedAt).toISet());
+        _clearSelection();
       },
     );
   }
@@ -205,7 +320,14 @@ class const _DayHeader(final DateTime day, final List<DrillHistoryEntry> entries
 
 /// A Drill of the Drill History: what it was, its share of puzzles solved, Drill Performance and
 /// rating change, then the result of each puzzle.
-class const _DrillCard(final DrillHistoryEntry entry) extends ConsumerWidget {
+///
+/// While Drills are selected, it shows whether it is ([selected]), else [selected] is `null`.
+class const _DrillCard(
+  final DrillHistoryEntry entry, {
+  required final bool? selected,
+  required final VoidCallback onTap,
+  required final VoidCallback onLongPress,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.lichessColors;
@@ -216,22 +338,18 @@ class const _DrillCard(final DrillHistoryEntry entry) extends ConsumerWidget {
     final config = entry.config;
     final ratingBefore = entry.ratingBefore?.toString() ?? '?';
     final ratingChange = entry.ratingChange;
+    final isSelected = selected ?? false;
     return Card(
       margin: .zero,
       clipBehavior: .antiAlias,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16.0))),
+      color: isSelected ? colors.primary.withValues(alpha: 0.15) : null,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.all(Radius.circular(16.0)),
+        side: isSelected ? BorderSide(color: colors.primary, width: 2.0) : BorderSide.none,
+      ),
       child: InkWell(
-        onTap: () async {
-          final angle = await Navigator.of(context)
-              .push(DrillHistorySummaryScreen.buildRoute(entry.startedAt));
-          if (angle != null && context.mounted) Navigator.of(context).pop(angle);
-        },
-        onLongPress: () => showConfirmDialog<void>(
-          context,
-          title: Text(context.drillL10n.deleteDrillConfirmation),
-          isDestructiveAction: true,
-          onConfirm: () => ref.read(drillHistoryProvider.notifier).delete(entry.startedAt),
-        ),
+        onTap: onTap,
+        onLongPress: onLongPress,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(14.0, 14.0, 14.0, 12.0),
           child: Column(
@@ -249,6 +367,14 @@ class const _DrillCard(final DrillHistoryEntry entry) extends ConsumerWidget {
                   ),
                   if (entry.isPartial)
                     _Badge(context.drillL10n.partial, color: colors.brag, textColor: Colors.black),
+                  if (selected != null)
+                    Icon(
+                      isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+                      size: 22,
+                      color: isSelected
+                          ? colors.primary
+                          : textShade(context, Styles.subtitleOpacity),
+                    ),
                 ],
               ),
               const SizedBox(height: 4.0),
@@ -351,9 +477,13 @@ class const DrillDifficultyDots(final PuzzleDifficulty difficulty) extends State
   }
 }
 
-/// The result of each puzzle of a Drill, in order, its puzzles not played left grey.
-class const DrillResultsBar(final DrillHistoryEntry entry, {final double height = 6.0})
-    extends StatelessWidget {
+/// The result of each puzzle of a Drill, in order, its puzzles not played left grey, and those
+/// whose result is not [winShown], when given, faded.
+class const DrillResultsBar(
+  final DrillHistoryEntry entry, {
+  final double height = 6.0,
+  final bool? winShown,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.lichessColors;
@@ -368,9 +498,9 @@ class const DrillResultsBar(final DrillHistoryEntry entry, {final double height 
                 borderRadius: BorderRadius.all(Radius.circular(height / 2)),
                 color: i >= entry.nbPlayed
                     ? ColorScheme.of(context).outlineVariant
-                    : entry.wins[i]
-                    ? colors.good
-                    : colors.error,
+                    : (entry.wins[i] ? colors.good : colors.error).withValues(
+                        alpha: winShown == null || winShown == entry.wins[i] ? 1.0 : 0.2,
+                      ),
               ),
             ),
           ),
@@ -462,6 +592,33 @@ class const DrillHistorySummaryScreen(final DateTime startedAt) extends Consumer
       body: switch (drill) {
         AsyncValue(value: final drill?) => DrillSummary(drill),
         AsyncData() || AsyncError() => const Center(child: Text('Could not load the Drill')),
+        _ => const Center(child: CircularProgressIndicator.adaptive()),
+      },
+    );
+  }
+}
+
+/// The Drill Summary of the past Drills started at [startedAts] taken as one, with their rating
+/// changes as they come.
+///
+/// Its route returns the weakest theme the player tapped.
+class const DrillGroupSummaryScreen(final ISet<DateTime> startedAts) extends ConsumerWidget {
+  static Route<PuzzleAngle> buildRoute(ISet<DateTime> startedAts) {
+    return buildScreenRoute(screen: DrillGroupSummaryScreen(startedAts));
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final group = ref.watch(drillHistoryGroupProvider(startedAts));
+    return PlatformScaffold(
+      appBar: PlatformAppBar(
+        title: Text(
+          context.drillL10n.groupSummaryTitle(group.value?.drills.length ?? startedAts.length),
+        ),
+      ),
+      body: switch (group) {
+        AsyncValue(value: final group?) => DrillGroupSummary(group),
+        AsyncData() || AsyncError() => const Center(child: Text('Could not load the Drills')),
         _ => const Center(child: CircularProgressIndicator.adaptive()),
       },
     );

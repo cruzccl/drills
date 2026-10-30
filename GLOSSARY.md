@@ -20,6 +20,10 @@ _Avoid_: Recap, results screen
 **Drill History**:
 The list of past Drills and their Drill Summaries, one per Lichess account. Lichess doesn't know it: it is kept on the device, backed up with the app's data (Android Auto Backup), and exported to a file and imported back to change phones.
 
+**Drill Group**:
+Several Drills of the same theme and difficulty, selected in the Drill History, taken as one bigger Drill for one Drill Summary of them all, each puzzle counting the same.
+_Avoid_: Session, merged drill
+
 **Drill Performance**:
 The rating level a Drill was played at, from the average puzzle rating and the share of puzzles solved, as Lichess computes puzzle performance. Unreliable below 6 puzzles.
 _Avoid_: Rating, score

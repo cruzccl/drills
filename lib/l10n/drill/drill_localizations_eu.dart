@@ -278,7 +278,43 @@ class DrillLocalizationsEu extends DrillLocalizations {
   String get emptyHistory => 'Oraindik ez duzu Drillik amaitu.';
 
   @override
-  String get deleteDrillConfirmation => 'Drill hau historikotik ezabatu?';
+  String deleteDrillsConfirmation(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Drill hauek historikotik ezabatu?',
+      one: 'Drill hau historikotik ezabatu?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String nbSelected(int count) {
+    return '$count hautatuta';
+  }
+
+  @override
+  String get analyzeDrills => 'Aztertu';
+
+  @override
+  String get deleteDrills => 'Ezabatu';
+
+  @override
+  String get selectSameDrillsHint => 'Hautatu gai eta zailtasun bereko beste Drill batzuk elkarrekin aztertzeko.';
+
+  @override
+  String get mixedDrillsHint => 'Gai eta zailtasun bereko Drillak bakarrik aztertzen dira elkarrekin.';
+
+  @override
+  String groupSummaryTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Drillen laburpena',
+      one: 'Drill baten laburpena',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get historyMenu => 'Aukera gehiago';

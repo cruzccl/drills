@@ -8,6 +8,7 @@ import 'package:lichess_mobile/src/db/drill_database.dart';
 import 'package:lichess_mobile/src/model/auth/auth_controller.dart';
 import 'package:lichess_mobile/src/model/common/id.dart';
 import 'package:lichess_mobile/src/model/drill/drill_controller.dart';
+import 'package:lichess_mobile/src/model/drill/drill_group.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle.dart';
 import 'package:logging/logging.dart';
 import 'package:sqflite/sqflite.dart';
@@ -109,15 +110,15 @@ class DrillHistory() extends AsyncNotifier<DrillHistoryState> {
   Future<void> replace(UserId userId, Drill drill) =>
       _write(userId, (db) => _update(db, userId, drill));
 
-  /// Removes the Drill started at [startedAt] from the Drill History of the signed in player.
-  Future<void> delete(DateTime startedAt) async {
+  /// Removes the Drills started at [startedAts] from the Drill History of the signed in player.
+  Future<void> delete(ISet<DateTime> startedAts) async {
     final userId = ref.read(authControllerProvider)?.user.id;
-    if (userId == null) return;
+    if (userId == null || startedAts.isEmpty) return;
     await _write(userId, (db) async {
       await db.delete(
         _tableName,
-        where: 'userId = ? AND startedAt = ?',
-        whereArgs: [userId.value, _key(startedAt)],
+        where: 'userId = ? AND startedAt IN (${_placeholders(startedAts.length)})',
+        whereArgs: [userId.value, ...startedAts.map(_key)],
       );
     });
   }
@@ -271,6 +272,32 @@ final drillHistoryDrillProvider = FutureProvider.autoDispose.family<Drill?, Date
   final data = rows.firstOrNull?['data'] as String?;
   return data != null ? _decodeDrill(data) : null;
 }, name: 'DrillHistoryDrillProvider');
+
+/// The full Drills of the signed in player started at [startedAts], taken as one, to show the Drill
+/// Summary of them all, or `null` if none of them is in their Drill History.
+///
+/// It follows the changes of the Drill History, such as rating changes coming in.
+final drillHistoryGroupProvider = FutureProvider.autoDispose.family<DrillGroup?, ISet<DateTime>>((
+  ref,
+  startedAts,
+) async {
+  final userId = ref.watch(authControllerProvider.select((auth) => auth?.user.id));
+  ref.watch(drillHistoryProvider.select((history) => history.value?.revision));
+  if (userId == null || startedAts.isEmpty) return null;
+  final db = await ref.read(drillDatabaseProvider.future);
+  final rows = await db.query(
+    _tableName,
+    columns: ['data'],
+    where: 'userId = ? AND startedAt IN (${_placeholders(startedAts.length)})',
+    whereArgs: [userId.value, ...startedAts.map(_key)],
+    orderBy: 'startedAt ASC',
+  );
+  final drills = [for (final row in rows) ?_decodeDrill(row['data']! as String)];
+  return drills.isEmpty ? null : DrillGroup(drills.toIList());
+}, name: 'DrillHistoryGroupProvider');
+
+/// The placeholders of an SQL `IN` list of [count] values.
+String _placeholders(int count) => List.filled(count, '?').join(', ');
 
 /// How many of the latest Drills the themes to work on and the pace of the player are taken from.
 const kRecentDrills = 10;

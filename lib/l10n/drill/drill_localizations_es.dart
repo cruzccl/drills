@@ -298,7 +298,49 @@ class DrillLocalizationsEs extends DrillLocalizations {
   String get emptyHistory => 'Todavía no has terminado ningún Drill.';
 
   @override
-  String get deleteDrillConfirmation => '¿Eliminar este Drill del historial?';
+  String deleteDrillsConfirmation(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '¿Eliminar estos $count Drills del historial?',
+      one: '¿Eliminar este Drill del historial?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String nbSelected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count seleccionados',
+      one: '1 seleccionado',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get analyzeDrills => 'Analizar';
+
+  @override
+  String get deleteDrills => 'Eliminar';
+
+  @override
+  String get selectSameDrillsHint => 'Marca otros Drills del mismo tema y dificultad para analizarlos juntos.';
+
+  @override
+  String get mixedDrillsHint => 'Solo se analizan juntos Drills del mismo tema y dificultad.';
+
+  @override
+  String groupSummaryTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Resumen de $count Drills',
+      one: 'Resumen de 1 Drill',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get historyMenu => 'Más opciones';

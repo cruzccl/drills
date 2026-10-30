@@ -781,11 +781,7 @@ sealed class const Drill._() with _$Drill implements Serializable {
   ///
   /// It is Lichess's puzzle performance: the average puzzle rating − 500 + 1000 × the share of
   /// puzzles solved. Every puzzle counts, rated or not, as on the Lichess puzzle dashboard.
-  int? get performance {
-    if (results.isEmpty) return null;
-    final averageRating = results.map((r) => r.puzzleRating).average;
-    return (averageRating - 500 + 1000 * successRate).round();
-  }
+  int? get performance => drillPerformance(results);
 
   /// Whether there are enough puzzles for the [performance] to mean something.
   bool get isPerformanceReliable => results.length >= kMinReliableDrillPuzzles;
@@ -799,7 +795,7 @@ sealed class const Drill._() with _$Drill implements Serializable {
   double? get expectedSuccessRate {
     final rating = ratingBefore;
     if (rating == null || results.isEmpty) return null;
-    return results.map((r) => 1 / (1 + math.pow(10, (r.puzzleRating - rating) / 400))).average;
+    return results.map((r) => expectedPuzzleScore(rating, r.puzzleRating)).average;
   }
 
   /// The themes most frequent among the failed puzzles, see [weakestThemesOf].
@@ -859,6 +855,20 @@ sealed class const Drill._() with _$Drill implements Serializable {
   /// left out.
   int? get ratingChange => hasPendingRatingDiff ? null : ratingDiffsTotal;
 }
+
+/// Lichess's puzzle performance of [results]: their average puzzle rating − 500 + 1000 × the share
+/// solved, or `null` if there are none.
+int? drillPerformance(Iterable<DrillPuzzleResult> results) {
+  if (results.isEmpty) return null;
+  final averageRating = results.map((r) => r.puzzleRating).average;
+  final successRate = results.where((r) => r.win).length / results.length;
+  return (averageRating - 500 + 1000 * successRate).round();
+}
+
+/// The chance of a player rated [rating] to solve a puzzle rated [puzzleRating]: the expected score
+/// of the rating formula between them (Glicko's, leaving out the rating deviation).
+double expectedPuzzleScore(int rating, int puzzleRating) =>
+    1 / (1 + math.pow(10, (puzzleRating - rating) / 400));
 
 /// The outcome of a puzzle of a Drill.
 @Freezed(fromJson: true, toJson: true)
