@@ -30,28 +30,45 @@ const _successRateMargin = 0.05;
 /// Performance and rating change, its solving times, its weakest themes and its puzzles, each
 /// opened on the analysis board.
 ///
+/// The puzzles can be narrowed down to the ones solved or the ones failed, which also fades the
+/// bars of the others in the solving time chart.
+///
 /// A weakest theme goes back to the Drill home with that theme chosen: the route showing the
 /// summary returns it. A Drill played signed out, without an account ([hasAccount] `false`), has
 /// no rating change.
 class const DrillSummary(final Drill drill, {final bool hasAccount = true, super.key})
-    extends ConsumerWidget {
+    extends StatefulWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  State<DrillSummary> createState() => _DrillSummaryState();
+}
+
+class _DrillSummaryState() extends State<DrillSummary> {
+  /// Whether the puzzles shown are the ones solved (`true`) or failed (`false`), or all of them
+  /// (`null`).
+  bool? _winShown;
+
+  @override
+  Widget build(BuildContext context) {
+    final drill = widget.drill;
     final weakestThemes = drill.weakestThemes;
     return ListView(
       padding: Styles.bodyPadding.add(MediaQuery.paddingOf(context)),
       children: [
         _Headline(drill),
         const SizedBox(height: 20.0),
-        _PerformanceCard(drill, hasAccount: hasAccount),
+        _PerformanceCard(drill, hasAccount: widget.hasAccount),
         const SizedBox(height: 20.0),
-        _TimeCard(drill.results),
+        _TimeCard(drill.results, winShown: _winShown),
         if (weakestThemes.isNotEmpty) ...[
           const SizedBox(height: 24.0),
           _WeakestThemes(weakestThemes),
         ],
         const SizedBox(height: 24.0),
-        _PuzzleList(drill.results),
+        _PuzzleList(
+          drill.results,
+          winShown: _winShown,
+          onWinShownChanged: (winShown) => setState(() => _winShown = winShown),
+        ),
         const SizedBox(height: 20.0),
         OutlinedButton(
           onPressed: () => Navigator.of(context).pop(),
@@ -235,8 +252,10 @@ class const _Metric({
   }
 }
 
-/// The time spent solving the Drill's puzzles, in total and on average, and on each of them.
-class const _TimeCard(final IList<DrillPuzzleResult> results) extends StatelessWidget {
+/// The time spent solving the Drill's puzzles, in total and on average, and on each of them, the
+/// puzzles not shown in the list ([winShown]) faded.
+class const _TimeCard(final IList<DrillPuzzleResult> results, {required final bool? winShown})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final total = results.fold(Duration.zero, (total, r) => total + r.solvingTime);
@@ -284,7 +303,7 @@ class const _TimeCard(final IList<DrillPuzzleResult> results) extends StatelessW
             ),
             if (results.isNotEmpty) ...[
               const SizedBox(height: 12.0),
-              SizedBox(height: 64.0, child: _SolvingTimeChart(results)),
+              SizedBox(height: 64.0, child: _SolvingTimeChart(results, winShown: winShown)),
             ],
           ],
         ),
@@ -294,9 +313,12 @@ class const _TimeCard(final IList<DrillPuzzleResult> results) extends StatelessW
 }
 
 /// A bar per puzzle of the Drill, as high as the time spent solving it and colored by its
-/// result, under a dashed line at the average time. A bar opens its puzzle on the analysis
-/// board.
-class const _SolvingTimeChart(final IList<DrillPuzzleResult> results) extends ConsumerWidget {
+/// result, faded unless its result is [winShown], under a dashed line at the average time. A bar
+/// opens its puzzle on the analysis board.
+class const _SolvingTimeChart(
+  final IList<DrillPuzzleResult> results, {
+  required final bool? winShown,
+}) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.lichessColors;
@@ -319,7 +341,9 @@ class const _SolvingTimeChart(final IList<DrillPuzzleResult> results) extends Co
                     BarChartRodData(
                       toY: seconds[i],
                       width: barWidth,
-                      color: result.win ? colors.good : colors.error,
+                      color: (result.win ? colors.good : colors.error).withValues(
+                        alpha: winShown == null || winShown == result.win ? 1.0 : 0.2,
+                      ),
                       borderRadius: BorderRadius.vertical(
                         top: Radius.circular(barWidth > 6 ? 3.0 : 1.0),
                       ),
@@ -471,8 +495,13 @@ class const _ThemeCard(final DrillWeakTheme data) extends StatelessWidget {
   }
 }
 
-/// The puzzles of the Drill, under a header that folds and unfolds them.
-class const _PuzzleList(final IList<DrillPuzzleResult> results) extends StatefulWidget {
+/// The puzzles of the Drill, under a header that folds and unfolds them, with its counts of
+/// puzzles solved and failed, each showing only those puzzles until tapped again.
+class const _PuzzleList(
+  final IList<DrillPuzzleResult> results, {
+  required final bool? winShown,
+  required final ValueChanged<bool?> onWinShownChanged,
+}) extends StatefulWidget {
   @override
   State<_PuzzleList> createState() => _PuzzleListState();
 }
@@ -485,6 +514,7 @@ class _PuzzleListState() extends State<_PuzzleList> {
     final results = widget.results;
     final nb = results.length;
     final successes = results.where((r) => r.win).length;
+    final winShown = widget.winShown;
     return Column(
       crossAxisAlignment: .stretch,
       spacing: 8.0,
@@ -510,12 +540,21 @@ class _PuzzleListState() extends State<_PuzzleList> {
                         style: const TextStyle(fontSize: 16, fontWeight: .w500),
                       ),
                     ),
-                    Text(
-                      '$successes ✓ · ${nb - successes} ✗',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: textShade(context, Styles.subtitleOpacity),
-                      ),
+                    Row(
+                      spacing: 6.0,
+                      children: [
+                        for (final (win, count) in [(true, successes), (false, nb - successes)])
+                          _ResultCountButton(
+                            win: win,
+                            count: count,
+                            selected: winShown == win,
+                            faded: winShown == !win,
+                            onTap: () {
+                              widget.onWinShownChanged(winShown == win ? null : win);
+                              setState(() => _isExpanded = true);
+                            },
+                          ),
+                      ],
                     ),
                     Icon(_isExpanded ? Icons.expand_less : Icons.expand_more, size: 20),
                   ],
@@ -528,9 +567,53 @@ class _PuzzleListState() extends State<_PuzzleList> {
           ListSection(
             margin: .zero,
             hasLeading: true,
-            children: [for (final result in results) _DrillPuzzleResultTile(result)],
+            children: [
+              for (final result in results)
+                if (winShown == null || result.win == winShown) _DrillPuzzleResultTile(result),
+            ],
           ),
       ],
+    );
+  }
+}
+
+/// The number of puzzles solved ([win]) or failed, as a pill that shows only those puzzles, filled
+/// when [selected], faded when the others are shown.
+class const _ResultCountButton({
+  required final bool win,
+  required final int count,
+  required final bool selected,
+  required final bool faded,
+  required final VoidCallback onTap,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final color = win ? context.lichessColors.good : context.lichessColors.error;
+    return Opacity(
+      opacity: faded ? 0.45 : 1.0,
+      child: Material(
+        color: selected ? color : color.withValues(alpha: 0.15),
+        shape: const StadiumBorder(),
+        clipBehavior: .antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Semantics(
+            button: true,
+            selected: selected,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
+              child: Text(
+                '$count ${win ? '✓' : '✗'}',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: .w500,
+                  color: selected ? Colors.white : color,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
