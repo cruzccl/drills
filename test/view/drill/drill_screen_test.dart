@@ -172,6 +172,25 @@ void main() {
     // the puzzles of the Drill, each opened on the analysis board
     await tester.scrollUntilVisible(find.text('+10').hitTestable(), 200.0);
     expect(find.text('−10'), findsWidgets);
+
+    // the counts of puzzles solved and failed each show only those puzzles, and fade the bars of
+    // the others in the solving time chart, until tapped again
+    await tester.tap(find.text('4 ✗'));
+    await tester.pump();
+    expect(find.text('+10'), findsNothing);
+    expect(find.text('−10'), findsNWidgets(4));
+    expect(_barOpacities(tester), [0.2, 1.0, 1.0, 1.0, 1.0]);
+    await tester.tap(find.text('1 ✓'));
+    await tester.pump();
+    expect(find.text('+10'), findsOneWidget);
+    expect(find.text('−10'), findsNothing);
+    expect(_barOpacities(tester), [1.0, 0.2, 0.2, 0.2, 0.2]);
+    await tester.tap(find.text('1 ✓'));
+    await tester.pump();
+    expect(find.text('−10'), findsNWidgets(4));
+    expect(_barOpacities(tester), [1.0, 1.0, 1.0, 1.0, 1.0]);
+
+    await tester.scrollUntilVisible(find.text('+10').hitTestable(), 200.0);
     await tester.tap(find.text('+10'));
     await tester.pumpAndSettle();
     expect(find.byType(AnalysisScreen), findsOneWidget);
@@ -861,6 +880,12 @@ int _clockSeconds(WidgetTester tester) {
 }
 
 Color? _clockColor(WidgetTester tester) => tester.widget<Text>(_clock()).style?.color;
+
+/// The opacity of each bar of the solving time chart of the Drill Summary, rounded to a tenth.
+List<double> _barOpacities(WidgetTester tester) => [
+  for (final group in tester.widget<BarChart>(find.byType(BarChart)).data.barGroups)
+    (group.barRods.single.color!.a * 10).round() / 10,
+];
 
 /// What the Drill of the Drill Summary was, above its share of puzzles solved.
 String _description() => find
