@@ -185,6 +185,55 @@ void main() {
     expect(find.byType(ListTile), findsOneWidget);
   });
 
+  testWidgets('analyzes together the Drills of a range of days of the same theme and difficulty', (
+    tester,
+  ) async {
+    final file = jsonEncode({
+      'version': 1,
+      'drills': [
+        for (final drill in [
+          _pastDrill(hour: 9, wins: [true, false]),
+          _pastDrill(hour: 10, wins: [true]),
+          _pastDrill(hour: 11, wins: [false], difficulty: .harder),
+        ])
+          {'userId': fakeAuthUser.user.id.value, 'drill': drill.toJson()},
+      ],
+    });
+    await tester.pumpWidget(await _makeApp(tester, file: file));
+    await tester.pumpAndSettle();
+    await _import(tester);
+    await tester.pump(const Duration(seconds: 10));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Analyze by dates'));
+    await tester.pumpAndSettle();
+    // the Drills are older than a week
+    await tester.tap(find.text('1W'));
+    await tester.pumpAndSettle();
+    expect(find.text('No Drill on these days.'), findsOneWidget);
+
+    await tester.tap(find.text('All'));
+    await tester.pumpAndSettle();
+    expect(find.text('Healthy mix'), findsNWidgets(2));
+    expect(find.text('2 Drills · 3 puzzles'), findsOneWidget);
+    expect(find.text('67 %'), findsOneWidget);
+    // the Drill alone is shown, disabled
+    expect(find.text('1 Drill · 1 puzzle'), findsOneWidget);
+    expect(
+      tester
+          .widget<InkWell>(
+            find.ancestor(of: find.text('1 Drill · 1 puzzle'), matching: find.byType(InkWell)),
+          )
+          .onTap,
+      isNull,
+    );
+
+    await tester.tap(find.text('2 Drills · 3 puzzles'));
+    await tester.pumpAndSettle();
+    expect(find.text('Summary of 2 Drills'), findsOneWidget);
+    expect(find.text('2 of 3 solved'), findsOneWidget);
+  });
+
   testWidgets('says so when the file is not a Drill History file', (tester) async {
     await tester.pumpWidget(await _makeApp(tester, file: '{"version": 2, "drills": []}'));
     await tester.pumpAndSettle();

@@ -331,6 +331,18 @@ class DrillLocalizationsEn extends DrillLocalizations {
   }
 
   @override
+  String get analyzeByDates => 'Analyze by dates';
+
+  @override
+  String get chooseDates => 'Choose dates';
+
+  @override
+  String get groupChoicesHint => 'Two Drills at least of the same theme and difficulty are analyzed together.';
+
+  @override
+  String get noDrillsInRange => 'No Drill on these days.';
+
+  @override
   String get historyMenu => 'More options';
 
   @override

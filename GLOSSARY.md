@@ -21,7 +21,7 @@ _Avoid_: Recap, results screen
 The list of past Drills and their Drill Summaries, one per Lichess account. Lichess doesn't know it: it is kept on the device, backed up with the app's data (Android Auto Backup), and exported to a file and imported back to change phones.
 
 **Drill Group**:
-Several Drills of the same theme and difficulty, selected in the Drill History, taken as one bigger Drill for one Drill Summary of them all, each puzzle counting the same.
+Several Drills of the same theme and difficulty, selected in the Drill History or picked by theme and difficulty among the Drills of a range of days, taken as one bigger Drill for one Drill Summary of them all, each puzzle counting the same.
 _Avoid_: Session, merged drill
 
 **Drill Performance**:

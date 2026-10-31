@@ -553,6 +553,30 @@ abstract class DrillLocalizations {
   /// **'{count, plural, =1{Summary of 1 Drill} other{Summary of {count} Drills}}'**
   String groupSummaryTitle(int count);
 
+  /// No description provided for @analyzeByDates.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyze by dates'**
+  String get analyzeByDates;
+
+  /// No description provided for @chooseDates.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose dates'**
+  String get chooseDates;
+
+  /// No description provided for @groupChoicesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Two Drills at least of the same theme and difficulty are analyzed together.'**
+  String get groupChoicesHint;
+
+  /// No description provided for @noDrillsInRange.
+  ///
+  /// In en, this message translates to:
+  /// **'No Drill on these days.'**
+  String get noDrillsInRange;
+
   /// No description provided for @historyMenu.
   ///
   /// In en, this message translates to:
