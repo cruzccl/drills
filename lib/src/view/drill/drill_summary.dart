@@ -854,10 +854,13 @@ Color? signColor(BuildContext context, int change) => change > 0
     ? context.lichessColors.error
     : null;
 
-/// Formats a solving time as minutes and seconds, such as 2:05.
+/// Formats a solving time as minutes and seconds, such as 2:05, or from one hour on as hours,
+/// minutes and seconds, such as 3:10:13.
 String formatSolvingTime(Duration duration) {
-  final seconds = duration.inSeconds;
-  return '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}';
+  final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
+  if (duration.inHours == 0) return '${duration.inMinutes}:$seconds';
+  final minutes = (duration.inMinutes % 60).toString().padLeft(2, '0');
+  return '${duration.inHours}:$minutes:$seconds';
 }
 
 String _themeName(BuildContext context, String theme) =>
