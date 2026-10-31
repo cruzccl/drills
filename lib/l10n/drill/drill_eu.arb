@@ -102,6 +102,7 @@
   "ofTotal": "guztira {total}",
   "expectedPercent": "espero zena {percent} %",
   "nbOfTotalExpectedPercent": "{count}/{total}, espero zena {percent} %",
+  "nbSolvedOfTotalFailed": "{solved}/{total} ebatzita · {failed} huts eginda",
   "allDays": "Dena",
   "noChartData": "Daturik ez",
   "changeSinceLastDay": "{change} aurreko egunarekiko",

@@ -144,6 +144,8 @@
   "@expectedPercent": {"placeholders": {"percent": {"type": "int"}}},
   "nbOfTotalExpectedPercent": "{count} of {total}, expected {percent} %",
   "@nbOfTotalExpectedPercent": {"placeholders": {"count": {"type": "int"}, "total": {"type": "int"}, "percent": {"type": "int"}}},
+  "nbSolvedOfTotalFailed": "{solved} of {total} solved · {failed} failed",
+  "@nbSolvedOfTotalFailed": {"placeholders": {"solved": {"type": "int"}, "total": {"type": "int"}, "failed": {"type": "int"}}},
   "allDays": "All",
   "noChartData": "No data",
   "changeSinceLastDay": "{change} over the previous day",

@@ -409,6 +409,11 @@ class DrillLocalizationsEu extends DrillLocalizations {
   }
 
   @override
+  String nbSolvedOfTotalFailed(int solved, int total, int failed) {
+    return '$solved/$total ebatzita · $failed huts eginda';
+  }
+
+  @override
   String get allDays => 'Dena';
 
   @override

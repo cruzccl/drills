@@ -457,19 +457,52 @@ class const _PerformanceHeadline(
 }
 
 /// The share of puzzles solved of the days of the range, colored by how it compares with the
-/// share expected, next to it.
+/// share expected, next to it, and below them the number of puzzles solved and failed.
 class const _SuccessRateHeadline(final DrillChartSeries series) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final total = series.total!;
-    return _ChartHeadline(
-      value: '${_percent(total.successRate)} %',
-      valueColor: successRateColor(context, total.successRate, total.expected),
-      comparison: switch (total.expected) {
-        final expected? => context.drillL10n.expectedPercent(_percent(expected)),
-        null => '',
-      },
-      comparisonColor: textShade(context, Styles.subtitleOpacity),
+    final solved = (total.successRate * total.nbPuzzles).round();
+    final subtitleColor = textShade(context, Styles.subtitleOpacity);
+    return Column(
+      crossAxisAlignment: .start,
+      children: [
+        _ChartHeadline(
+          value: '${_percent(total.successRate)} %',
+          valueColor: successRateColor(context, total.successRate, total.expected),
+          comparison: switch (total.expected) {
+            final expected? => context.drillL10n.expectedPercent(_percent(expected)),
+            null => '',
+          },
+          comparisonColor: subtitleColor,
+        ),
+        Container(
+          margin: const EdgeInsets.only(top: 2.0),
+          padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+          decoration: BoxDecoration(
+            color: Styles.chartColor(context).withValues(alpha: 0.16),
+            borderRadius: const BorderRadius.all(Radius.circular(6.0)),
+          ),
+          child: Text.rich(
+            TextSpan(
+              // The numbers of the sentence in bold, wherever the language puts them.
+              children: [
+                for (final part
+                    in context.drillL10n
+                        .nbSolvedOfTotalFailed(solved, total.nbPuzzles, total.nbPuzzles - solved)
+                        .split(RegExp(r'(?=\d)(?<!\d)|(?<=\d)(?!\d)')))
+                  TextSpan(
+                    text: part,
+                    style: part.startsWith(RegExp(r'\d'))
+                        ? TextStyle(fontWeight: .w600, color: ColorScheme.of(context).onSurface)
+                        : null,
+                  ),
+              ],
+            ),
+            style: TextStyle(fontSize: 13, color: subtitleColor),
+          ),
+        ),
+      ],
     );
   }
 }

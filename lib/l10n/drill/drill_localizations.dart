@@ -673,6 +673,12 @@ abstract class DrillLocalizations {
   /// **'{count} of {total}, expected {percent} %'**
   String nbOfTotalExpectedPercent(int count, int total, int percent);
 
+  /// No description provided for @nbSolvedOfTotalFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'{solved} of {total} solved · {failed} failed'**
+  String nbSolvedOfTotalFailed(int solved, int total, int failed);
+
   /// No description provided for @allDays.
   ///
   /// In en, this message translates to:

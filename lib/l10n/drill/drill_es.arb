@@ -102,6 +102,7 @@
   "ofTotal": "de {total}",
   "expectedPercent": "esperado {percent} %",
   "nbOfTotalExpectedPercent": "{count} de {total}, esperado {percent} %",
+  "nbSolvedOfTotalFailed": "{solved} de {total} {total, plural, =1{resuelto} other{resueltos}} · {failed} {failed, plural, =1{fallado} other{fallados}}",
   "allDays": "Todo",
   "noChartData": "Sin datos",
   "changeSinceLastDay": "{change} sobre el día anterior",

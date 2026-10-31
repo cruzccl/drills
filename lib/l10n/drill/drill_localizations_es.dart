@@ -435,6 +435,23 @@ class DrillLocalizationsEs extends DrillLocalizations {
   }
 
   @override
+  String nbSolvedOfTotalFailed(int solved, int total, int failed) {
+    String _temp0 = intl.Intl.pluralLogic(
+      total,
+      locale: localeName,
+      other: 'resueltos',
+      one: 'resuelto',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      failed,
+      locale: localeName,
+      other: 'fallados',
+      one: 'fallado',
+    );
+    return '$solved de $total $_temp0 · $failed $_temp1';
+  }
+
+  @override
   String get allDays => 'Todo';
 
   @override
