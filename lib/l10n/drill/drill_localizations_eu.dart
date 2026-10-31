@@ -317,6 +317,18 @@ class DrillLocalizationsEu extends DrillLocalizations {
   }
 
   @override
+  String get analyzeByDates => 'Datan arabera aztertu';
+
+  @override
+  String get chooseDates => 'Datak aukeratu';
+
+  @override
+  String get groupChoicesHint => 'Gai eta zailtasun bereko bi Drill gutxienez aztertzen dira elkarrekin.';
+
+  @override
+  String get noDrillsInRange => 'Ez dago Drillik egun hauetan.';
+
+  @override
   String get historyMenu => 'Aukera gehiago';
 
   @override

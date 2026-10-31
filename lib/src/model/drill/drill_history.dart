@@ -296,6 +296,42 @@ final drillHistoryGroupProvider = FutureProvider.autoDispose.family<DrillGroup?,
   return drills.isEmpty ? null : DrillGroup(drills.toIList());
 }, name: 'DrillHistoryGroupProvider');
 
+/// The Drills of the signed in player started on the [days], by theme and difficulty, to pick the
+/// ones to analyze together ([DrillGroupChoice]).
+///
+/// It follows the changes of the Drill History, such as Drills deleted or imported.
+final drillRangeGroupsProvider = FutureProvider.autoDispose.family(
+  _drillRangeGroups,
+  name: 'DrillRangeGroupsProvider',
+);
+
+Future<IList<DrillGroupChoice>> _drillRangeGroups(Ref ref, DrillDays days) async {
+  final userId = ref.watch(authControllerProvider.select((auth) => auth?.user.id));
+  // Its build fills the summaries the query reads.
+  await ref.watch(drillHistoryProvider.selectAsync((history) => history.revision));
+  if (userId == null) return const IListConst([]);
+  final db = await ref.read(drillDatabaseProvider.future);
+  final first = days.first;
+  final last = days.last;
+  // The day after the last one, at midnight on the device.
+  final end = DateTime(last.year, last.month, last.day + 1);
+  final rows = await db.query(
+    _tableName,
+    columns: ['summary'],
+    where: [
+      'userId = ? AND summary IS NOT NULL AND startedAt < ?',
+      if (first != null) 'startedAt >= ?',
+    ].join(' AND '),
+    whereArgs: [
+      userId.value,
+      _key(end),
+      if (first != null) _key(DateTime(first.year, first.month, first.day)),
+    ],
+    orderBy: 'startedAt DESC',
+  );
+  return drillGroupChoicesOf([for (final row in rows) ?_decodeEntry(row['summary']! as String)]);
+}
+
 /// The placeholders of an SQL `IN` list of [count] values.
 String _placeholders(int count) => List.filled(count, '?').join(', ');
 

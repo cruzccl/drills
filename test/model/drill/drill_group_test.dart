@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lichess_mobile/src/model/common/id.dart';
 import 'package:lichess_mobile/src/model/drill/drill_controller.dart';
 import 'package:lichess_mobile/src/model/drill/drill_group.dart';
+import 'package:lichess_mobile/src/model/drill/drill_history.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_angle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_difficulty.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_theme.dart';
@@ -95,6 +96,50 @@ void main() {
       );
     });
   });
+
+  group('drillGroupChoicesOf', () {
+    test('groups the Drills by theme and difficulty, those that can be analyzed first', () {
+      const fork = PuzzleTheme(PuzzleThemeKey.fork);
+      final mixOld = _entry(day: 1, wins: [true, true]);
+      final mixPartial = _entry(day: 2, wins: [false], nbPuzzles: 10);
+      final forkOld = _entry(day: 3, wins: [true, false, true], angle: fork);
+      final harder = _entry(day: 4, wins: [true, true, true, true, true], difficulty: .harder);
+      final forkNew = _entry(day: 5, wins: [false], angle: fork);
+
+      final choices = drillGroupChoicesOf([mixOld, mixPartial, forkOld, harder, forkNew]);
+
+      expect(choices.map((c) => c.entries.toList()), [
+        [forkNew, forkOld],
+        [mixPartial, mixOld],
+        [harder],
+      ], reason: 'the most puzzles first, the Drill alone last, each group newest first');
+      expect(choices.map((c) => c.canBeAnalyzed), [true, true, false]);
+      expect(choices[1].nbDrills, 2);
+      expect(choices[1].nbPlayed, 3, reason: 'a Partial Drill counts its puzzles played');
+      expect(choices[1].successRate, closeTo(2 / 3, 1e-9));
+      expect(choices[1].startedAts.unlock, {mixOld.startedAt, mixPartial.startedAt});
+    });
+
+    test('is empty without Drills', () {
+      expect(drillGroupChoicesOf([]), isEmpty);
+    });
+  });
+
+  group('drillDaysOf', () {
+    final today = DateTime(2026, 10, 31, 15, 30);
+
+    test('counts today in the days of a range', () {
+      expect(drillDaysOf(.week, today: today), (
+        first: DateTime(2026, 10, 25),
+        last: DateTime(2026, 10, 31),
+      ));
+      expect(drillDaysOf(.month, today: today).first, DateTime(2026, 10, 2));
+    });
+
+    test('starts the whole Drill History at its first Drill', () {
+      expect(drillDaysOf(.all, today: today), (first: null, last: DateTime(2026, 10, 31)));
+    });
+  });
 }
 
 var _nbDrills = 0;
@@ -121,3 +166,17 @@ Drill _drill({required int? ratingBefore, required List<(int, bool)> results}) {
     ].lock,
   );
 }
+
+/// The summary of an ended Drill started on day [day] of October 2026, solving the puzzles of
+/// [wins] out of [nbPuzzles], all of them by default.
+DrillHistoryEntry _entry({
+  required int day,
+  required List<bool> wins,
+  int? nbPuzzles,
+  PuzzleAngle angle = const PuzzleTheme(PuzzleThemeKey.mix),
+  PuzzleDifficulty difficulty = .normal,
+}) => DrillHistoryEntry(
+  config: DrillConfig(nbPuzzles: nbPuzzles ?? wins.length, angle: angle, difficulty: difficulty),
+  startedAt: DateTime(2026, 10, day, 9),
+  wins: wins.lock,
+);

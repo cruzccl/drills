@@ -15,6 +15,7 @@ import 'package:lichess_mobile/src/styles/styles.dart';
 import 'package:lichess_mobile/src/utils/l10n_context.dart';
 import 'package:lichess_mobile/src/utils/navigation.dart';
 import 'package:lichess_mobile/src/view/drill/drill_angle_screen.dart';
+import 'package:lichess_mobile/src/view/drill/drill_group_choices_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_summary.dart';
 import 'package:lichess_mobile/src/widgets/adaptive_action_sheet.dart';
 import 'package:lichess_mobile/src/widgets/feedback.dart';
@@ -30,8 +31,9 @@ const _loadMoreExtent = 600.0;
 ///
 /// A Drill is opened on its Drill Summary. A long press starts selecting Drills, to delete them or,
 /// two at least of the same theme and difficulty, to open the Drill Summary of them all
-/// ([DrillGroup]). The Drill History of every account on the device is saved to a file, and
-/// imported back, from the app bar menu.
+/// ([DrillGroup]). With none selected, the Analyze button picks them by theme and difficulty among
+/// the Drills of a range of days ([DrillGroupChoicesScreen]). The Drill History of every account on
+/// the device is saved to a file, and imported back, from the app bar menu.
 ///
 /// Its route returns the weakest theme of a Drill Summary the player tapped, to set up a Drill
 /// with.
@@ -112,7 +114,14 @@ class _DrillHistoryScreenState() extends ConsumerState<DrillHistoryScreen> {
             : PlatformAppBar(
                 title: Text(context.drillL10n.historyTitle),
                 largeTitle: true,
-                actions: const [_HistoryMenu()],
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.bar_chart),
+                    tooltip: context.drillL10n.analyzeByDates,
+                    onPressed: _analyzeByDates,
+                  ),
+                  const _HistoryMenu(),
+                ],
               ),
         body: switch (history) {
           AsyncData(value: DrillHistoryState(:final entries)) when entries.isEmpty => Center(
@@ -182,6 +191,13 @@ class _DrillHistoryScreenState() extends ConsumerState<DrillHistoryScreen> {
   Future<void> _analyze(List<DrillHistoryEntry> selected) async {
     final angle = await Navigator.of(context)
         .push(DrillGroupSummaryScreen.buildRoute(selected.map((e) => e.startedAt).toISet()));
+    if (angle != null && mounted) Navigator.of(context).pop(angle);
+  }
+
+  /// Opens the Drills of a range of days by theme and difficulty, to analyze some together, and
+  /// returns the weakest theme tapped in their Drill Summary, if any.
+  Future<void> _analyzeByDates() async {
+    final angle = await Navigator.of(context).push(DrillGroupChoicesScreen.buildRoute());
     if (angle != null && mounted) Navigator.of(context).pop(angle);
   }
 
