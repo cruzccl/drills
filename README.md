@@ -66,8 +66,9 @@ official app, talks to lichess.org and has Firebase disabled.
   keyPassword=...
   ```
 
-- `fvm flutter build apk --release`, then
-  `adb install build/app/outputs/flutter-apk/app-release.apk`
+- `fvm flutter build apk --release --dart-define=DRILLS_COMMIT=$(git rev-parse --short HEAD)`,
+  then `adb install build/app/outputs/flutter-apk/app-release.apk`. The commit is shown in
+  the Drill settings next to the version, linked to GitHub.
 
 Losing the keystore, or changing the package id, means reinstalling the app and losing the Drill
 History.

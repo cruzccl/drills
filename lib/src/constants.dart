@@ -32,6 +32,12 @@ const kLichessCustomUriSchemeName = 'org.lichess.mobile';
 
 const kLichessClientId = 'cruzccl-drills';
 
+/// Short hash of the Drills commit the app was built from, passed at build time with
+/// `--dart-define=DRILLS_COMMIT=$(git rev-parse --short HEAD)`. Empty when not passed.
+const kDrillsCommit = String.fromEnvironment('DRILLS_COMMIT');
+
+const kDrillsRepositoryUrl = 'https://github.com/cruzccl/drills';
+
 const kSRIStorageKey = 'socket_random_identifier';
 
 const kFideRatingsUrl = 'https://ratings.fide.com/profile/';

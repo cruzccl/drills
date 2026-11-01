@@ -3,6 +3,7 @@ import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/experimental/mutation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lichess_mobile/l10n/drill/drill_localizations.dart';
+import 'package:lichess_mobile/src/constants.dart';
 import 'package:lichess_mobile/src/model/auth/auth_controller.dart';
 import 'package:lichess_mobile/src/model/common/preloaded_data.dart';
 import 'package:lichess_mobile/src/model/drill/drill_preferences.dart';
@@ -180,7 +181,25 @@ class const DrillSettingsScreen({super.key}) extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text('v${packageInfo.version}', style: TextTheme.of(context).bodySmall),
+                Row(
+                  children: [
+                    Text('v${packageInfo.version}', style: TextTheme.of(context).bodySmall),
+                    if (kDrillsCommit.isNotEmpty) ...[
+                      Text(' · ', style: TextTheme.of(context).bodySmall),
+                      InkWell(
+                        onTap: () => launchUrl(
+                          Uri.parse('$kDrillsRepositoryUrl/commit/$kDrillsCommit'),
+                          mode: LaunchMode.externalApplication,
+                        ),
+                        child: Text(
+                          kDrillsCommit,
+                          style: TextTheme.of(context).bodySmall
+                              ?.copyWith(color: ColorScheme.of(context).primary, fontWeight: .w500),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
