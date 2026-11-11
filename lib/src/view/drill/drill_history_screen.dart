@@ -223,13 +223,8 @@ final pickDrillHistoryFileProvider = Provider<Future<PlatformFile?> Function()>(
 /// saved, or `null` if they cancelled. Can be overridden in tests.
 final saveDrillHistoryFileProvider =
     Provider<Future<Uri?> Function(String fileName, Uint8List bytes)>((ref) {
-      return (fileName, bytes) => FilePicker.saveFile(
-        fileName: fileName,
-        bytes: bytes,
-        mimeType: 'application/json',
-        type: .custom,
-        allowedExtensions: ['json'],
-      );
+      return (fileName, bytes) =>
+          FilePicker.saveFile(fileName: fileName, bytes: bytes, mimeType: 'application/json');
     });
 
 /// The app bar menu of the Drill History: exporting it to a file, and importing one.

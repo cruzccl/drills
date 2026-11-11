@@ -281,7 +281,7 @@ class _DrillPuzzleState() extends ConsumerState<_DrillPuzzle> {
           final isLandscape = constraints.maxWidth > constraints.maxHeight;
           final isTablet = isTabletOrLarger(context);
           final settings = boardPreferences
-              .toBoardSettings(.standard)
+              .toBoardSettings(.standard, appBrightness: Theme.of(context).brightness)
               .copyWith(
                 borderRadius: isTablet ? Styles.boardBorderRadius : BorderRadius.zero,
                 boxShadow: isTablet ? boardShadows : const <BoxShadow>[],

@@ -307,7 +307,10 @@ void main() {
 
   group('Home offline', () {
     testWidgets('shows offline subtitle', (tester) async {
-      final app = await makeOfflineTestProviderScope(tester, child: const Application(upstream: true));
+      final app = await makeOfflineTestProviderScope(
+        tester,
+        child: const Application(upstream: true),
+      );
 
       await tester.pumpWidget(app);
       // wait for connectivity

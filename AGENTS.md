@@ -216,8 +216,8 @@ git fetch upstream --tags
 git rebase --onto vX.Y.Z <current base> main
 ```
 
-The current base is `99e1fb7fb`, the `upstream/main` commit the fork was made from (just after
-v0.30.2); the first rebase is onto the first release that contains it.
+The current base is `v0.31.2`. The fork was made from `99e1fb7fb`, an `upstream/main` commit
+just after v0.30.2.
 
 ## Commit messages
 

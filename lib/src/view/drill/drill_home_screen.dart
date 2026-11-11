@@ -34,7 +34,6 @@ import 'package:lichess_mobile/src/widgets/feedback.dart';
 import 'package:lichess_mobile/src/widgets/non_linear_slider.dart';
 import 'package:lichess_mobile/src/widgets/platform.dart';
 import 'package:lichess_mobile/src/widgets/platform_choice_chip.dart';
-import 'package:lichess_mobile/src/widgets/platform_filled_button.dart';
 import 'package:lichess_mobile/src/widgets/user.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -635,7 +634,7 @@ class const _NextDrillCard({
               ),
             ),
             const SizedBox(height: 14.0),
-            PlatformFilledButton(
+            FilledButton(
               onPressed: onStart,
               child: isStarting
                   ? const ButtonLoadingIndicator()
@@ -924,7 +923,7 @@ class _NbPuzzlesSheetState() extends ConsumerState<_NbPuzzlesSheet> {
             ),
           ],
           const SizedBox(height: 16.0),
-          PlatformFilledButton(
+          FilledButton(
             onPressed: () => Navigator.of(context).pop(_nbPuzzles),
             child: Text(context.drillL10n.done),
           ),
@@ -1053,7 +1052,7 @@ class _DifficultySheetState() extends State<_DifficultySheet> {
               ),
             ),
           const SizedBox(height: 10.0),
-          PlatformFilledButton(
+          FilledButton(
             onPressed: () => Navigator.of(context).pop(_difficulty),
             child: Text(context.drillL10n.done),
           ),

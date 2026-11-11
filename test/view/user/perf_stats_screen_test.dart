@@ -133,7 +133,7 @@ void main() {
     testWidgets('dates follow the app language without a restart', (WidgetTester tester) async {
       final app = await makeTestProviderScope(
         tester,
-        child: const Application(),
+        child: const Application(upstream: true),
         overrides: {
           lichessClientProvider: lichessClientProvider.overrideWith((ref) {
             return LichessClient(client, ref);

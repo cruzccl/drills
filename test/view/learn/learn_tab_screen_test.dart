@@ -67,7 +67,10 @@ void main() {
     });
 
     testWidgets('offline, the studies show they are not available', (tester) async {
-      final app = await makeOfflineTestProviderScope(tester, child: const Application(upstream: true));
+      final app = await makeOfflineTestProviderScope(
+        tester,
+        child: const Application(upstream: true),
+      );
 
       await tester.pumpWidget(app);
       await tester.pumpAndSettle();

@@ -11,7 +11,6 @@ import 'package:lichess_mobile/src/model/settings/board_preferences.dart';
 import 'package:lichess_mobile/src/model/settings/general_preferences.dart';
 import 'package:lichess_mobile/src/network/http.dart';
 import 'package:lichess_mobile/src/view/drill/drill_settings_screen.dart';
-import 'package:lichess_mobile/src/widgets/platform_switch.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../model/auth/auth_repository_test.dart';
@@ -70,10 +69,7 @@ void main() {
   Future<void> toggle(WidgetTester tester, String label) async {
     await scrollTo(tester, find.text(label));
     await tester.tap(
-      find.descendant(
-        of: find.widgetWithText(ListTile, label),
-        matching: find.byType(PlatformSwitch),
-      ),
+      find.descendant(of: find.widgetWithText(ListTile, label), matching: find.byType(Switch)),
     );
     await tester.pumpAndSettle();
   }
