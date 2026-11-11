@@ -31,6 +31,17 @@ void main() {
       expect(group.averageSolvingTime, const Duration(seconds: 10));
     });
 
+    test('sets apart the puzzles played in each Drill', () {
+      final group = DrillGroup(
+        [
+          _drill(ratingBefore: 1500, results: [(1500, true), (1700, false)]),
+          _drill(ratingBefore: 1600, results: [(1600, true), (1600, true), (1400, true)]),
+        ].lock,
+      );
+
+      expect(group.blocks, [2, 3].lock);
+    });
+
     test('expects each puzzle to be solved against the rating its own Drill started at', () {
       final group = DrillGroup(
         [

@@ -868,7 +868,7 @@ void main() {
     expect(find.text('0 of 2 solved'), findsOneWidget);
     expect(find.text('−20'), findsOneWidget);
     expect(find.text('1490'), findsNothing, reason: 'no rating before and after');
-    expect(find.byType(BarChart), findsNothing, reason: 'no solving time chart');
+    expect(find.byType(BarChart), findsOneWidget, reason: 'the solving time chart');
     await tester.pageBack();
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Delete'));

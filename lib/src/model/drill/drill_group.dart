@@ -31,6 +31,9 @@ class const DrillGroup(
 
   int get nbPlayed => drills.map((d) => d.results.length).sum;
 
+  /// The number of puzzles played in each Drill, to set the Drills apart.
+  IList<int> get blocks => drills.map((d) => d.results.length).toIList();
+
   /// The share of puzzles solved, from 0 to 1, or 0 if no puzzle was solved.
   double get successRate => nbPlayed == 0 ? 0 : successes / nbPlayed;
 

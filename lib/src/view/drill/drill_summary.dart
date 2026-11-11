@@ -186,8 +186,8 @@ class _DrillSummaryState() extends ConsumerState<DrillSummary> {
 /// [DrillGroup].
 ///
 /// It is a Drill's Drill Summary but for the rating change, the sum of the Drills' without the
-/// rating before and after, and the solving times, without their chart. The puzzles are folded at
-/// first, under a header per Drill.
+/// rating before and after, and the chart of the solving times, which sets apart the Drills. The
+/// puzzles are folded at first, under a header per Drill.
 ///
 /// Its route returns the weakest theme the player tapped, as a Drill's.
 class const DrillGroupSummary(final DrillGroup group, {super.key}) extends ConsumerStatefulWidget {
@@ -220,7 +220,7 @@ class _DrillGroupSummaryState() extends ConsumerState<DrillGroupSummary> {
           ratingChange: group.ratingChange,
         ),
         const SizedBox(height: 20.0),
-        _TimeCard(group.results, winShown: null, chart: false),
+        _TimeCard(group.results, winShown: _winShown, blocks: group.blocks),
         if (weakestThemes.isNotEmpty) ...[
           const SizedBox(height: 24.0),
           _WeakestThemes(weakestThemes),
@@ -426,12 +426,12 @@ class const _Metric({
   }
 }
 
-/// The time spent solving the puzzles, in total and on average, and, with a [chart], on each of
-/// them, the puzzles not shown in the list ([winShown]) faded.
+/// The time spent solving the puzzles, in total and on average, and on each of them, the puzzles
+/// not shown in the list ([winShown]) faded, and the [blocks] set apart.
 class const _TimeCard(
   final IList<DrillPuzzleResult> results, {
   required final bool? winShown,
-  final bool chart = true,
+  final IList<int>? blocks,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -478,9 +478,12 @@ class const _TimeCard(
                 ),
               ],
             ),
-            if (chart && results.isNotEmpty) ...[
+            if (results.isNotEmpty) ...[
               const SizedBox(height: 12.0),
-              SizedBox(height: 64.0, child: _SolvingTimeChart(results, winShown: winShown)),
+              SizedBox(
+                height: 64.0,
+                child: _SolvingTimeChart(results, winShown: winShown, blocks: blocks),
+              ),
             ],
           ],
         ),
@@ -492,18 +495,27 @@ class const _TimeCard(
 /// A bar per puzzle of the Drill, as high as the time spent solving it and colored by its
 /// result, faded unless its result is [winShown], under a dashed line at the average time. A bar
 /// opens its puzzle on the analysis board.
+///
+/// With several [blocks], an empty slot sets apart the puzzles of each.
 class const _SolvingTimeChart(
   final IList<DrillPuzzleResult> results, {
   required final bool? winShown,
+  final IList<int>? blocks,
 }) extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.lichessColors;
     final seconds = [for (final r in results) r.solvingTime.inMilliseconds / 1000];
     final maxY = math.max(seconds.max, 1.0);
+    // The index of the first puzzle of each block but the first, among the puzzles played.
+    final blockStarts = <int>{};
+    for (var i = 0, start = 0; i < (blocks?.length ?? 0) - 1; i++) {
+      start += blocks![i];
+      if (start < results.length) blockStarts.add(start);
+    }
     return LayoutBuilder(
       builder: (context, constraints) {
-        final slot = constraints.maxWidth / results.length;
+        final slot = constraints.maxWidth / (results.length + blockStarts.length);
         final barWidth = (slot - (results.length > 20 ? 2 : 4)).clamp(1.0, 32.0);
         return BarChart(
           BarChartData(
@@ -511,7 +523,9 @@ class const _SolvingTimeChart(
             maxY: maxY,
             alignment: .spaceAround,
             barGroups: [
-              for (final (i, result) in results.indexed)
+              for (final (i, result) in results.indexed) ...[
+                // An empty group, out of the puzzles' indexes.
+                if (blockStarts.contains(i)) BarChartGroupData(x: -i),
                 BarChartGroupData(
                   x: i,
                   barRods: [
@@ -533,6 +547,7 @@ class const _SolvingTimeChart(
                     ),
                   ],
                 ),
+              ],
             ],
             borderData: FlBorderData(
               show: true,
@@ -555,9 +570,9 @@ class const _SolvingTimeChart(
               handleBuiltInTouches: false,
               allowTouchBarBackDraw: true,
               touchCallback: (event, response) {
-                final spot = response?.spot;
-                if (event is FlTapUpEvent && spot != null) {
-                  _openAnalysis(context, ref, results[spot.touchedBarGroupIndex].id);
+                final index = response?.spot?.touchedBarGroup.x;
+                if (event is FlTapUpEvent && index != null && index >= 0) {
+                  _openAnalysis(context, ref, results[index].id);
                 }
               },
             ),

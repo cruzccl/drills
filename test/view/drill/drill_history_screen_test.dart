@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lichess_mobile/src/model/common/id.dart';
@@ -176,6 +177,13 @@ void main() {
     expect(find.text('75 %'), findsOneWidget);
     expect(find.text('3 of 4 solved'), findsOneWidget);
     expect(find.text('+20'), findsOneWidget, reason: 'the sum of the rating changes');
+    expect(tester.widget<BarChart>(find.byType(BarChart)).data.barGroups.map((g) => g.x), [
+      0,
+      1,
+      -2,
+      2,
+      3,
+    ], reason: 'a bar per puzzle, an empty slot between the Drills');
     // the puzzles are folded at first, then filtered: only the first Drill has a puzzle failed
     expect(find.byType(ListTile), findsNothing);
     await tester.scrollUntilVisible(find.text('1 ✗'), 200.0);
