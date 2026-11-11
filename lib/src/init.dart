@@ -103,7 +103,10 @@ Future<void> initializeLocalNotifications(Locale locale) async {
   }
 }
 
-Future<void> preloadPieceImages() async {
+/// Preload the images of the stored board preferences: the pieces and the board background.
+///
+/// See [keepBoardBackgroundLoaded].
+Future<void> preloadBoardImages() async {
   final prefs = LichessBinding.instance.sharedPreferences;
   final storedPrefs = prefs.getString(PrefCategory.board.storageKey);
   BoardPrefs boardPrefs = BoardPrefs.defaults;
@@ -115,7 +118,11 @@ Future<void> preloadPieceImages() async {
     }
   }
 
-  await precachePieceImages(boardPrefs.pieceSet);
+  await Future.wait([
+    precachePieceImages(boardPrefs.pieceSet),
+    keepPieceImagesLoaded(boardPrefs.pieceSet),
+    keepBoardBackgroundLoaded(boardPrefs.boardTheme.colors),
+  ]);
 }
 
 /// Display setup on Android.

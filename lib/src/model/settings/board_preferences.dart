@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:chessground/chessground.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -5,6 +7,7 @@ import 'package:lichess_mobile/l10n/l10n.dart';
 import 'package:lichess_mobile/src/model/common/chess.dart';
 import 'package:lichess_mobile/src/model/settings/preferences_storage.dart';
 import 'package:lichess_mobile/src/styles/styles.dart';
+import 'package:lichess_mobile/src/utils/chessboard.dart';
 import 'package:lichess_mobile/src/utils/color_palette.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -41,10 +44,12 @@ class BoardPreferences() extends Notifier<BoardPrefs> with PreferencesStorage<Bo
   }
 
   Future<void> setPieceSet(PieceSet pieceSet) {
+    unawaited(keepPieceImagesLoaded(pieceSet));
     return save(state.copyWith(pieceSet: pieceSet));
   }
 
   Future<void> setBoardTheme(BoardTheme boardTheme) async {
+    unawaited(keepBoardBackgroundLoaded(boardTheme.colors));
     await save(state.copyWith(boardTheme: boardTheme));
   }
 
