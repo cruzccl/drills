@@ -219,6 +219,9 @@ git rebase --onto vX.Y.Z <current base> main
 The current base is `v0.31.2`. The fork was made from `99e1fb7fb`, an `upstream/main` commit
 just after v0.30.2.
 
+The `/rebase-upstream` skill (`.claude/skills/rebase-upstream/`) checks for a new release and does
+the whole rebase, up to an APK for testing before the push.
+
 ## Commit messages
 
 The fork's own commits follow [Conventional Commits](https://www.conventionalcommits.org), without
