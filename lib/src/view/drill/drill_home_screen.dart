@@ -1,5 +1,4 @@
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/experimental/mutation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -11,7 +10,6 @@ import 'package:lichess_mobile/src/model/drill/drill_controller.dart';
 import 'package:lichess_mobile/src/model/drill/drill_history.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_angle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_difficulty.dart';
-import 'package:lichess_mobile/src/model/settings/board_preferences.dart';
 import 'package:lichess_mobile/src/model/user/user_repository_providers.dart';
 import 'package:lichess_mobile/src/network/connectivity.dart';
 import 'package:lichess_mobile/src/styles/lichess_icons.dart';
@@ -26,22 +24,15 @@ import 'package:lichess_mobile/src/view/drill/drill_progress_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_settings_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_summary.dart';
+import 'package:lichess_mobile/src/view/drill/nb_puzzles_sheet.dart';
 import 'package:lichess_mobile/src/view/puzzle/storm_screen.dart';
 import 'package:lichess_mobile/src/widgets/adaptive_action_sheet.dart';
 import 'package:lichess_mobile/src/widgets/adaptive_bottom_sheet.dart';
 import 'package:lichess_mobile/src/widgets/buttons.dart';
 import 'package:lichess_mobile/src/widgets/feedback.dart';
-import 'package:lichess_mobile/src/widgets/non_linear_slider.dart';
 import 'package:lichess_mobile/src/widgets/platform.dart';
-import 'package:lichess_mobile/src/widgets/platform_choice_chip.dart';
 import 'package:lichess_mobile/src/widgets/user.dart';
 import 'package:material_ui/material_ui.dart';
-
-/// The numbers of puzzles offered to set up a Drill with one tap.
-const _quickPickNbPuzzles = [5, 10, 12, 15, 20, 25];
-
-/// Every number of puzzles a Drill can have, along the slider.
-final _sliderNbPuzzles = [for (var nb = 1; nb <= kMaxDrillPuzzles; nb++) nb];
 
 /// How many of the latest Drills the home lists.
 const _nbLastDrills = 3;
@@ -118,10 +109,10 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => _NbPuzzlesSheet(
+      builder: (_) => NbPuzzlesSheet(
         initial: _config.nbPuzzles,
         last: last.nbPuzzles,
-        timePerPuzzle: _recentTimePerPuzzle(),
+        timePerPuzzle: recentTimePerPuzzle(ref),
       ),
     );
     if (nbPuzzles != null && mounted) {
@@ -143,16 +134,6 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
   }
 
   /// The average time the player spent on a puzzle in their latest Drills, if they were timed.
-  Duration? _recentTimePerPuzzle() {
-    final results = [
-      for (final drill in ref.read(recentDrillsProvider).value ?? const IListConst<Drill>([]))
-        for (final result in drill.results)
-          if (result.solvingTime > Duration.zero) result,
-    ];
-    if (results.isEmpty) return null;
-    return results.fold(Duration.zero, (total, r) => total + r.solvingTime) ~/ results.length;
-  }
-
   @override
   Widget build(BuildContext context) {
     final authUser = ref.watch(authControllerProvider);
@@ -800,135 +781,6 @@ class const _LastDrills(
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Chooses the number of puzzles of the next Drill, which its route returns once done: one more
-/// or less, a number offered, or any along the slider.
-class const _NbPuzzlesSheet({
-  required final int initial,
-
-  /// The number of puzzles of the last Drill started.
-  required final int last,
-
-  /// The average time the player spends on a puzzle, to tell how long the Drill takes, if known.
-  required final Duration? timePerPuzzle,
-}) extends ConsumerStatefulWidget {
-  @override
-  ConsumerState<_NbPuzzlesSheet> createState() => _NbPuzzlesSheetState();
-}
-
-class _NbPuzzlesSheetState() extends ConsumerState<_NbPuzzlesSheet> {
-  late int _nbPuzzles = widget.initial;
-
-  void _set(int nbPuzzles) {
-    if (nbPuzzles == _nbPuzzles || nbPuzzles < 1 || nbPuzzles > kMaxDrillPuzzles) return;
-    if (ref.read(boardPreferencesProvider).hapticFeedback) HapticFeedback.selectionClick();
-    setState(() => _nbPuzzles = nbPuzzles);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final subtitleStyle = TextStyle(
-      fontSize: 13,
-      color: textShade(context, Styles.subtitleOpacity),
-    );
-    final timePerPuzzle = widget.timePerPuzzle;
-    final minutes = timePerPuzzle == null
-        ? null
-        : ((timePerPuzzle * _nbPuzzles).inSeconds / 60).round().clamp(1, 999);
-    return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(16.0, 0.0, 16.0, 16.0 + MediaQuery.paddingOf(context).bottom),
-      child: Column(
-        mainAxisSize: .min,
-        crossAxisAlignment: .stretch,
-        children: [
-          Row(
-            crossAxisAlignment: .baseline,
-            textBaseline: .alphabetic,
-            children: [
-              Expanded(
-                child: Text(
-                  context.drillL10n.nbPuzzlesChoice,
-                  style: const TextStyle(fontSize: 18, fontWeight: .w600),
-                ),
-              ),
-              Text(context.drillL10n.lastNbPuzzles(widget.last), style: subtitleStyle),
-            ],
-          ),
-          const SizedBox(height: 16.0),
-          Row(
-            mainAxisAlignment: .center,
-            spacing: 24.0,
-            children: [
-              IconButton.outlined(
-                tooltip: context.drillL10n.onePuzzleLess,
-                iconSize: 26.0,
-                padding: const EdgeInsets.all(14.0),
-                onPressed: _nbPuzzles > 1 ? () => _set(_nbPuzzles - 1) : null,
-                icon: const Icon(Icons.remove),
-              ),
-              SizedBox(
-                width: 120.0,
-                child: Column(
-                  children: [
-                    Text(
-                      '$_nbPuzzles',
-                      style: const TextStyle(fontSize: 72, fontWeight: .w300, height: 1.0),
-                    ),
-                    Text(context.drillL10n.puzzlesLabel(_nbPuzzles), style: subtitleStyle),
-                  ],
-                ),
-              ),
-              IconButton.outlined(
-                tooltip: context.drillL10n.onePuzzleMore,
-                iconSize: 26.0,
-                padding: const EdgeInsets.all(14.0),
-                onPressed: _nbPuzzles < kMaxDrillPuzzles ? () => _set(_nbPuzzles + 1) : null,
-                icon: const Icon(Icons.add),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16.0),
-          // Spread across the width, in line with the slider below, unlike a [Filter]. Without a
-          // checkmark, a selected chip keeps its width and doesn't move the others.
-          Wrap(
-            alignment: .spaceBetween,
-            spacing: 8.0,
-            runSpacing: Theme.of(context).platform == .iOS ? 8.0 : 0.0,
-            children: [
-              for (final nb in _quickPickNbPuzzles)
-                PlatformChoiceChip(
-                  label: Text('$nb'),
-                  selected: nb == _nbPuzzles,
-                  showCheckmark: false,
-                  onSelected: (_) => _set(nb),
-                ),
-            ],
-          ),
-          NonLinearSlider(
-            value: _nbPuzzles,
-            values: _sliderNbPuzzles,
-            onChange: (nb) => _set(nb.toInt()),
-            // The number of puzzles is already set while dragging.
-            onChangeEnd: (_) {},
-          ),
-          if (minutes != null) ...[
-            const SizedBox(height: 4.0),
-            Text(
-              context.drillL10n.estimatedTime(minutes),
-              textAlign: .center,
-              style: subtitleStyle,
-            ),
-          ],
-          const SizedBox(height: 16.0),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(_nbPuzzles),
-            child: Text(context.drillL10n.done),
-          ),
-        ],
-      ),
     );
   }
 }

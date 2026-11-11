@@ -424,7 +424,7 @@ class const _DrillCard(
                       details: [
                         [
                           '${entry.successes} / ${entry.nbPlayed}',
-                          if (entry.isPartial) context.drillL10n.ofTotal(config.nbPuzzles),
+                          if (entry.isPartial) context.drillL10n.ofTotal(entry.config.nbPuzzles),
                         ].join(' · '),
                       ],
                     ),

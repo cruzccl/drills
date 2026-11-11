@@ -601,4 +601,15 @@ class DrillLocalizationsEs extends DrillLocalizations {
 
   @override
   String get supportLichess => 'Apoya a Lichess';
+
+  @override
+  String extendDrill(int count) {
+    return 'Seguir (+$count)';
+  }
+
+  @override
+  String get changeExtension => 'Cambiar cuántos problemas añadir';
+
+  @override
+  String get extensionChoice => 'Problemas a añadir';
 }

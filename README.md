@@ -26,6 +26,9 @@ summary of the results.
   revealed in the summary at the end, with the time spent on each puzzle and the weakest themes,
   each of which sets up the next Drill. A setting can also show how long you have been on the
   puzzle in progress, timed only while the app is shown.
+- A Drill finished to its last puzzle can be extended from its summary, to keep playing it: a
+  button pinned at the bottom adds 5 puzzles, or the number last chosen with the button beside
+  it, and once ended it is one Drill of all its puzzles, as if started with them.
 - A Drill can be ended early, as a partial Drill. One left unfinished can be resumed at any time,
   even after the app was closed. Each Lichess account signed in on the device has its own.
 - Puzzle Storm, as in the official app, is one tap away on the home screen, to warm up before a

@@ -551,4 +551,15 @@ class DrillLocalizationsEu extends DrillLocalizations {
 
   @override
   String get supportLichess => 'Lagundu Lichessi';
+
+  @override
+  String extendDrill(int count) {
+    return 'Jarraitu (+$count)';
+  }
+
+  @override
+  String get changeExtension => 'Aldatu zenbat ariketa gehitu';
+
+  @override
+  String get extensionChoice => 'Gehitzeko ariketak';
 }

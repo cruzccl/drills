@@ -100,6 +100,11 @@ void main() {
     expect(find.text('1 of 2 solved'), findsOneWidget);
     expect(find.text('Points'), findsNothing);
     expect(find.textContaining('expected'), findsNothing);
+    // the puzzles, folded at first
+    expect(find.text('unrated'), findsNothing);
+    await tester.scrollUntilVisible(find.text('All 2 puzzles'), 200.0);
+    await tester.tap(find.text('All 2 puzzles'));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('unrated').first, 200.0);
     expect(find.text('unrated'), findsNWidgets(2));
     expect(find.text('pending'), findsNothing);
@@ -169,31 +174,119 @@ void main() {
     expect(find.text('Fork'), findsOneWidget);
     expect(find.text('Short'), findsNothing, reason: 'a length theme');
 
-    // the puzzles of the Drill, each opened on the analysis board
+    // the puzzles of the Drill, folded at first, each opened on the analysis board
+    expect(find.text('+10'), findsNothing);
+    await tester.scrollUntilVisible(find.text('All 5 puzzles'), 200.0);
+    await tester.tap(find.text('All 5 puzzles'));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('+10').hitTestable(), 200.0);
     expect(find.text('−10'), findsWidgets);
 
     // the counts of puzzles solved and failed each show only those puzzles, and fade the bars of
     // the others in the solving time chart, until tapped again
-    await tester.tap(find.text('4 ✗'));
-    await tester.pump();
+    // the counts are above the puzzles, below the chart
+    Future<void> tapCount(String count, {bool below = true}) async {
+      await tester.scrollUntilVisible(find.text(count).hitTestable(), below ? 200.0 : -200.0);
+      await tester.tap(find.text(count));
+      await tester.pump();
+    }
+
+    await tapCount('4 ✗', below: false);
     expect(find.text('+10'), findsNothing);
     expect(find.text('−10'), findsNWidgets(4));
-    expect(_barOpacities(tester), [0.2, 1.0, 1.0, 1.0, 1.0]);
-    await tester.tap(find.text('1 ✓'));
-    await tester.pump();
+    expect(await _barOpacities(tester), [0.2, 1.0, 1.0, 1.0, 1.0]);
+    await tapCount('1 ✓');
     expect(find.text('+10'), findsOneWidget);
     expect(find.text('−10'), findsNothing);
-    expect(_barOpacities(tester), [1.0, 0.2, 0.2, 0.2, 0.2]);
-    await tester.tap(find.text('1 ✓'));
-    await tester.pump();
+    expect(await _barOpacities(tester), [1.0, 0.2, 0.2, 0.2, 0.2]);
+    await tapCount('1 ✓');
     expect(find.text('−10'), findsNWidgets(4));
-    expect(_barOpacities(tester), [1.0, 1.0, 1.0, 1.0, 1.0]);
+    expect(await _barOpacities(tester), [1.0, 1.0, 1.0, 1.0, 1.0]);
 
     await tester.scrollUntilVisible(find.text('+10').hitTestable(), 200.0);
     await tester.tap(find.text('+10'));
     await tester.pumpAndSettle();
     expect(find.byType(AnalysisScreen), findsOneWidget);
+  });
+
+  testWidgets('a Drill is extended from its summary, by the number of puzzles last chosen', (
+    tester,
+  ) async {
+    await openHome(
+      tester,
+      signedIn: true,
+      defaultPreferences: {
+        SessionPreferencesStorage.key(PrefCategory.drill.storageKey, fakeAuthUser): jsonEncode(
+          const DrillConfig(nbPuzzles: 1).toJson(),
+        ),
+      },
+    );
+    await tester.tap(find.text('Start'));
+    await tester.pumpAndSettle();
+    await _failCurrentPuzzle(tester);
+    await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
+    await tester.pumpAndSettle();
+
+    // pinned at the bottom of the summary, 5 puzzles at first
+    expect(find.text('Continue (+5)').hitTestable(), findsOneWidget);
+    expect(find.text('Back').hitTestable(), findsOneWidget);
+
+    // another number, chosen as the number of puzzles of a Drill, continues the Drill
+    await tester.tap(find.byTooltip('Change how many puzzles to add'));
+    await tester.pumpAndSettle();
+    expect(_inSheet(find.text('Puzzles to add')), findsOneWidget);
+    expect(_inSheet(find.text('Last one: 5')), findsOneWidget);
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byTooltip('One puzzle less'));
+      await tester.pump();
+    }
+    await tester.tap(_inSheet(find.text('Continue (+2)')));
+    await tester.pumpAndSettle();
+    expect(find.byType(DrillScreen), findsOneWidget);
+    expect(find.text('2 / 3'), findsOneWidget);
+
+    for (var i = 0; i < 2; i++) {
+      await _failCurrentPuzzle(tester);
+      await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
+      await tester.pumpAndSettle();
+    }
+
+    // one summary of the whole Drill, as if it had been started with all its puzzles
+    expect(_description(), startsWith('Healthy mix · 3 puzzles · Normal · '));
+    expect(_description(), isNot(contains('Incomplete')));
+    expect(find.text('0 of 3 solved'), findsOneWidget);
+    expect(await _barOpacities(tester), [1.0, 1.0, 1.0]);
+    expect(tester.widget<BarChart>(find.byType(BarChart)).data.barGroups, hasLength(3));
+
+    // the number chosen is offered from then on
+    expect(find.text('Continue (+2)'), findsOneWidget);
+    await tester.tap(find.text('Back'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Start'));
+    await tester.pumpAndSettle();
+    await _failCurrentPuzzle(tester);
+    await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
+    await tester.pumpAndSettle();
+    expect(find.text('Continue (+2)'), findsOneWidget);
+  });
+
+  testWidgets('a Drill ended early is not extended', (tester) async {
+    await openHome(tester, signedIn: true);
+    await _chooseNbPuzzles(tester, 5);
+    await tester.tap(find.text('Start'));
+    await tester.pumpAndSettle();
+    await _failCurrentPuzzle(tester);
+    await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.text('End'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(PlatformDialogAction, 'End'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Continue'), findsNothing);
+    expect(find.byTooltip('Change how many puzzles to add'), findsNothing);
+    await tester.scrollUntilVisible(find.text('Back'), 200.0);
+    expect(find.text('Back'), findsOneWidget);
   });
 
   testWidgets('one button asks for a hint, which fails the puzzle, then gives up', (tester) async {
@@ -311,6 +404,9 @@ void main() {
 
     expect(_summaryValue('Points'), '··· 1500 → ?');
     expect(_summaryValue('Performance'), '1000 Unreliable', reason: 'known without the server');
+    await tester.scrollUntilVisible(find.text('The puzzle').hitTestable(), 200.0);
+    await tester.tap(find.text('The puzzle'));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('pending'), 200.0);
 
     server.isOffline = false;
@@ -588,6 +684,9 @@ void main() {
     await _failCurrentPuzzle(tester);
     await tester.tap(find.byIcon(CupertinoIcons.play_arrow_solid));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('The puzzle').hitTestable(), 200.0);
+    await tester.tap(find.text('The puzzle'));
+    await tester.pumpAndSettle();
     final puzzleRatingDiff = find.descendant(of: find.byType(ListTile), matching: find.text('−10'));
     await tester.scrollUntilVisible(puzzleRatingDiff.hitTestable(), 200.0);
     await tester.tap(puzzleRatingDiff);
@@ -644,7 +743,7 @@ void main() {
     // the puzzle's themes, but its length
     expect(find.text('Weakest themes'), findsOneWidget);
     expect(find.text('Short'), findsNothing);
-    await tester.scrollUntilVisible(find.text('Fork'), 200.0);
+    await tester.scrollUntilVisible(find.text('Fork').hitTestable(), 200.0);
     await tester.tap(find.text('Fork'));
     await tester.pumpAndSettle();
 
@@ -897,10 +996,14 @@ int _clockSeconds(WidgetTester tester) {
 Color? _clockColor(WidgetTester tester) => tester.widget<Text>(_clock()).style?.color;
 
 /// The opacity of each bar of the solving time chart of the Drill Summary, rounded to a tenth.
-List<double> _barOpacities(WidgetTester tester) => [
-  for (final group in tester.widget<BarChart>(find.byType(BarChart)).data.barGroups)
-    (group.barRods.single.color!.a * 10).round() / 10,
-];
+/// The opacity of each bar of the solving time chart, scrolled to.
+Future<List<double>> _barOpacities(WidgetTester tester) async {
+  await tester.scrollUntilVisible(find.byType(BarChart), -200.0);
+  return [
+    for (final group in tester.widget<BarChart>(find.byType(BarChart)).data.barGroups)
+      for (final rod in group.barRods) (rod.color!.a * 10).round() / 10,
+  ];
+}
 
 /// What the Drill of the Drill Summary was, above its share of puzzles solved.
 String _description() => find

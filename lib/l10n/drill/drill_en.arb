@@ -197,5 +197,10 @@
   "settingsAppearance": "Appearance",
   "showClock": "Show clock",
   "about": "Drills is a personal, unofficial version of Lichess Mobile.\nThanks to Lichess for making chess free for everyone.",
-  "supportLichess": "Support Lichess"
+  "supportLichess": "Support Lichess",
+
+  "extendDrill": "Continue (+{count})",
+  "@extendDrill": {"placeholders": {"count": {"type": "int"}}},
+  "changeExtension": "Change how many puzzles to add",
+  "extensionChoice": "Puzzles to add"
 }

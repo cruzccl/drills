@@ -138,5 +138,9 @@
   "settingsAppearance": "Apariencia",
   "showClock": "Mostrar reloj",
   "about": "Drills es una versión personal y no oficial de Lichess Mobile.\nGracias a Lichess por hacer el ajedrez libre y gratuito para todos.",
-  "supportLichess": "Apoya a Lichess"
+  "supportLichess": "Apoya a Lichess",
+
+  "extendDrill": "Seguir (+{count})",
+  "changeExtension": "Cambiar cuántos problemas añadir",
+  "extensionChoice": "Problemas a añadir"
 }

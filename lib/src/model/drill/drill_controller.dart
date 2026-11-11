@@ -59,6 +59,9 @@ class DrillController() extends Notifier<DrillState?> {
   /// the server, or kept pending if it could not be sent.
   bool _isLastResultSaved = true;
 
+  /// Whether the Drill is being extended by [extend].
+  bool _isExtending = false;
+
   /// Whether the pending solutions are being sent by [_sendPendingSolutions].
   bool _isSendingPendingSolutions = false;
 
@@ -119,7 +122,9 @@ class DrillController() extends Notifier<DrillState?> {
     if (userId != null) {
       final history = ref.read(drillHistoryProvider.notifier);
       final replaced = ref.read(unfinishedDrillProvider);
-      if (replaced != null && replaced.results.isNotEmpty) await history.add(userId, replaced);
+      if (replaced != null && replaced.results.isNotEmpty) {
+        await history.add(userId, replaced.ended());
+      }
       // Loading the puzzle synced the solutions left pending, maybe of the Drill replaced.
       await history.recordRatingDiffs(userId, puzzleContext.rounds, puzzleContext.glicko);
     }
@@ -158,8 +163,9 @@ class DrillController() extends Notifier<DrillState?> {
   /// Ends the Drill now. It is a Partial Drill if it ended before its last puzzle, or discarded if
   /// no puzzle was solved: then there is no Drill anymore.
   ///
-  /// The puzzle being solved, if it has no result yet, is left out. Returns whether the Drill has
-  /// a Drill Summary to show, `false` if it was discarded.
+  /// The puzzle being solved, if it has no result yet, is left out, and so is the last extension
+  /// if none of its puzzles was solved: the Drill ends as it was before it. Returns whether the
+  /// Drill has a Drill Summary to show, `false` if it was discarded.
   bool end() {
     final drillState = state;
     if (drillState == null) return false;
@@ -170,6 +176,48 @@ class DrillController() extends Notifier<DrillState?> {
     }
     _end();
     return true;
+  }
+
+  /// Extends the Drill just ended at its last puzzle with [nbPuzzles] more, to keep playing it from
+  /// its Drill Summary: they are added to its number of puzzles, and once ended it is as if it had
+  /// been started with them all.
+  ///
+  /// Returns `false` if the Drill can't be extended, being partial or not over, or if no puzzle
+  /// could be loaded.
+  Future<bool> extend(int nbPuzzles) async {
+    final drillState = state;
+    if (_isExtending ||
+        drillState == null ||
+        !drillState.isOver ||
+        drillState.drill.isPartial ||
+        nbPuzzles < 1) {
+      return false;
+    }
+    _isExtending = true;
+    try {
+      final puzzleContext = await _loadPuzzle(drillState.drill.config);
+      final current = state;
+      // Left or replaced meanwhile.
+      if (puzzleContext == null ||
+          current == null ||
+          !current.isOver ||
+          current.drill.startedAt != drillState.drill.startedAt) {
+        return false;
+      }
+      final drill = current.drill;
+      _play(
+        drill.copyWith(
+          config: drill.config.copyWith(nbPuzzles: drill.config.nbPuzzles + nbPuzzles),
+          nbPuzzlesBeforeExtension: drill.config.nbPuzzles,
+        ),
+        puzzleContext,
+      );
+      // Loading the puzzle synced the solutions left pending.
+      _onSync(rounds: puzzleContext.rounds, glicko: puzzleContext.glicko);
+      return true;
+    } finally {
+      _isExtending = false;
+    }
   }
 
   /// Moves on from the solved puzzle: to the next one, or to the end of the Drill after the last.
@@ -371,7 +419,7 @@ class DrillController() extends Notifier<DrillState?> {
   /// Ends the Drill, then sends its pending solutions to the server, once the puzzle controller is
   /// done with the last result.
   void _end() {
-    state = state?.copyWith(isOver: true);
+    state = state?.copyWith(drill: state!.drill.ended(), isOver: true);
     if (_isLastResultSaved) _sendPendingSolutions();
   }
 
@@ -442,7 +490,7 @@ class DrillController() extends Notifier<DrillState?> {
       final service = await _puzzleService(angle);
       final synced = await service.syncSolutions(userId: userId, angle: angle);
       if (!ref.mounted) return;
-      if (state?.puzzleContext != drill.puzzleContext) {
+      if (state?.drill.startedAt != drill.drill.startedAt) {
         // Another Drill started meanwhile: the ended one is only in the Drill History now.
         if (userId != null) {
           ref
@@ -455,9 +503,14 @@ class DrillController() extends Notifier<DrillState?> {
               );
         }
       } else {
+        // The Drill may have been extended meanwhile: it is played again, with its rating changes.
         _onSync(rounds: synced.rounds, glicko: synced.glicko);
-        final remaining = await batchStorage.fetch(userId: userId, angle: angle);
-        isStillPending = remaining != null && remaining.solved.isNotEmpty;
+        if (state?.puzzleContext == drill.puzzleContext) {
+          final remaining = await batchStorage.fetch(userId: userId, angle: angle);
+          isStillPending = remaining != null && remaining.solved.isNotEmpty;
+        } else {
+          isStillPending = false;
+        }
       }
     } catch (e, st) {
       // The solutions stay pending, as when they can't be sent.
@@ -678,11 +731,15 @@ IList<DrillWeakTheme> weakestThemesOf(
       .toIList();
 }
 
+/// The number of puzzles an extension of a Drill has until the player chooses another.
+const kDefaultDrillExtension = 5;
+
 /// How a Drill is configured when it starts.
 @Freezed(fromJson: true, toJson: true)
 sealed class DrillConfig with _$DrillConfig implements Serializable {
   const factory({
-    /// The number of puzzles of the Drill, from 1 to [kMaxDrillPuzzles].
+    /// The number of puzzles of the Drill, from 1 to [kMaxDrillPuzzles] when it starts. Its
+    /// extensions add to it.
     required int nbPuzzles,
 
     /// The theme or opening of the puzzles.
@@ -754,12 +811,29 @@ sealed class const Drill._() with _$Drill implements Serializable {
 
     /// The player's puzzle rating returned by the latest sync of the solutions with the server.
     int? latestRating,
+
+    /// While an extension is played (puzzles added to the Drill at its end, from its Drill
+    /// Summary, to keep playing it), the number of puzzles of the Drill before it: to end the Drill
+    /// as it was if none of its puzzles is solved. Once ended, the Drill doesn't tell its
+    /// extensions apart.
+    int? nbPuzzlesBeforeExtension,
   }) = _Drill;
 
   factory fromJson(Map<String, dynamic> json) => _$DrillFromJson(json);
 
   /// Whether every puzzle of the Drill has been solved.
   bool get isLimitReached => results.length >= config.nbPuzzles;
+
+  /// The Drill as it ends: without the extension being played if none of its puzzles was solved,
+  /// as it was before it, and no longer telling its extensions apart.
+  Drill ended() {
+    final before = nbPuzzlesBeforeExtension;
+    if (before == null) return this;
+    return copyWith(
+      config: results.length <= before ? config.copyWith(nbPuzzles: before) : config,
+      nbPuzzlesBeforeExtension: null,
+    );
+  }
 
   /// Whether the Drill, once ended, is a Partial Drill: it ended before its last puzzle.
   bool get isPartial => !isLimitReached;

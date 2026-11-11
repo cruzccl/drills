@@ -882,6 +882,24 @@ abstract class DrillLocalizations {
   /// In en, this message translates to:
   /// **'Support Lichess'**
   String get supportLichess;
+
+  /// No description provided for @extendDrill.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue (+{count})'**
+  String extendDrill(int count);
+
+  /// No description provided for @changeExtension.
+  ///
+  /// In en, this message translates to:
+  /// **'Change how many puzzles to add'**
+  String get changeExtension;
+
+  /// No description provided for @extensionChoice.
+  ///
+  /// In en, this message translates to:
+  /// **'Puzzles to add'**
+  String get extensionChoice;
 }
 
 class _DrillLocalizationsDelegate extends LocalizationsDelegate<DrillLocalizations> {

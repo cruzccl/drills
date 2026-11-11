@@ -9,6 +9,7 @@ import 'package:lichess_mobile/src/model/common/id.dart';
 import 'package:lichess_mobile/src/model/drill/drill_controller.dart';
 import 'package:lichess_mobile/src/model/drill/drill_group.dart';
 import 'package:lichess_mobile/src/model/drill/drill_history.dart';
+import 'package:lichess_mobile/src/model/drill/drill_preferences.dart';
 import 'package:lichess_mobile/src/model/drill/drill_puzzle_analysis.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_angle.dart';
@@ -21,6 +22,8 @@ import 'package:lichess_mobile/src/utils/l10n_context.dart';
 import 'package:lichess_mobile/src/view/analysis/analysis_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_angle_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_history_screen.dart';
+import 'package:lichess_mobile/src/view/drill/nb_puzzles_sheet.dart';
+import 'package:lichess_mobile/src/widgets/adaptive_bottom_sheet.dart';
 import 'package:lichess_mobile/src/widgets/feedback.dart';
 import 'package:lichess_mobile/src/widgets/list.dart';
 import 'package:material_ui/material_ui.dart';
@@ -38,8 +41,18 @@ const _successRateMargin = 0.05;
 /// A weakest theme goes back to the Drill home with that theme chosen: the route showing the
 /// summary returns it. A Drill played signed out, without an account ([hasAccount] `false`), has
 /// no rating change.
-class const DrillSummary(final Drill drill, {final bool hasAccount = true, super.key})
-    extends ConsumerStatefulWidget {
+///
+/// With [onExtend], the Drill just ended can be extended: buttons pinned at the bottom offer to
+/// continue it with the number of puzzles last chosen for an extension, or with another one, which
+/// is kept for the next times.
+class const DrillSummary(
+  final Drill drill, {
+  final bool hasAccount = true,
+
+  /// Extends the Drill with a number of puzzles.
+  final Future<void> Function(int nbPuzzles)? onExtend,
+  super.key,
+}) extends ConsumerStatefulWidget {
   @override
   ConsumerState<DrillSummary> createState() => _DrillSummaryState();
 }
@@ -49,12 +62,51 @@ class _DrillSummaryState() extends ConsumerState<DrillSummary> {
   /// (`null`).
   bool? _winShown;
 
+  /// Whether the Drill is being extended, its next puzzle loading.
+  bool _isExtending = false;
+
+  Future<void> _extend(int nbPuzzles) async {
+    setState(() => _isExtending = true);
+    try {
+      await widget.onExtend!(nbPuzzles);
+    } finally {
+      if (mounted) setState(() => _isExtending = false);
+    }
+  }
+
+  Future<void> _chooseExtension(int last) async {
+    final nbPuzzles = await showAdaptiveBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => NbPuzzlesSheet(
+        initial: last,
+        last: last,
+        timePerPuzzle: recentTimePerPuzzle(ref),
+        title: context.drillL10n.extensionChoice,
+        actionLabel: context.drillL10n.extendDrill,
+      ),
+    );
+    if (nbPuzzles == null || !mounted) return;
+    await ref.read(drillPreferencesProvider.notifier).setExtension(nbPuzzles);
+    if (mounted) await _extend(nbPuzzles);
+  }
+
   @override
   Widget build(BuildContext context) {
     final drill = widget.drill;
     final weakestThemes = drill.weakestThemes;
-    return ListView(
-      padding: Styles.bodyPadding.add(MediaQuery.paddingOf(context)),
+    final canExtend = widget.onExtend != null;
+    final extension = ref.watch(drillPreferencesProvider.select((p) => p.extension));
+    // For the pace in the sheet choosing the extension.
+    if (canExtend) ref.watch(recentDrillsProvider);
+    final padding = MediaQuery.paddingOf(context);
+    final backButton = OutlinedButton(
+      onPressed: () => Navigator.of(context).pop(),
+      child: Text(context.drillL10n.backToHome),
+    );
+    final summary = ListView(
+      padding: Styles.bodyPadding.add(canExtend ? padding.copyWith(bottom: 0.0) : padding),
       children: [
         _Headline(
           description: drillDescription(context, ref, drill),
@@ -82,10 +134,48 @@ class _DrillSummaryState() extends ConsumerState<DrillSummary> {
           winShown: _winShown,
           onWinShownChanged: (winShown) => setState(() => _winShown = winShown),
         ),
-        const SizedBox(height: 20.0),
-        OutlinedButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(context.drillL10n.backToHome),
+        if (!canExtend) ...[const SizedBox(height: 20.0), backButton],
+      ],
+    );
+    if (!canExtend) return summary;
+    return Column(
+      children: [
+        Expanded(child: summary),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: ColorScheme.of(context).outlineVariant)),
+          ),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              16.0 + padding.left,
+              12.0,
+              16.0 + padding.right,
+              12.0 + padding.bottom,
+            ),
+            child: Column(
+              crossAxisAlignment: .stretch,
+              spacing: 8.0,
+              children: [
+                Row(
+                  spacing: 8.0,
+                  children: [
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: _isExtending ? null : () => _extend(extension),
+                        child: Text(context.drillL10n.extendDrill(extension)),
+                      ),
+                    ),
+                    IconButton.outlined(
+                      tooltip: context.drillL10n.changeExtension,
+                      onPressed: _isExtending ? null : () => _chooseExtension(extension),
+                      icon: const Icon(Icons.edit_outlined),
+                    ),
+                  ],
+                ),
+                backButton,
+              ],
+            ),
+          ),
         ),
       ],
     );
@@ -582,11 +672,11 @@ class const _ThemeCard(final DrillWeakTheme data) extends StatelessWidget {
   }
 }
 
-/// The puzzles of the [drills], under a header that folds and unfolds them, with its counts of
-/// puzzles solved and failed, each showing only those puzzles until tapped again.
+/// The puzzles of the [drills], folded at first under a header that unfolds them, with its counts
+/// of puzzles solved and failed, each showing only those puzzles until tapped again.
 ///
-/// The puzzles of [grouped] Drills are folded at first, under a header per Drill, left out when
-/// none of its puzzles is shown.
+/// The puzzles of [grouped] Drills are under a header per Drill, left out when none of its puzzles
+/// is shown.
 class const _PuzzleList(
   final IList<Drill> drills, {
   required final bool? winShown,
@@ -598,7 +688,7 @@ class const _PuzzleList(
 }
 
 class _PuzzleListState() extends State<_PuzzleList> {
-  late bool _isExpanded = !widget.grouped;
+  bool _isExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -659,14 +749,11 @@ class _PuzzleListState() extends State<_PuzzleList> {
           ),
         ),
         if (_isExpanded)
-          if (!widget.grouped)
-            ListSection(margin: .zero, hasLeading: true, children: tiles(widget.drills.single))
-          else
-            for (final drill in widget.drills)
-              if (tiles(drill) case final drillTiles when drillTiles.isNotEmpty) ...[
-                _DrillHeader(drill, winShown: winShown),
-                ListSection(margin: .zero, hasLeading: true, children: drillTiles),
-              ],
+          for (final drill in widget.drills)
+            if (tiles(drill) case final drillTiles when drillTiles.isNotEmpty) ...[
+              if (widget.grouped) _DrillHeader(drill, winShown: winShown),
+              ListSection(margin: .zero, hasLeading: true, children: drillTiles),
+            ],
       ],
     );
   }

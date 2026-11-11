@@ -21,11 +21,13 @@ import 'package:lichess_mobile/src/view/drill/drill_summary.dart';
 import 'package:lichess_mobile/src/view/puzzle/puzzle_feedback_widget.dart';
 import 'package:lichess_mobile/src/widgets/board.dart';
 import 'package:lichess_mobile/src/widgets/bottom_bar.dart';
+import 'package:lichess_mobile/src/widgets/feedback.dart';
 import 'package:lichess_mobile/src/widgets/platform.dart';
 import 'package:lichess_mobile/src/widgets/platform_alert_dialog.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// The screen of the Drill being played: its puzzles one after the other, then its Drill Summary.
+/// The screen of the Drill being played: its puzzles one after the other, then its Drill Summary,
+/// from which the Drill can be extended to keep playing it.
 ///
 /// While the Drill runs, only its progress is shown (zen mode): nothing about the previous
 /// puzzles, nor the player's rating.
@@ -110,7 +112,21 @@ class const DrillScreen({super.key}) extends ConsumerWidget {
         ),
         body: switch (drill) {
           null => const SizedBox.shrink(),
-          DrillState(isOver: true) => DrillSummary(drill.drill, hasAccount: drill.hasAccount),
+          DrillState(isOver: true) => DrillSummary(
+            drill.drill,
+            hasAccount: drill.hasAccount,
+            // A Drill ended before its last puzzle is not extended.
+            onExtend: drill.drill.isPartial
+                ? null
+                : (nbPuzzles) async {
+                    final extended = await ref
+                        .read(drillControllerProvider.notifier)
+                        .extend(nbPuzzles);
+                    if (!extended && context.mounted) {
+                      showSnackBar(context, 'Could not load the next puzzle', type: .error);
+                    }
+                  },
+          ),
           _ => _DrillPuzzle(drill),
         },
       ),

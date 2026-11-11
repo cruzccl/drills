@@ -671,6 +671,95 @@ void main() {
     expect(drill.drill.isPartial, isFalse);
   });
 
+  test('a Drill ended at its last puzzle is extended, then ends after its extension', () async {
+    final container = await makeDrillContainer();
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(const DrillConfig(nbPuzzles: 2));
+    for (final win in [true, false]) {
+      await _solveCurrentPuzzle(container, win: win);
+      drillCtrl.continueDrill();
+    }
+    expect(container.read(drillControllerProvider)!.isOver, isTrue);
+
+    expect(await drillCtrl.extend(3), isTrue);
+
+    var drill = container.read(drillControllerProvider)!;
+    expect(drill.isOver, isFalse);
+    expect(drill.puzzleNumber, 3);
+    expect(drill.drill.config.nbPuzzles, 5);
+    expect(
+      container.read(unfinishedDrillProvider)?.nbPuzzlesBeforeExtension,
+      2,
+      reason: 'can be resumed',
+    );
+    for (final win in [true, true, false]) {
+      await _solveCurrentPuzzle(container, win: win);
+      drillCtrl.continueDrill();
+    }
+
+    drill = container.read(drillControllerProvider)!;
+    expect(drill.isOver, isTrue);
+    expect(drill.drill.isPartial, isFalse);
+    expect(drill.drill.results.map((r) => r.win), [true, false, true, true, false]);
+    expect(drill.drill.nbPuzzlesBeforeExtension, isNull, reason: 'as if started with 5');
+    expect(server.solutions, hasLength(5));
+    await _waitFor(() => _loadedHistory(container)?.singleOrNull?.nbPlayed == 5);
+    final entry = _loadedHistory(container)!.single;
+    expect(entry.config.nbPuzzles, 5);
+    expect(entry.isPartial, isFalse);
+    expect(container.read(unfinishedDrillProvider), isNull);
+  });
+
+  test('a Partial Drill is not extended', () async {
+    final container = await makeDrillContainer();
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(_drill);
+    await _solveCurrentPuzzle(container, win: true);
+    drillCtrl.continueDrill();
+    await _waitFor(() => _puzzleState(container).mode == .play);
+    drillCtrl.end();
+
+    expect(await drillCtrl.extend(3), isFalse);
+    expect(container.read(drillControllerProvider)!.isOver, isTrue);
+    expect(container.read(drillControllerProvider)!.drill.config.nbPuzzles, 5);
+  });
+
+  test('an extension ended before any of its puzzles is solved is left out', () async {
+    final container = await makeDrillContainer();
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(const DrillConfig(nbPuzzles: 1));
+    await _solveCurrentPuzzle(container, win: true);
+    drillCtrl.continueDrill();
+    await drillCtrl.extend(3);
+
+    drillCtrl.end();
+
+    final drill = container.read(drillControllerProvider)!;
+    expect(drill.isOver, isTrue);
+    expect(drill.drill.config.nbPuzzles, 1);
+    expect(drill.drill.nbPuzzlesBeforeExtension, isNull);
+    expect(drill.drill.isPartial, isFalse);
+  });
+
+  test('an extension ended midway makes a Partial Drill of all its puzzles', () async {
+    final container = await makeDrillContainer();
+    final drillCtrl = container.read(drillControllerProvider.notifier);
+    await drillCtrl.start(const DrillConfig(nbPuzzles: 1));
+    await _solveCurrentPuzzle(container, win: true);
+    drillCtrl.continueDrill();
+    await drillCtrl.extend(3);
+    await _solveCurrentPuzzle(container, win: false);
+    drillCtrl.continueDrill();
+    await _waitFor(() => _puzzleState(container).mode == .play);
+
+    drillCtrl.end();
+
+    final drill = container.read(drillControllerProvider)!;
+    expect(drill.drill.isPartial, isTrue);
+    expect(drill.drill.config.nbPuzzles, 4);
+    expect(drill.drill.results, hasLength(2));
+  });
+
   test('a Drill ended before any puzzle is solved is discarded', () async {
     final container = await makeDrillContainer();
     final drillCtrl = container.read(drillControllerProvider.notifier);

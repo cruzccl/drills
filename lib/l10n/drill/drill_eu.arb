@@ -138,5 +138,9 @@
   "settingsAppearance": "Itxura",
   "showClock": "Erakutsi erlojua",
   "about": "Drills Lichess Mobileren bertsio pertsonal eta ez-ofiziala da.\nEskerrik asko Lichessi xakea guztiontzat libre eta doan egiteagatik.",
-  "supportLichess": "Lagundu Lichessi"
+  "supportLichess": "Lagundu Lichessi",
+
+  "extendDrill": "Jarraitu (+{count})",
+  "changeExtension": "Aldatu zenbat ariketa gehitu",
+  "extensionChoice": "Gehitzeko ariketak"
 }

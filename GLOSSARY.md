@@ -5,9 +5,13 @@ A personal fork of Lichess Mobile whose home screen is a bounded tactics trainin
 ## Language
 
 **Drill**:
-A bounded series of a chosen number of puzzles, rated when signed in, configured when it starts, that ends with a Drill Summary.
+A bounded series of a chosen number of puzzles, rated when signed in, configured when it starts, that ends with a Drill Summary. It can be extended at its end by an Extension.
 A Drill played signed out counts on no Lichess account (its puzzles are unrated and nothing is sent to Lichess) and is not kept in any Drill History.
 _Avoid_: Session, training, puzzle set
+
+**Extension**:
+Puzzles added to a Drill finished to its last puzzle, from its Drill Summary, to keep playing it: the Drill gets them on top of its number of puzzles, and once ended it is as if it had been started with them all: neither its Drill Summary nor the Drill History tell its Extensions apart. An Extension ended before any of its puzzles is solved is left out. Its number of puzzles is the last chosen, 5 at first.
+_Avoid_: New Drill, continuation
 
 **Partial Drill**:
 A Drill that ended before its last puzzle, because the player ended it or started another one before finishing it.
