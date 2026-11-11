@@ -2,9 +2,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/experimental/mutation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lichess_mobile/src/model/auth/auth_controller.dart';
+import 'package:lichess_mobile/src/model/common/id.dart';
 import 'package:lichess_mobile/src/model/drill/drill_controller.dart';
 import 'package:lichess_mobile/src/model/puzzle/puzzle_difficulty.dart';
 import 'package:lichess_mobile/src/model/settings/board_preferences.dart';
+import 'package:lichess_mobile/src/model/user/user_repository_providers.dart';
 import 'package:lichess_mobile/src/network/connectivity.dart';
 import 'package:lichess_mobile/src/styles/lichess_icons.dart';
 import 'package:lichess_mobile/src/styles/styles.dart';
@@ -13,6 +15,7 @@ import 'package:lichess_mobile/src/view/auth/sign_in_error.dart';
 import 'package:lichess_mobile/src/view/auth/sign_in_options.dart';
 import 'package:lichess_mobile/src/view/drill/drill_angle_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_history_screen.dart';
+import 'package:lichess_mobile/src/view/drill/drill_profile_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_settings_screen.dart';
 import 'package:lichess_mobile/src/view/drill/drill_strings.dart';
@@ -28,6 +31,7 @@ import 'package:lichess_mobile/src/widgets/platform.dart';
 import 'package:lichess_mobile/src/widgets/platform_choice_chip.dart';
 import 'package:lichess_mobile/src/widgets/platform_filled_button.dart';
 import 'package:lichess_mobile/src/widgets/settings.dart';
+import 'package:lichess_mobile/src/widgets/user.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// The numbers of puzzles offered to set up a Drill with one tap.
@@ -86,9 +90,18 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
     }
   }
 
+  /// Opens the player's profile, whose dashboard themes set up the Drill.
+  Future<void> _openProfile(UserId userId) async {
+    final angle = await Navigator.of(context).push(DrillProfileScreen.buildRoute(userId));
+    if (angle != null && mounted) {
+      setState(() => _config = _config.copyWith(angle: angle));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isSignedIn = ref.watch(authControllerProvider) != null;
+    final authUser = ref.watch(authControllerProvider);
+    final isSignedIn = authUser != null;
     final isOnline = ref.watch(isDeviceOnlineProvider);
     final signInState = ref.watch(signInMutation);
     final unfinishedDrill = ref.watch(unfinishedDrillProvider);
@@ -110,6 +123,16 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
             semanticsLabel: context.l10n.settingsSettings,
             onPressed: () => Navigator.of(context).push(DrillSettingsScreen.buildRoute()),
           ),
+          if (authUser != null)
+            SemanticIconButton(
+              // The profile's user has the flair, which the signed in user lacks.
+              icon: UserAvatar(
+                ref.watch(userProvider(authUser.user.id)).value?.lightUser ?? authUser.user,
+                radius: 14,
+              ),
+              semanticsLabel: DrillStrings.profile,
+              onPressed: () => _openProfile(authUser.user.id),
+            ),
         ],
       ),
       body: isSignedIn

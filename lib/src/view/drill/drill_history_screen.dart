@@ -96,7 +96,7 @@ class const _DayHeader(final DateTime day, final List<DrillHistoryEntry> entries
         crossAxisAlignment: .baseline,
         textBaseline: .alphabetic,
         children: [
-          Expanded(child: Text(_dayName(day), style: Styles.sectionTitle)),
+          Expanded(child: Text(drillDayName(day), style: Styles.sectionTitle)),
           Text(
             '$nb ${nb == 1 ? DrillStrings.drillUnit : DrillStrings.drillsUnit}'
             '${change != null ? ' · ' : ''}',
@@ -442,8 +442,8 @@ class const _ChartCard() extends ConsumerWidget {
               Row(
                 mainAxisAlignment: .spaceBetween,
                 children: [
-                  Text(_dayName(values.first.date, short: true), style: subtitleStyle),
-                  Text(_dayName(values.last.date, short: true), style: subtitleStyle),
+                  Text(drillDayName(values.first.date, short: true), style: subtitleStyle),
+                  Text(drillDayName(values.last.date, short: true), style: subtitleStyle),
                 ],
               ),
             ],
@@ -642,7 +642,7 @@ TextStyle _tooltipStyle(BuildContext context) =>
     TextStyle(fontWeight: .bold, color: ColorScheme.of(context).onInverseSurface);
 
 TextSpan _tooltipDate(BuildContext context, DateTime date) => TextSpan(
-  text: _dayName(date, short: true),
+  text: drillDayName(date, short: true),
   style: TextStyle(
     fontSize: 11,
     fontWeight: .normal,
@@ -652,7 +652,7 @@ TextSpan _tooltipDate(BuildContext context, DateTime date) => TextSpan(
 
 /// The name of the day of [date]: today, yesterday, or its date, with the year if it is not this
 /// year's, and with the day of the week unless [short].
-String _dayName(DateTime date, {bool short = false}) {
+String drillDayName(DateTime date, {bool short = false}) {
   final today = DateUtils.dateOnly(DateTime.now());
   final day = DateUtils.dateOnly(date);
   if (day == today) return DrillStrings.today;
