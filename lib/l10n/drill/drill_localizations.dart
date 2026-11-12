@@ -277,6 +277,30 @@ abstract class DrillLocalizations {
   /// **'Play a Drill today to start a streak'**
   String get playTodayToStart;
 
+  /// Title of the numbers of puzzles played today, this week and this month, at the bottom of the streak
+  ///
+  /// In en, this message translates to:
+  /// **'Puzzles'**
+  String get puzzleCounts;
+
+  /// No description provided for @puzzlesToday.
+  ///
+  /// In en, this message translates to:
+  /// **'today'**
+  String get puzzlesToday;
+
+  /// Below the number of puzzles played this week, from Monday
+  ///
+  /// In en, this message translates to:
+  /// **'this week'**
+  String get puzzlesThisWeek;
+
+  /// Below the number of puzzles played this month; month is its number, from 1 to 12
+  ///
+  /// In en, this message translates to:
+  /// **'{month, select, 1{in January} 2{in February} 3{in March} 4{in April} 5{in May} 6{in June} 7{in July} 8{in August} 9{in September} 10{in October} 11{in November} 12{in December} other{in December}}'**
+  String puzzlesInMonth(String month);
+
   /// No description provided for @progress.
   ///
   /// In en, this message translates to:

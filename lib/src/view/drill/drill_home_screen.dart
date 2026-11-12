@@ -247,7 +247,8 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
 }
 
 /// The player's current streak of days in a row with a Drill and their best one, above the days
-/// of this week, from Monday, those with a Drill lit.
+/// of this week, from Monday, those with a Drill lit, and the numbers of puzzles played today, this
+/// week and this month.
 class const _StreakCard({
   required final IList<DrillChartPoint> points,
   required final DateTime today,
@@ -259,6 +260,7 @@ class const _StreakCard({
   Widget build(BuildContext context) {
     final streak = drillStreak(points, today: today);
     final played = drillPuzzlesByDay(points);
+    final counts = drillPuzzleCounts(points, today: today);
     final brag = context.lichessColors.brag;
     final subtitleStyle = TextStyle(
       fontSize: 13,
@@ -349,8 +351,53 @@ class const _StreakCard({
                 style: TextStyle(fontSize: 13, color: brag),
               ),
             ],
+            // Hidden like the progress until the player has a Drill.
+            if (points.isNotEmpty) ...[
+              const SizedBox(height: 14.0),
+              const Divider(height: 1.0),
+              const SizedBox(height: 10.0),
+              Text(
+                context.drillL10n.puzzleCounts.toUpperCase(),
+                textAlign: .center,
+                style: subtitleStyle.copyWith(fontSize: 11, fontWeight: .w600, letterSpacing: 0.4),
+              ),
+              const SizedBox(height: 4.0),
+              IntrinsicHeight(
+                child: Row(
+                  children: [
+                    _PuzzleCount(counts.today, label: context.drillL10n.puzzlesToday),
+                    const VerticalDivider(width: 1.0),
+                    _PuzzleCount(counts.week, label: context.drillL10n.puzzlesThisWeek),
+                    const VerticalDivider(width: 1.0),
+                    _PuzzleCount(
+                      counts.month,
+                      label: context.drillL10n.puzzlesInMonth('${day.month}'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A number of puzzles played in a period of the streak card, above its [label].
+class const _PuzzleCount(final int count, {required final String label}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text('$count', style: const TextStyle(fontSize: 22, fontWeight: .bold)),
+          Text(
+            label,
+            textAlign: .center,
+            style: TextStyle(fontSize: 12, color: textShade(context, Styles.subtitleOpacity)),
+          ),
+        ],
       ),
     );
   }

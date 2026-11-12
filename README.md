@@ -35,7 +35,8 @@ summary of the results.
   Drill. It counts neither on the puzzle rating nor in the Drill.
 - Past Drills are kept on the device in a Drill History, one per account, grouped by day; each
   Drill can be reviewed again or deleted. The home screen lists the last 3, and shows your streak
-  of days in a row with a Drill over this week.
+  of days in a row with a Drill over this week, with the puzzles played today, this week and this
+  month (finished Drills only, each counting on the day it started).
 - The streak opens your progress: your current and best streaks, a calendar of the days played,
   and charts of your performance and success rate over the last week, month, 3 months, year or
   all of them, by day played (by week over longer ranges), with their averages and the number of

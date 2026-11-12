@@ -179,6 +179,48 @@ void main() {
     expect(drillPuzzlesByDay(points), {DateTime(2026, 10, 25): 15}.lock);
   });
 
+  test('the puzzles of today, this week from Monday and this month', () {
+    final points = [
+      _point(DateTime(2026, 9, 30, 22), nbPuzzles: 40),
+      _point(DateTime(2026, 10, 18, 10), nbPuzzles: 30),
+      _point(DateTime(2026, 10, 19, 9), nbPuzzles: 20),
+      _point(DateTime(2026, 10, 24, 21), nbPuzzles: 15),
+      _point(DateTime(2026, 10, 26, 8), nbPuzzles: 10),
+    ].toIList();
+
+    expect(drillPuzzleCounts(points, today: DateTime(2026, 10, 26, 20)), (
+      today: 10,
+      week: 10,
+      month: 75,
+    ), reason: 'Monday 26 October: a new week');
+    expect(drillPuzzleCounts(points, today: DateTime(2026, 10, 25, 20)), (
+      today: 0,
+      week: 35,
+      month: 65,
+    ), reason: 'Sunday 25 October: the week from Monday 19');
+    expect(drillPuzzleCounts(points, today: DateTime(2026, 11, 1, 9)), (
+      today: 0,
+      week: 10,
+      month: 0,
+    ), reason: 'Sunday 1 November: a new month');
+    expect(drillPuzzleCounts(const IListConst([]), today: _today), (today: 0, week: 0, month: 0));
+  });
+
+  test('a Drill counts whole on the day it started', () {
+    final points = [_point(DateTime(2026, 10, 31, 23, 45), nbPuzzles: 24)].toIList();
+
+    expect(drillPuzzleCounts(points, today: DateTime(2026, 10, 31, 23, 59)), (
+      today: 24,
+      week: 24,
+      month: 24,
+    ));
+    expect(drillPuzzleCounts(points, today: DateTime(2026, 11, 1, 0, 10)), (
+      today: 0,
+      week: 24,
+      month: 0,
+    ));
+  });
+
   test('a range of the last Drills chosen before is the last month', () {
     expect(DrillChartPrefs.fromJson(const {'range': 'last10'}).range, DrillChartRange.month);
     expect(

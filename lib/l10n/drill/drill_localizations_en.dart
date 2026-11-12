@@ -147,6 +147,38 @@ class DrillLocalizationsEn extends DrillLocalizations {
   String get playTodayToStart => 'Play a Drill today to start a streak';
 
   @override
+  String get puzzleCounts => 'Puzzles';
+
+  @override
+  String get puzzlesToday => 'today';
+
+  @override
+  String get puzzlesThisWeek => 'this week';
+
+  @override
+  String puzzlesInMonth(String month) {
+    String _temp0 = intl.Intl.selectLogic(
+      month,
+      {
+        '1': 'in January',
+        '2': 'in February',
+        '3': 'in March',
+        '4': 'in April',
+        '5': 'in May',
+        '6': 'in June',
+        '7': 'in July',
+        '8': 'in August',
+        '9': 'in September',
+        '10': 'in October',
+        '11': 'in November',
+        '12': 'in December',
+        'other': 'in December',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get progress => 'Progress';
 
   @override

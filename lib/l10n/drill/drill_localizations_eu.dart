@@ -139,6 +139,38 @@ class DrillLocalizationsEu extends DrillLocalizations {
   String get playTodayToStart => 'Egin Drill bat gaur bolada bat hasteko';
 
   @override
+  String get puzzleCounts => 'Ariketak';
+
+  @override
+  String get puzzlesToday => 'gaur';
+
+  @override
+  String get puzzlesThisWeek => 'aste honetan';
+
+  @override
+  String puzzlesInMonth(String month) {
+    String _temp0 = intl.Intl.selectLogic(
+      month,
+      {
+        '1': 'urtarrilean',
+        '2': 'otsailean',
+        '3': 'martxoan',
+        '4': 'apirilean',
+        '5': 'maiatzean',
+        '6': 'ekainean',
+        '7': 'uztailean',
+        '8': 'abuztuan',
+        '9': 'irailean',
+        '10': 'urrian',
+        '11': 'azaroan',
+        '12': 'abenduan',
+        'other': 'abenduan',
+      },
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get progress => 'Aurrerapena';
 
   @override

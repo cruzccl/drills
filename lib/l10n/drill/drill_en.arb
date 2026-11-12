@@ -51,6 +51,16 @@
   "playTodayToReach": "Play a Drill today to reach {count, plural, =1{1 day} other{{count} days}}",
   "@playTodayToReach": {"placeholders": {"count": {"type": "int"}}},
   "playTodayToStart": "Play a Drill today to start a streak",
+  "puzzleCounts": "Puzzles",
+  "@puzzleCounts": {"description": "Title of the numbers of puzzles played today, this week and this month, at the bottom of the streak"},
+  "puzzlesToday": "today",
+  "puzzlesThisWeek": "this week",
+  "@puzzlesThisWeek": {"description": "Below the number of puzzles played this week, from Monday"},
+  "puzzlesInMonth": "{month, select, 1{in January} 2{in February} 3{in March} 4{in April} 5{in May} 6{in June} 7{in July} 8{in August} 9{in September} 10{in October} 11{in November} 12{in December} other{in December}}",
+  "@puzzlesInMonth": {
+    "description": "Below the number of puzzles played this month; month is its number, from 1 to 12",
+    "placeholders": {"month": {"type": "String"}}
+  },
   "progress": "Progress",
   "fewerPuzzles": "Fewer",
   "@fewerPuzzles": {"description": "Legend of the activity calendar, before its colors from fewer to more puzzles"},

@@ -228,6 +228,24 @@ IMap<DateTime, int> drillPuzzlesByDay(IList<DrillChartPoint> points) {
   return byDay.lock;
 }
 
+/// The number of puzzles of the Drills of [points] played [today], this [week], from Monday, and
+/// this [month].
+typedef DrillPuzzleCounts = ({int today, int week, int month});
+
+/// The number of puzzles of the Drills of [points] played today, this week and this month, each
+/// Drill counting whole on the day it started.
+DrillPuzzleCounts drillPuzzleCounts(IList<DrillChartPoint> points, {required DateTime today}) {
+  final day = _day(today);
+  final monday = _daysBefore(day, day.weekday - DateTime.monday);
+  final firstOfMonth = DateTime(day.year, day.month);
+  final byDay = drillPuzzlesByDay(points);
+  int since(DateTime start) => byDay.entries
+      .where((e) => !e.key.isBefore(start) && !e.key.isAfter(day))
+      .map((e) => e.value)
+      .sum;
+  return (today: since(day), week: since(monday), month: since(firstOfMonth));
+}
+
 /// The first day of [range] up to [today], or of the first Drill of [points] for the whole Drill
 /// History.
 DateTime drillChartRangeStart(
