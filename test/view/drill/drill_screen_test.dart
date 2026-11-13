@@ -817,8 +817,10 @@ void main() {
         ),
       },
     );
-    expect(find.text('See history'), findsNothing, reason: 'no Drill yet');
-    expect(find.text('Progress'), findsNothing);
+    expect(find.text('Progress'), findsNothing, reason: 'no Drill yet');
+    // the History reachable without a Drill, to import some
+    await tester.scrollUntilVisible(find.text('See history'), 200.0);
+    expect(find.text("You haven't finished any Drill yet."), findsOneWidget);
 
     await _playOnePuzzleDrill(tester);
     // the latest Drills, on the home screen

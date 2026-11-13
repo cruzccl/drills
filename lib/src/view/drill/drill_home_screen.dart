@@ -143,9 +143,9 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
     final unfinishedDrill = ref.watch(unfinishedDrillProvider);
     final last = ref.watch(lastDrillConfigProvider);
     final user = authUser != null ? ref.watch(userProvider(authUser.user.id)).value : null;
-    final entries = isSignedIn
-        ? ref.watch(drillHistoryProvider).value?.entries ?? const IListConst([])
-        : const IListConst<DrillHistoryEntry>([]);
+    // `null` while signed out or loading.
+    final history = isSignedIn ? ref.watch(drillHistoryProvider).value?.entries : null;
+    final entries = history ?? const IListConst<DrillHistoryEntry>([]);
     final points = isSignedIn ? ref.watch(drillChartPointsProvider).value : null;
     final weakThemes =
         ref.watch(recentWeakestThemesProvider).value ?? const IListConst<DrillWeakTheme>([]);
@@ -231,7 +231,8 @@ class _DrillHomeScreenState() extends ConsumerState<DrillHomeScreen> {
                   ? () => Navigator.of(context).push(StormScreen.buildRoute())
                   : null,
             ),
-            if (entries.isNotEmpty) ...[
+            // Shown even without a Drill, for the History to import Drills into a new install.
+            if (history != null) ...[
               const SizedBox(height: 20.0),
               _LastDrills(
                 entries.take(_nbLastDrills),
@@ -730,7 +731,8 @@ class const _ConfigTile({
   }
 }
 
-/// The latest Drills, a line each, which open their summaries, and a link to the Drill History.
+/// The latest Drills, a line each, which open their summaries, or a line saying there is none
+/// yet, and a link to the Drill History.
 class const _LastDrills(
   final Iterable<DrillHistoryEntry> entries, {
   required final VoidCallback onSeeHistory,
@@ -763,7 +765,17 @@ class const _LastDrills(
             borderRadius: BorderRadius.all(Radius.circular(16.0)),
           ),
           child: Column(
+            crossAxisAlignment: .stretch,
             children: [
+              if (entries.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 16.0),
+                  child: Text(
+                    context.drillL10n.emptyHistory,
+                    textAlign: .center,
+                    style: subtitleStyle,
+                  ),
+                ),
               for (final (i, entry) in entries.indexed) ...[
                 if (i > 0) const Divider(height: 1.0, indent: 14.0),
                 InkWell(

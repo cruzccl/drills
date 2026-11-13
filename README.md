@@ -34,7 +34,8 @@ summary of the results.
 - Puzzle Storm, as in the official app, is one tap away on the home screen, to warm up before a
   Drill. It counts neither on the puzzle rating nor in the Drill.
 - Past Drills are kept on the device in a Drill History, one per account, grouped by day; each
-  Drill can be reviewed again or deleted. The home screen lists the last 3, and shows your streak
+  Drill can be reviewed again or deleted. The home screen lists the last 3 (with a link to the
+  History even before the first Drill, to import a backup into a new install), and shows your streak
   of days in a row with a Drill over this week, with the puzzles played today, this week and this
   month (finished Drills only, each counting on the day it started).
 - The streak opens your progress: your current and best streaks, a calendar of the days played,
