@@ -246,6 +246,22 @@ DrillPuzzleCounts drillPuzzleCounts(IList<DrillChartPoint> points, {required Dat
   return (today: since(day), week: since(monday), month: since(firstOfMonth));
 }
 
+/// The number of Drills and of their puzzles played from the day of [from] to the day of [to],
+/// both included, each Drill counting whole on the day it started.
+({int nbDrills, int nbPuzzles}) drillsPlayedBetween(
+  IList<DrillChartPoint> points, {
+  required DateTime from,
+  required DateTime to,
+}) {
+  final first = _day(from);
+  final last = _day(to);
+  final played = points.where((p) {
+    final day = _day(p.startedAt);
+    return p.nbPuzzles > 0 && !day.isBefore(first) && !day.isAfter(last);
+  });
+  return (nbDrills: played.length, nbPuzzles: played.map((p) => p.nbPuzzles).sum);
+}
+
 /// The first day of [range] up to [today], or of the first Drill of [points] for the whole Drill
 /// History.
 DateTime drillChartRangeStart(

@@ -62,6 +62,18 @@
     "placeholders": {"month": {"type": "String"}}
   },
   "progress": "Progress",
+  "noDrills": "No Drills",
+  "@noDrills": {"description": "Below the calendar of the progress, for a day or days touched without any Drill"},
+  "dayRangeSameMonth": "{month} {from}–{to}",
+  "@dayRangeSameMonth": {
+    "description": "Days touched on the calendar of the progress, from one to the other of the same month; month is its name, as on its own",
+    "placeholders": {"from": {"type": "int"}, "to": {"type": "int"}, "month": {"type": "String"}}
+  },
+  "dayRange": "{from} – {to}",
+  "@dayRange": {
+    "description": "Days touched on the calendar of the progress, from one to the other of different months; from and to are dates with their month",
+    "placeholders": {"from": {"type": "String"}, "to": {"type": "String"}}
+  },
   "fewerPuzzles": "Fewer",
   "@fewerPuzzles": {"description": "Legend of the activity calendar, before its colors from fewer to more puzzles"},
   "morePuzzles": "More puzzles",

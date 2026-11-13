@@ -307,6 +307,24 @@ abstract class DrillLocalizations {
   /// **'Progress'**
   String get progress;
 
+  /// Below the calendar of the progress, for a day or days touched without any Drill
+  ///
+  /// In en, this message translates to:
+  /// **'No Drills'**
+  String get noDrills;
+
+  /// Days touched on the calendar of the progress, from one to the other of the same month; month is its name, as on its own
+  ///
+  /// In en, this message translates to:
+  /// **'{month} {from}–{to}'**
+  String dayRangeSameMonth(int from, int to, String month);
+
+  /// Days touched on the calendar of the progress, from one to the other of different months; from and to are dates with their month
+  ///
+  /// In en, this message translates to:
+  /// **'{from} – {to}'**
+  String dayRange(String from, String to);
+
   /// Legend of the activity calendar, before its colors from fewer to more puzzles
   ///
   /// In en, this message translates to:

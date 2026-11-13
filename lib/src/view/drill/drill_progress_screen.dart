@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:collection/collection.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lichess_mobile/src/model/drill/drill_chart.dart';
@@ -75,7 +76,8 @@ class const DrillProgressScreen({super.key}) extends ConsumerWidget {
                 ),
               ),
             const SizedBox(height: 16.0),
-            _StreakCard(points: points, range: range, today: today),
+            // A range chosen lets go of the days chosen on the calendar.
+            _StreakCard(key: ValueKey(range), points: points, range: range, today: today),
             const SizedBox(height: 16.0),
             _ChartCard(series: series, range: range),
           ],
@@ -86,17 +88,45 @@ class const DrillProgressScreen({super.key}) extends ConsumerWidget {
 }
 
 /// The streaks of days in a row with a Drill, the number of days played in the range, and their
-/// calendar.
+/// calendar, whose days can be touched to see the Drills played on them: one day, then a second
+/// one for the days from one to the other.
 class const _StreakCard({
+  super.key,
   required final IList<DrillChartPoint> points,
   required final DrillChartRange range,
   required final DateTime today,
-}) extends StatelessWidget {
+}) extends StatefulWidget {
+  @override
+  State<_StreakCard> createState() => _StreakCardState();
+}
+
+class _StreakCardState() extends State<_StreakCard> {
+  /// The day touched first, `null` while none is.
+  DateTime? _first;
+
+  /// The day touched second, the other end of the days chosen.
+  DateTime? _second;
+
+  /// A day touched chooses it alone, unless one is already chosen alone: touched again it is let
+  /// go, another one makes the days from one to the other.
+  void _pick(DateTime day) => setState(() {
+    if (_first == null || _second != null) {
+      _first = day;
+      _second = null;
+    } else if (day == _first) {
+      _first = null;
+    } else {
+      _second = day;
+    }
+  });
+
   @override
   Widget build(BuildContext context) {
+    final points = widget.points;
+    final today = widget.today;
     final streak = drillStreak(points, today: today);
     final byDay = drillPuzzlesByDay(points);
-    final start = drillChartRangeStart(points, range: range, today: today);
+    final start = drillChartRangeStart(points, range: widget.range, today: today);
     final lastDay = DateUtils.dateOnly(today);
     final nbDays = _daysBetween(start, lastDay) + 1;
     final nbPlayed = byDay.keys
@@ -104,6 +134,17 @@ class const _StreakCard({
         .length;
     final labelStyle = TextStyle(fontSize: 12, color: textShade(context, Styles.subtitleOpacity));
     const valueStyle = TextStyle(fontSize: 26, fontWeight: .bold);
+    final first = _first;
+    final second = _second ?? first;
+    final chosen = first != null && second != null
+        ? (
+            from: first.isBefore(second) ? first : second,
+            to: first.isBefore(second) ? second : first,
+          )
+        : null;
+    final played = chosen != null
+        ? drillsPlayedBetween(points, from: chosen.from, to: chosen.to)
+        : null;
     return Card(
       margin: .zero,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16.0))),
@@ -164,9 +205,57 @@ class const _StreakCard({
               ],
             ),
             if (nbDays <= _maxNumberedCalendarDays)
-              _NumberedCalendar(byDay: byDay, start: start, today: lastDay)
+              _NumberedCalendar(
+                byDay: byDay,
+                start: start,
+                today: lastDay,
+                chosen: chosen,
+                onPick: _pick,
+              )
             else
-              _HeatmapCalendar(byDay: byDay, start: start, today: lastDay),
+              _HeatmapCalendar(
+                byDay: byDay,
+                start: start,
+                today: lastDay,
+                chosen: chosen,
+                // Over the whole Drill History, the days are too small to be touched.
+                onPick: widget.range == .all ? null : _pick,
+              ),
+            if (chosen != null && played != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
+                decoration: BoxDecoration(
+                  color: ColorScheme.of(context).onSurface.withValues(alpha: 0.06),
+                  borderRadius: const BorderRadius.all(Radius.circular(10.0)),
+                ),
+                child: Wrap(
+                  alignment: .spaceBetween,
+                  spacing: 8.0,
+                  children: [
+                    Text(
+                      _daysName(context, chosen.from, chosen.to, today: lastDay),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    Text.rich(
+                      played.nbDrills == 0
+                          ? TextSpan(text: context.drillL10n.noDrills, style: labelStyle)
+                          : TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: '${context.drillL10n.nbDrills(played.nbDrills)} · ',
+                                  style: labelStyle,
+                                ),
+                                TextSpan(
+                                  text: context.drillL10n.nbPuzzles(played.nbPuzzles),
+                                  style: const TextStyle(fontWeight: .bold),
+                                ),
+                              ],
+                            ),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
             Row(
               mainAxisAlignment: .end,
               spacing: 4.0,
@@ -191,12 +280,33 @@ class const _StreakCard({
   }
 }
 
+/// The name of the days from [from] to [to] chosen on the calendar, or of the day alone, with its
+/// year when it isn't [today]'s.
+String _daysName(BuildContext context, DateTime from, DateTime to, {required DateTime today}) {
+  final thisYear = from.year == today.year && to.year == today.year;
+  final name = from == to
+      ? (thisYear ? DateFormat.MMMMEEEEd() : DateFormat.yMMMMEEEEd()).format(from)
+      : thisYear && from.month == to.month
+      ? context.drillL10n.dayRangeSameMonth(from.day, to.day, DateFormat.LLLL().format(from))
+      : context.drillL10n.dayRange(
+          (thisYear ? DateFormat.MMMd() : DateFormat.yMMMd()).format(from),
+          (thisYear ? DateFormat.MMMd() : DateFormat.yMMMd()).format(to),
+        );
+  return name.isEmpty ? name : name[0].toUpperCase() + name.substring(1);
+}
+
+/// The days chosen on the calendar, from one to the other, the same day for one alone.
+typedef _ChosenDays = ({DateTime from, DateTime to});
+
 /// The calendar of a short range, a row per week from Monday: each day of the range with its
-/// number, colored by the number of puzzles played, today ringed.
+/// number, colored by the number of puzzles played, today ringed, and the days [chosen] ringed
+/// with the primary color, which [onPick] chooses when touched.
 class const _NumberedCalendar({
   required final IMap<DateTime, int> byDay,
   required final DateTime start,
   required final DateTime today,
+  required final _ChosenDays? chosen,
+  required final ValueChanged<DateTime> onPick,
 }) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -205,6 +315,8 @@ class const _NumberedCalendar({
     final weekdayFormat = DateFormat('EEEEE');
     final labelStyle = TextStyle(fontSize: 10, color: textShade(context, Styles.subtitleOpacity));
     final onSurface = ColorScheme.of(context).onSurface;
+    final primary = context.lichessColors.primary;
+    final chosen = this.chosen;
     return Column(
       spacing: 5.0,
       children: [
@@ -230,23 +342,36 @@ class const _NumberedCalendar({
                   Expanded(
                     child: day.isBefore(start) || day.isAfter(today)
                         ? const SizedBox(height: 36.0)
-                        : Container(
-                            height: 36.0,
-                            alignment: .center,
-                            decoration: BoxDecoration(
-                              color: _levelColor(context, _level(byDay[day] ?? 0)),
-                              borderRadius: const BorderRadius.all(Radius.circular(8.0)),
-                              border: day == today
-                                  ? Border.all(color: onSurface, width: 1.5)
-                                  : null,
-                            ),
-                            child: Text(
-                              '${day.day}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: _level(byDay[day] ?? 0) == 3
-                                    ? Colors.black
-                                    : textShade(context, 0.8),
+                        : GestureDetector(
+                            onTap: () => onPick(day),
+                            child: Container(
+                              height: 36.0,
+                              alignment: .center,
+                              decoration: BoxDecoration(
+                                color: _levelColor(context, _level(byDay[day] ?? 0)),
+                                borderRadius: const BorderRadius.all(Radius.circular(8.0)),
+                                border: chosen != null && (day == chosen.from || day == chosen.to)
+                                    ? Border.all(color: primary, width: 2.0)
+                                    : chosen != null &&
+                                          day.isAfter(chosen.from) &&
+                                          day.isBefore(chosen.to)
+                                    ? Border.all(color: primary.withValues(alpha: 0.7), width: 1.5)
+                                    : day == today
+                                    ? Border.all(color: onSurface, width: 1.5)
+                                    : null,
+                              ),
+                              child: Text(
+                                '${day.day}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight:
+                                      chosen != null && (day == chosen.from || day == chosen.to)
+                                      ? .bold
+                                      : .normal,
+                                  color: _level(byDay[day] ?? 0) == 3
+                                      ? Colors.black
+                                      : textShade(context, 0.8),
+                                ),
                               ),
                             ),
                           ),
@@ -258,33 +383,163 @@ class const _NumberedCalendar({
   }
 }
 
+/// How far above the top of the day under the finger its bubble is, so that the finger doesn't
+/// hide it.
+const _bubbleOffset = 76.0;
+
+const _bubbleWidth = 160.0;
+
 /// The calendar of a long range: a column of 7 small squares per week, from Monday, colored by
-/// the number of puzzles played.
+/// the number of puzzles played, the days [chosen] in the primary color.
+///
+/// Its days are too small to be touched one by one: the finger pressed on it shows the day under it
+/// in a bubble above, following the finger until it is lifted, which chooses that day with
+/// [onPick]. Without [onPick], the days can't be chosen.
 class const _HeatmapCalendar({
   required final IMap<DateTime, int> byDay,
   required final DateTime start,
   required final DateTime today,
-}) extends StatelessWidget {
+  required final _ChosenDays? chosen,
+  required final ValueChanged<DateTime>? onPick,
+}) extends StatefulWidget {
+  @override
+  State<_HeatmapCalendar> createState() => _HeatmapCalendarState();
+}
+
+class _HeatmapCalendarState() extends State<_HeatmapCalendar> {
+  /// The day under the finger, `null` while none is pressed on the calendar.
+  DateTime? _pressed;
+
+  /// The pointer of the finger pressed, the others left aside.
+  int? _pointer;
+
   @override
   Widget build(BuildContext context) {
+    final start = widget.start;
+    final today = widget.today;
+    final chosen = widget.chosen;
+    final onPick = widget.onPick;
     final first = _addDays(start, -(start.weekday - DateTime.monday));
     final nbWeeks = (_daysBetween(first, today) ~/ 7) + 1;
+    final primary = context.lichessColors.primary;
     Color? colorOf(DateTime day) => day.isBefore(start) || day.isAfter(today)
         ? null
-        : _levelColor(context, _level(byDay[day] ?? 0));
+        : chosen != null && (day == chosen.from || day == chosen.to)
+        ? primary
+        : chosen != null && day.isAfter(chosen.from) && day.isBefore(chosen.to)
+        ? primary.withValues(alpha: 0.55)
+        : _levelColor(context, _level(widget.byDay[day] ?? 0));
     return LayoutBuilder(
       builder: (context, constraints) {
         final gap = constraints.maxWidth / nbWeeks > 6.0 ? 2.0 : 1.0;
         final cell = math.min(14.0, (constraints.maxWidth - gap * (nbWeeks - 1)) / nbWeeks);
-        return SizedBox(
-          height: cell * 7 + gap * 6,
-          child: CustomPaint(
-            size: Size(constraints.maxWidth, cell * 7 + gap * 6),
-            painter: _HeatmapPainter(
-              colors: [for (var i = 0; i < nbWeeks * 7; i++) colorOf(_addDays(first, i))],
-              cell: cell,
-              gap: gap,
+        final height = cell * 7 + gap * 6;
+        DateTime? dayAt(Offset position) {
+          final week = (position.dx / (cell + gap)).floor().clamp(0, nbWeeks - 1);
+          final weekday = (position.dy / (cell + gap)).floor().clamp(0, 6);
+          final day = _addDays(first, week * 7 + weekday);
+          return day.isBefore(start) || day.isAfter(today) ? null : day;
+        }
+
+        void press(PointerEvent event) {
+          final day = dayAt(event.localPosition);
+          if (day != _pressed) setState(() => _pressed = day);
+        }
+
+        final pressed = _pressed;
+        final calendar = SizedBox(
+          height: height,
+          child: Stack(
+            clipBehavior: .none,
+            children: [
+              CustomPaint(
+                size: Size(constraints.maxWidth, height),
+                painter: _HeatmapPainter(
+                  colors: [for (var i = 0; i < nbWeeks * 7; i++) colorOf(_addDays(first, i))],
+                  pressed: pressed != null ? _daysBetween(first, pressed) : null,
+                  pressedColor: ColorScheme.of(context).onSurface,
+                  cell: cell,
+                  gap: gap,
+                ),
+              ),
+              if (pressed != null)
+                if (_daysBetween(first, pressed) case final index)
+                  Positioned(
+                    left: ((index ~/ 7) * (cell + gap) + cell / 2 - _bubbleWidth / 2).clamp(
+                      0.0,
+                      math.max(0.0, constraints.maxWidth - _bubbleWidth),
+                    ),
+                    top: (index % 7) * (cell + gap) - _bubbleOffset,
+                    width: _bubbleWidth,
+                    child: IgnorePointer(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+                        decoration: BoxDecoration(
+                          color: ColorScheme.of(context).inverseSurface,
+                          borderRadius: const BorderRadius.all(Radius.circular(10.0)),
+                          boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 12.0)],
+                        ),
+                        child: DefaultTextStyle.merge(
+                          textAlign: .center,
+                          maxLines: 1,
+                          overflow: .ellipsis,
+                          style: TextStyle(color: ColorScheme.of(context).onInverseSurface),
+                          child: Column(
+                            mainAxisSize: .min,
+                            children: [
+                              Text(
+                                DateFormat.yMMMEd().format(pressed),
+                                style: const TextStyle(fontSize: 13, fontWeight: .bold),
+                              ),
+                              Text(switch (widget.byDay[pressed] ?? 0) {
+                                0 => context.drillL10n.noDrills,
+                                final nbPuzzles => context.drillL10n.nbPuzzles(nbPuzzles),
+                              }, style: const TextStyle(fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+            ],
+          ),
+        );
+        if (onPick == null) return calendar;
+        // Claims the finger at once, so that the page doesn't scroll under it while it moves
+        // from day to day.
+        return RawGestureDetector(
+          gestures: {
+            EagerGestureRecognizer: GestureRecognizerFactoryWithHandlers<EagerGestureRecognizer>(
+              EagerGestureRecognizer.new,
+              (_) {},
             ),
+          },
+          child: Listener(
+            onPointerDown: (event) {
+              if (_pointer != null) return;
+              _pointer = event.pointer;
+              press(event);
+            },
+            onPointerMove: (event) {
+              if (event.pointer == _pointer) press(event);
+            },
+            onPointerUp: (event) {
+              if (event.pointer != _pointer) return;
+              final day = _pressed;
+              setState(() {
+                _pointer = null;
+                _pressed = null;
+              });
+              if (day != null) onPick(day);
+            },
+            onPointerCancel: (event) {
+              if (event.pointer != _pointer) return;
+              setState(() {
+                _pointer = null;
+                _pressed = null;
+              });
+            },
+            child: calendar,
           ),
         );
       },
@@ -295,6 +550,10 @@ class const _HeatmapCalendar({
 class _HeatmapPainter({
   /// The color of each day, a week after the other, `null` for those out of the range.
   required final List<Color?> colors,
+
+  /// The index of the day under the finger, ringed with [pressedColor].
+  required final int? pressed,
+  required final Color pressedColor,
   required final double cell,
   required final double gap,
 }) extends CustomPainter {
@@ -302,16 +561,21 @@ class _HeatmapPainter({
   void paint(Canvas canvas, Size size) {
     final paint = Paint();
     final radius = Radius.circular(cell / 4);
+    Rect rectOf(int i) =>
+        Rect.fromLTWH((i ~/ 7) * (cell + gap), (i % 7) * (cell + gap), cell, cell);
     for (var i = 0; i < colors.length; i++) {
       final color = colors[i];
       if (color == null) continue;
       paint.color = color;
+      canvas.drawRRect(RRect.fromRectAndRadius(rectOf(i), radius), paint);
+    }
+    if (pressed case final i?) {
       canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH((i ~/ 7) * (cell + gap), (i % 7) * (cell + gap), cell, cell),
-          radius,
-        ),
-        paint,
+        RRect.fromRectAndRadius(rectOf(i).inflate(1.5), radius),
+        Paint()
+          ..color = pressedColor
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
       );
     }
   }
@@ -319,6 +583,8 @@ class _HeatmapPainter({
   @override
   bool shouldRepaint(_HeatmapPainter oldDelegate) =>
       !const ListEquality<Color?>().equals(colors, oldDelegate.colors) ||
+      pressed != oldDelegate.pressed ||
+      pressedColor != oldDelegate.pressedColor ||
       cell != oldDelegate.cell ||
       gap != oldDelegate.gap;
 }

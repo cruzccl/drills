@@ -221,6 +221,30 @@ void main() {
     ));
   });
 
+  test('the Drills and puzzles played between two days, both included', () {
+    final points = [
+      _point(DateTime(2026, 10, 18, 23, 50), nbPuzzles: 30),
+      _point(DateTime(2026, 10, 19, 9), nbPuzzles: 20),
+      _point(DateTime(2026, 10, 19, 21), nbPuzzles: 0),
+      _point(DateTime(2026, 10, 21, 8), nbPuzzles: 15),
+      _point(DateTime(2026, 10, 22, 8), nbPuzzles: 10),
+    ].toIList();
+
+    expect(drillsPlayedBetween(points, from: DateTime(2026, 10, 19), to: DateTime(2026, 10, 21)), (
+      nbDrills: 2,
+      nbPuzzles: 35,
+    ), reason: 'the Drill without any puzzle played left out');
+    expect(
+      drillsPlayedBetween(points, from: DateTime(2026, 10, 18, 12), to: DateTime(2026, 10, 18)),
+      (nbDrills: 1, nbPuzzles: 30),
+      reason: 'a single day, whatever the time of day',
+    );
+    expect(drillsPlayedBetween(points, from: DateTime(2026, 10, 20), to: DateTime(2026, 10, 20)), (
+      nbDrills: 0,
+      nbPuzzles: 0,
+    ));
+  });
+
   test('a range of the last Drills chosen before is the last month', () {
     expect(DrillChartPrefs.fromJson(const {'range': 'last10'}).range, DrillChartRange.month);
     expect(

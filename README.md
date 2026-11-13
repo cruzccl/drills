@@ -40,7 +40,9 @@ summary of the results.
 - The streak opens your progress: your current and best streaks, a calendar of the days played,
   and charts of your performance and success rate over the last week, month, 3 months, year or
   all of them, by day played (by week over longer ranges), with their averages and the number of
-  puzzles solved and failed.
+  puzzles solved and failed. Touching a day of the calendar shows its Drills and puzzles, and a
+  second day those of the days between; over 3 months or a year, a finger pressed on the calendar
+  shows the day under it in a bubble, chosen once lifted.
 - Your Lichess profile, from your avatar on the home screen, shows only puzzles and Puzzle Storm:
   the two ratings and the daily activity. The puzzle rating opens the puzzle rating history and the
   puzzle dashboard, whose themes set up the next Drill; the Puzzle Storm one opens the Storm high

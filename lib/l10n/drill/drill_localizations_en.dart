@@ -182,6 +182,19 @@ class DrillLocalizationsEn extends DrillLocalizations {
   String get progress => 'Progress';
 
   @override
+  String get noDrills => 'No Drills';
+
+  @override
+  String dayRangeSameMonth(int from, int to, String month) {
+    return '$month $from–$to';
+  }
+
+  @override
+  String dayRange(String from, String to) {
+    return '$from – $to';
+  }
+
+  @override
   String get fewerPuzzles => 'Fewer';
 
   @override
